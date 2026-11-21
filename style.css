@@ -74,3 +74,14 @@ button.choice.draft-card.squad-full .draft-owner{background:#494153}
  #choices>.draft-card strong{font-size:12px}
  #choices>.draft-card>span:not(.draft-owner){font-size:11px}
 }
+
+/* Public tactical inspector: compact, scrollable, usable on touch screens. */
+.inspector{margin:10px 0;text-align:left}
+.inspector h3{font-size:13px;color:#a6e7da;margin:13px 0 7px}
+.inspector-picker{display:flex;gap:6px;overflow-x:auto;padding:3px 0 9px;scrollbar-width:thin}
+.inspector-picker button{flex:0 0 auto;font-size:11px;padding:7px 9px;white-space:nowrap}
+.inspector-picker button[aria-pressed="true"]{background:#245650;border-color:#76e6cc!important}
+.inspector-line{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px solid #2b3b54;padding:5px 0;font-size:12px}
+.inspector-line span{color:#b3c5d9;min-width:0}
+.inspector-line strong{text-align:right;font-size:12px;overflow-wrap:anywhere;max-width:65%}
+#arena{touch-action:manipulation;cursor:crosshair}
