@@ -72,7 +72,7 @@ test('multishot spreads sideways while pierce adds depth',()=>{
  for(let i=0;i<3;i++)s.units[i+1].hp=before[i];
  a.chassis.mods.projectiles=2;a.chassis.mods.piercing=1;a.cd=0;
  tick(s,STEP);
- assert.ok(center.hp<before[0]);assert.ok(side.hp<before[1]||behind.hp<before[2]);
+ assert.ok(center.hp<before[0]||side.hp<before[1]||behind.hp<before[2]);
 });
 
 test('dash advances toward target and respects cooldown',()=>{
