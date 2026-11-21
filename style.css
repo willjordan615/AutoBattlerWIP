@@ -55,3 +55,22 @@
 .draft-history-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;border-top:1px solid #29394e;padding:7px 0;font-size:12px}
 .draft-history-row span{min-width:0;overflow-wrap:anywhere}
 .draft-history-row strong{flex-shrink:0;font-size:11px}
+
+/* Shared draft board: always show every offer at phone width, including claimed cards. */
+#choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:stretch}
+#choices>.draft-card{position:relative;margin:0;min-width:0;min-height:84px;padding:12px 10px;text-align:left;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;overflow-wrap:anywhere;white-space:normal}
+#choices>.draft-card strong{font-size:13px;line-height:1.28;max-width:100%}
+#choices>.draft-card>span:not(.draft-owner){font-size:11px;line-height:1.35;margin-top:6px}
+button.choice.draft-card:not(.claimed):not(.unavailable){background:#213149;border-color:#516987;color:#eaf2ff}
+button.choice.draft-card.selected{background:#1c4a4d;border:2px solid #69dfbd}
+button.choice.draft-card.claimed:disabled{background:#19212c;border:1px solid #354052;color:#8e9baa;opacity:1;filter:none;padding-top:24px}
+button.choice.draft-card.claimed strong,button.choice.draft-card.claimed>span:not(.draft-owner){color:#8794a6}
+#choices>.draft-card .draft-owner{position:absolute;top:5px;right:6px;margin:0;padding:2px 5px;border:1px solid #59677a;border-radius:4px;background:#344050;color:#f0f5ff;font-size:10px;font-weight:750;line-height:1.2;white-space:nowrap}
+button.choice.draft-card.squad-full:disabled{background:#242b35;border:1px dashed #6a6675;opacity:.8}
+button.choice.draft-card.squad-full .draft-owner{background:#494153}
+@media(max-width:400px){
+ #choices{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ #choices>.draft-card{padding:10px 9px;min-height:82px}
+ #choices>.draft-card strong{font-size:12px}
+ #choices>.draft-card>span:not(.draft-owner){font-size:11px}
+}
