@@ -14,3 +14,15 @@ test('thirty seeded matches terminate with one survivor',()=>{for(let seed=1;see
 test('shared draft retains all original options and records claiming player',()=>{const m=createMatch();draftPool(m);const original=m.draft.originalPool.map(c=>c.uid);const uid=m.draft.pool[0].uid;assign(m,0,uid);assert.equal(m.draft.originalPool.length,6);assert.deepEqual(m.draft.originalPool.map(c=>c.uid),original);assert.equal(m.draft.pool.length,5);assert.equal(m.draft.picks[0].uid,uid);assert.equal(m.draft.picks[0].player,0)});
 
 test('real match lifecycle changes every player spawn corner between rounds',()=>{const m=createMatch();draftPool(m);let previous=null;for(let r=0;r<4&&m.phase!=='finished';r++){autoDraft(m);const battle=beginCombat(m);if(previous)for(let i=0;i<4;i++)assert.notEqual(battle.spawnSlots[i],previous[i]);previous=battle.spawnSlots.slice();for(let t=0;t<900;t++)if(tick(battle,STEP)!==null)break;completeCombat(m,battle)}});
+
+test('timeout ranks surviving teams by damage dealt rather than passive health preservation',()=>{
+ const match=createMatch(['bruiser','rogue','ranged','bruiser'],42);
+ const battle=spawn(match.players);
+ battle.time=30;
+ battle.units.forEach(u=>{u.hp=u.maxHp*.8});
+ battle.units[0].hp=battle.units[0].maxHp;
+ battle.damageDealt=[0,45,20,10];
+ const ranking=rankRound(match,battle);
+ assert.equal(ranking[0],1);
+ assert.equal(ranking[3],0);
+});
