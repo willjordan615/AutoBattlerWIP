@@ -150,7 +150,10 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   // among viable directions but cannot reward walking into a wall.
   const progress=goalDist-distance(point,goal);
   if(blocked&&progress<=0)continue;
-  const score=positionScore(state,u,target,point,st,enemies)+(blocked?progress*3:0);
+  // A reachable attack position is worth pursuing even when defensive weights
+  // favor standing still. While occluded, waypoint progress dominates local
+  // tactical preferences; once visible, normal weight scoring resumes.
+  const score=positionScore(state,u,target,point,st,enemies)+(blocked?progress*12:0);
   if(score>best.score+1e-8)best={...dir,score};
  }
  return best;
