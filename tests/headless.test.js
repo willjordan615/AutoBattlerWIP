@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createMatch,draftPool,assign,autoDraft,fight,simulate,legal,beginCombat,completeCombat} from '../src/headless.js';
-import {tick,STEP} from '../src/simulation.js';
+import {createMatch,draftPool,assign,autoDraft,fight,simulate,legal,beginCombat,completeCombat,rankRound} from '../src/headless.js';
+import {tick,STEP,spawn} from '../src/simulation.js';
 test('initial draft precedes first combat',()=>{const m=createMatch();draftPool(m);assert.equal(m.phase,'draft');assert.equal(m.round,1);assert.equal(m.draft.pool.length,6)});
 test('chassis cards consume shared pick and cannot exceed three',()=>{const m=createMatch();draftPool(m);const card=m.draft.pool.find(x=>x.kind==='unit');if(!card)return;assign(m,0,card.uid);assert.equal(m.players[0].squad.length,2);assert.equal(m.draft.pool.length,5);m.players[0].squad.push(m.players[0].squad[0]);assert.equal(legal(m.players[0],{kind:'unit'}),false)});
 test('draft order after a round reverses placement',()=>{const m=createMatch();m.lastRanking=[0,2,1,3];draftPool(m);assert.deepEqual(m.draft.order,[3,1,2,0])});
