@@ -1,6 +1,7 @@
 import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=spread-9';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
 export const ATTACK_MODULES=['damage','rate','range','projectiles','piercing','area','knockback','taunt','speed','hp'];
+export const UTILITY_MODULES=['dash','dodge','backstep','flank','disengage','intercept','followthrough'];
 export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
  coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1}
@@ -8,6 +9,7 @@ export const TARGET_MODULES={
 export const PASSIVE_MODULES=['regen','bulwark','haste','focus'];
 export const catalog=[
  ...Object.keys(CHASSIS).map(type=>({kind:'unit',key:type,name:'Recruit '+CHASSIS[type].name})),
+ ...UTILITY_MODULES.map(key=>({kind:'utility',key,name:'Utility: '+key})),
  ...ATTACK_MODULES.map(key=>({kind:'attack',key,name:'Attack: '+key})),
  ...Object.keys(TARGET_MODULES).map(key=>({kind:'target',key,name:'Targeting: '+key})),
  ...PASSIVE_MODULES.map(key=>({kind:'passive',key,name:'Passive: '+key}))
@@ -32,7 +34,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  const card=d.pool[index];if(!legal(player,card))throw Error('Illegal draft pick');
  if(card.kind==='unit')player.squad.push(makeChassis(card.key));
  else{const unit=player.squad[chassisIndex];if(!unit)throw Error('Invalid chassis slot');
- if(card.kind==='attack')unit.mods[card.key]++;
+ if(card.kind==='attack'||card.kind==='utility')unit.mods[card.key]++;
  if(card.kind==='target')for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
  const assignedSlot=unit.passives.length<2?unit.passives.length:passiveSlot;if(card.kind==='passive'){if(unit.passives.length<2)unit.passives.push(card.key);else{if(!Number.isInteger(passiveSlot)||passiveSlot<0||passiveSlot>1)throw Error('Invalid passive slot');unit.passives[passiveSlot]=card.key}}
  if(card.kind==='passive'){unit.modules=unit.modules.filter(m=>m.passiveSlot!==(assignedSlot+1));unit.modules.push({kind:card.kind,name:card.name,passiveSlot:assignedSlot+1})}else unit.modules.push({kind:card.kind,name:card.name})}
