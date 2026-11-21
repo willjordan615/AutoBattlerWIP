@@ -11,6 +11,7 @@ export const DETAILS={
  'attack:piercing':'Each attack can also hit one additional enemy in its path per stack (cleave for melee).',
  'attack:area':'Attack width increases by 8 arena units per stack; extends secondary-target reach by 15.',
  'attack:knockback':'Push targets 4 arena units farther per stack when struck.',
+ 'attack:taunt':'On hit, force the struck enemy to target this chassis for 0.25 seconds per stack. Repeated hits refresh the duration; expires early if the attacker is defeated.',
  'attack:speed':'Movement speed +18 arena units/second per stack. Permanent chassis stat; not attack speed.',
  'attack:hp':'Chassis combat maximum HP +30 per stack. Not the player’s persistent match HP.',
  'target:executioner':'Targeting: Kill Opportunity weight +1. Prefer enemies near defeat.',
