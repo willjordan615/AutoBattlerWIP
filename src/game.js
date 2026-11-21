@@ -1,7 +1,7 @@
-import {CHASSIS,ARENAS,STEP,tick,rng} from './simulation.js?v=chassis-ai-12';
-import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=chassis-ai-12';
-import {cardDetail} from './module-info.js?v=chassis-ai-12';
-import {chooseCpuDraft} from './draft-ai.js?v=chassis-ai-12';
+import {CHASSIS,ARENAS,STEP,tick,rng} from './simulation.js?v=weighted-movement-13';
+import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=weighted-movement-13';
+import {cardDetail} from './module-info.js?v=weighted-movement-13';
+import {chooseCpuDraft} from './draft-ai.js?v=weighted-movement-13';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let effects=[],match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null;
