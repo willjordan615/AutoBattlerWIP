@@ -117,17 +117,26 @@ export function positionScore(state,u,target,point,st,enemies){
  return score;
 }
 export function chooseMovement(state,u,target,st,enemies,dt){
- const step=st.speed*dt,dirs=[{x:0,y:0}];
- const to={x:target.x-u.x,y:target.y-u.y},angle=Math.atan2(to.y,to.x);
+ const step=st.speed*dt,clearance=CHASSIS[u.type].radius+3;
+ const blocked=!clearLine(u,target,state.arena,clearance);
+ // A wall is a navigation constraint, not a preference that weights may override.
+ // Cache the first waypoint for the five-tick steering interval.
+ const waypoint=blocked?wayPoint(u,target,state.arena):target;
+ const goal=blocked?waypoint:target,goalDist=distance(u,goal);
+ const angle=Math.atan2(goal.y-u.y,goal.x-u.x);
+ const dirs=[{x:0,y:0}];
  for(let i=0;i<8;i++){const theta=angle+i*Math.PI/4;dirs.push({x:Math.cos(theta),y:Math.sin(theta)})}
- // Route around solid obstacles without giving any chassis a special policy.
- const waypoint=wayPoint(u,target,state.arena),wd=distance(u,waypoint);
- if(wd>1)dirs.push({x:(waypoint.x-u.x)/wd,y:(waypoint.y-u.y)/wd});
  let best={x:0,y:0,score:-Infinity};
  for(const dir of dirs){
   const point={x:u.x+dir.x*step,y:u.y+dir.y*step};
-  if(!clearLine(u,point,state.arena,CHASSIS[u.type].radius+3))continue;
-  const score=positionScore(state,u,target,point,st,enemies);
+  const r=CHASSIS[u.type].radius+3;
+  if(point.x<20+r||point.x>700-r||point.y<20+r||point.y>500-r)continue;
+  if(!clearLine(u,point,state.arena,clearance))continue;
+  // While occluded, first solve the physical route. Tactical weights choose
+  // among viable directions but cannot reward walking into a wall.
+  const progress=goalDist-distance(point,goal);
+  if(blocked&&progress<=0)continue;
+  const score=positionScore(state,u,target,point,st,enemies)+(blocked?progress*3:0);
   if(score>best.score+1e-8)best={...dir,score};
  }
  return best;
