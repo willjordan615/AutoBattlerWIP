@@ -10,6 +10,10 @@ export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  }
  if(!unit)return -Infinity;
  const st=CHASSIS[type],m=unit.mods;
+ if(card.kind==='utility'){
+ const scores={dash:type==='ranged'?12:28,dodge:24,backstep:type==='ranged'?31:15,flank:type==='rogue'?27:19,disengage:type==='ranged'?27:19,intercept:type==='bruiser'?28:14,followthrough:type==='rogue'?30:23};
+ return (scores[card.key]||18)-Math.max(0,(m[card.key]||0)-1)*4;
+ }
  if(card.kind==='attack'){
  const scores={damage:24+2/(st.damage+m.damage*2)*35,rate:25,range:type==='ranged'?19:26,projectiles:22,piercing:20,area:15,knockback:12,taunt:type==='bruiser'?29:21,speed:type==='ranged'?19:25,hp:type==='bruiser'?26:19};
  let score=scores[card.key]||10;
