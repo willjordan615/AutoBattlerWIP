@@ -1,4 +1,4 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,chooseTarget} from './simulation.js?v=obstacle-nav-14';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=obstacle-nav-14';
 import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=obstacle-nav-14';
 import {cardDetail} from './module-info.js?v=obstacle-nav-14';
 import {chooseCpuDraft} from './draft-ai.js?v=obstacle-nav-14';
@@ -87,6 +87,11 @@ function renderInspector(){
   const enemies=battle.units.filter(u=>u.hp>0&&u.owner!==live.owner);
   const target=enemies.find(e=>e.id===live.focus);
   line('Current target',target?match.players[target.owner].name+' · '+CHASSIS[target.type].name+' #'+(target.id%100+1):'None');
+  if(target){const details=targetScoreDetails(battle,live,target);
+   line('Target score',format(details.total));
+   const ranked=Object.entries(details.contributions).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+   for(const [key,value] of ranked)line('↳ '+(LABELS[key]||key),format(value));
+  }
   const forced=live.tauntedUntil>battle.time;
   line('Targeting override',forced?'Taunted by unit '+live.tauntedBy:'None');
   line('Movement direction',live.moveDecision?(Math.abs(live.moveDecision.x)+Math.abs(live.moveDecision.y)<.001?'Hold position':format(live.moveDecision.x)+', '+format(live.moveDecision.y)):'Not evaluated');
