@@ -171,6 +171,21 @@ export function chooseMovement(state,u,target,st,enemies,dt){
    }
   }
  }
+ if(blocked&&!nav){
+  // Recovery at an inflated-wall boundary: slide along its face toward
+  // the nearest corner until the visibility graph becomes traversable.
+  const obstructing=state.arena.obstacles.filter(o=>!clearLine(u,target,{obstacles:[o]},r));
+  for(const o of obstructing){
+   const corners=[{x:o.x-r-5,y:o.y-r-5},{x:o.x-r-5,y:o.y+o.h+r+5},{x:o.x+o.w+r+5,y:o.y-r-5},{x:o.x+o.w+r+5,y:o.y+o.h+r+5}]
+    .sort((a,b)=>distance(u,a)+distance(a,target)-distance(u,b)-distance(b,target));
+   for(const corner of corners){const angle=Math.atan2(corner.y-u.y,corner.x-u.x);
+    for(const offset of [0,.3,-.3,.7,-.7,1.2,-1.2]){
+     const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
+     if(valid(dir))return {...dir,score:0};
+    }
+   }
+  }
+ }
  const angle=Math.atan2(target.y-u.y,target.x-u.x),dirs=[{x:0,y:0}];
  for(let i=0;i<8;i++){const theta=angle+i*Math.PI/4;dirs.push({x:Math.cos(theta),y:Math.sin(theta)})}
  let best={x:0,y:0,score:-Infinity};
