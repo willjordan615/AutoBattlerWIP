@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=weighted-movement-13';
-import {legal} from './headless.js?v=weighted-movement-13';
+import {CHASSIS} from './simulation.js?v=obstacle-nav-14';
+import {legal} from './headless.js?v=obstacle-nav-14';
 // Profile 3: deterministic, explainable module scoring. Higher scores win.
 export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  if(!legal(player,card))return -Infinity;
