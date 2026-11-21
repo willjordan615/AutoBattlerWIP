@@ -7,6 +7,7 @@ import {chooseCpuDraft,scoreDraft} from '../src/draft-ai.js';
 import {tick} from '../src/simulation.js';
 
 const copy=value=>JSON.parse(JSON.stringify(value));
+const chooseBest=(s,score)=>{const options=s.draft?.choices||[];if(!options.length)throw Error('No legal draft options');const choice=options.reduce((a,b)=>score(b,s)>score(a,s)?b:a);return {uid:choice.uid,slot:choice.slot,passiveSlot:choice.passiveSlot}};
 const unitView=(unit,index)=>({
  slot:index,type:unit.type,stats:stats({type:unit.type,chassis:unit}),
  weights:{...unit.weights},mods:{...unit.mods},
@@ -120,6 +121,17 @@ export function cpuPolicy(s){
  if(!picks.length)throw Error('No legal draft options');
  const best=picks.reduce((a,b)=>b.botScore>a.botScore?b:a);
  return {uid:best.uid,slot:best.slot,passiveSlot:best.passiveSlot};
+}
+export const POLICIES={
+ balanced:s=>chooseBest(s,c=>{const p=s.players[0],u=p.squad[c.slot];if(c.kind==='unit')return p.squad.length===1?110:75;let v=c.kind==='attack'?({hp:57,damage:50,rate:48,range:25,speed:23,projectiles:15,piercing:10,area:8,taunt:15,knockback:7}[c.key]||0):c.kind==='passive'?({bulwark:58,regen:42,haste:40,focus:39}[c.key]||0):c.kind==='target'?({executioner:30,skirmisher:25,aggressor:22,duelist:18}[c.key]||0):({dash:24,dodge:26,backstep:21,flank:19,disengage:18,intercept:20,followthrough:20}[c.key]||0);v-=u.modules.filter(m=>m.name===c.card).length*15;if(c.kind==='attack'&&c.key==='hp'&&u.type==='bruiser')v+=12;if(c.kind==='passive'&&u.passives.includes(c.key))v-=45;if(c.kind==='passive'&&u.passives.length===2)v-=25;return v}),
+ aggressive:s=>chooseBest(s,c=>c.kind==='unit'?(s.players[0].squad.length===1?85:55):c.kind==='attack'?({damage:75,rate:72,range:55,speed:40,hp:25,projectiles:30,piercing:20}[c.key]||5):c.kind==='passive'?({focus:65,haste:62,bulwark:30,regen:25}[c.key]||0):c.kind==='target'?30:10),
+ defensive:s=>chooseBest(s,c=>c.botScore+(['hp','bulwark','regen','dodge'].includes(c.key)?30:0)),
+ tactical:s=>chooseBest(s,c=>c.kind==='unit'?(s.players[0].squad.length===1?85:50):c.kind==='target'?({executioner:70,aggressor:65,skirmisher:60,duelist:58,coward:50,guardian:40,hunter:30}[c.key]||0):c.kind==='passive'?40:c.kind==='attack'?30:20)
+};
+export function comparePolicies({matches=20,seed=12345,policies=POLICIES}={}){
+ const results={};for(const [name,policy] of Object.entries(policies)){
+  const batch=playBatch({matches,seed,policy});results[name]={wins:batch.wins,winRate:batch.winRate,timeouts:batch.timeouts,rounds:batch.results.reduce((n,r)=>n+r.rounds,0)};
+ }return {seed,matches,results};
 }
 export function playBatch({matches=20,seed=12345,policy=cpuPolicy,types=['bruiser','rogue','ranged','bruiser']}={}){
  const results=[];
