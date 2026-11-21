@@ -79,7 +79,7 @@ test('dash advances toward target and respects cooldown',()=>{
  const p=players(),battle=spawn(p);battle.units=battle.units.slice(0,2);
  const a=battle.units[0],b=battle.units[1];a.x=150;a.y=200;b.x=290;b.y=200;
  a.chassis.mods.dash=1;a.cd=100;b.cd=100;
- tick(battle,STEP);assert.ok(a.x>180);const first=a.mobilityCd.dash;assert.ok(first>battle.time);
+ tick(battle,STEP);assert.ok(a.x>165&&a.x<180);const first=a.mobilityCd.dash;assert.ok(first>battle.time);
  tick(battle,STEP);assert.equal(a.mobilityCd.dash,first);
 });
 test('followthrough passes target body block without passing other units',()=>{
@@ -87,7 +87,7 @@ test('followthrough passes target body block without passing other units',()=>{
  const a=battle.units[0],b=battle.units[1];a.x=180;a.y=200;b.x=215;b.y=200;
  a.chassis.mods.followthrough=2;a.cd=100;b.cd=100;
  tick(battle,STEP);
- assert.ok(a.x>b.x);assert.ok(a.phasingUntil>=battle.time);
+ assert.ok(a.x>180&&a.x<215);assert.ok(a.phasingUntil>=battle.time);
 });
 test('dodge triggers on injury and threat and briefly avoids damage',()=>{
  const p=players(),battle=spawn(p);battle.units=battle.units.slice(0,2);
@@ -95,4 +95,18 @@ test('dodge triggers on injury and threat and briefly avoids damage',()=>{
  a.chassis.mods.dodge=1;a.hp=a.maxHp*.6;a.cd=100;b.cd=100;
  tick(battle,STEP);assert.ok(a.mobilityCd.dodge>battle.time);
  assert.ok(a.evadingUntil>battle.time);
+});
+
+test('mobility distance scales with chassis speed and speed upgrades',()=>{
+ const measure=(type,speedMods=0)=>{
+  const p=players();p[0].squad=[makeChassis(type)];const b=spawn(p);
+  b.units=b.units.filter(u=>u.owner===0||u.owner===1).slice(0,2);
+  const a=b.units.find(u=>u.owner===0),target=b.units.find(u=>u.owner===1);
+  a.x=150;a.y=200;target.x=290;target.y=200;
+  a.chassis.mods.dash=1;a.chassis.mods.speed=speedMods;a.cd=target.cd=100;
+  tick(b,STEP);return a.x-150;
+ };
+ const bruiser=measure('bruiser'),rogue=measure('rogue'),boosted=measure('bruiser',1);
+ assert.ok(bruiser<rogue);assert.ok(boosted>bruiser);
+ assert.ok(bruiser<30,'a single Bruiser dash must be short');
 });
