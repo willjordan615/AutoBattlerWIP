@@ -136,6 +136,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  // A wall is a navigation constraint, not a preference that weights may override.
  // Cache the first waypoint for the five-tick steering interval.
  const waypoint=blocked?wayPoint(u,target,state.arena):target;
+ u.navigationBlocked=blocked;
  const goal=blocked?waypoint:target,goalDist=distance(u,goal);
  const angle=Math.atan2(goal.y-u.y,goal.x-u.x);
  const dirs=[{x:0,y:0}];
@@ -159,6 +160,19 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   const engagement=(!blocked&&distance(u,target)>st.range)?(distance(u,target)-distance(point,target))*.035:0;
   const adjusted=score+engagement;
   if(adjusted>best.score+1e-8)best={...dir,score:adjusted};
+ }
+ // Navigation must not accept indefinite inaction against an unreachable enemy.
+ // Follow the obstacle waypoint even when local tactical scoring favors holding.
+ // Legitimate holds (in range and unobstructed) remain entirely weight-driven.
+ if(blocked&&best.x===0&&best.y===0){
+  const radius=CHASSIS[u.type].radius+3;
+  const headings=[0,.2,-.2,.45,-.45,.8,-.8,1.2,-1.2,Math.PI];
+  for(const offset of headings){
+   const theta=angle+offset,dir={x:Math.cos(theta),y:Math.sin(theta)};
+   const p={x:u.x+dir.x*step,y:u.y+dir.y*step};
+   if(p.x<20+radius||p.x>700-radius||p.y<20+radius||p.y>500-radius)continue;
+   if(clearLine(u,p,state.arena,clearance))return {...dir,score:0};
+  }
  }
  return best;
 }
