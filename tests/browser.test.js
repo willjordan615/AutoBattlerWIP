@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 class FakeNode{
- constructor(id=''){this.id=id;this.children=[];this.style={};this.value='1';this.textContent='';this.disabled=false;this.classList={add:()=>{}}}
+ constructor(id=''){this.id=id;this.children=[];this.style={};this.value='1';this.textContent='';this.disabled=false;this.className='';this.classList={add:(name)=>{this.className+=' '+name}}}
  setAttribute(name,value){this[name]=value}
  append(...children){this.children.push(...children)}
  replaceChildren(...children){this.children=children}
@@ -32,4 +32,9 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  assert.match($('results').textContent,/#1/);
  $('advance').onclick();
  assert.match($('phaseTitle').textContent,/draft/);
+ const cards=$('choices').children.filter(x=>x.className.includes('draft-card'));
+ assert.equal(cards.length,6);
+ const claimed=cards.filter(x=>x.className.includes('claimed'));
+ assert.ok(claimed.length>0,'Bots who pick before you should remain visible');
+ for(const card of claimed){assert.equal(card.disabled,true);assert.ok(card.children.some(child=>child.className==='draft-owner'&&/^Bot [123]$/.test(child.textContent)),'Claimed card has a bot superscript')}
 });
