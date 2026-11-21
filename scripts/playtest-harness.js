@@ -78,17 +78,18 @@ export function createPlaytest({seed=12345,types=['bruiser','rogue','ranged','br
  function fight({trace=true}={}){
   if(match.phase!=='combat')throw Error('Complete all draft picks before combat');
   const battle=beginCombat(match),frames=[],events=[],samples=trace?Math.ceil(traceInterval/STEP):Infinity;
-  const telemetry={targetSwitches:0,blockedUnitTicks:0,stationaryUnitTicks:0,aliveUnitTicks:0,travelDistance:0,damageTaken:0,byOwner:{}};
+  const telemetry={targetSwitches:0,blockedUnitTicks:0,stationaryUnitTicks:0,aliveUnitTicks:0,outOfRangeUnitTicks:0,travelDistance:0,damageTaken:0,byOwner:{}};
   const previous=new Map(battle.units.map(u=>[u.id,{x:u.x,y:u.y,hp:u.hp,focus:null}]));
+  const statsForTrace=u=>({range:CHASSIS[u.type].range+u.chassis.mods.range*20});
   let outcome=null;
   if(trace)frames.push(snapshot(battle));
   for(let i=0;i<900;i++){
    outcome=tick(battle,STEP);
-   for(const u of battle.units){const prior=previous.get(u.id),owner=telemetry.byOwner[u.owner]||(telemetry.byOwner[u.owner]={targetSwitches:0,blockedUnitTicks:0,stationaryUnitTicks:0,aliveUnitTicks:0,travelDistance:0,damageTaken:0});
+   for(const u of battle.units){const prior=previous.get(u.id),owner=telemetry.byOwner[u.owner]||(telemetry.byOwner[u.owner]={targetSwitches:0,blockedUnitTicks:0,stationaryUnitTicks:0,aliveUnitTicks:0,outOfRangeUnitTicks:0,travelDistance:0,damageTaken:0});
     if(prior.focus!==null&&u.focus!==prior.focus){telemetry.targetSwitches++;owner.targetSwitches++}
     const travelled=Math.hypot(u.x-prior.x,u.y-prior.y);telemetry.travelDistance+=travelled;owner.travelDistance+=travelled;
     const damage=Math.max(0,prior.hp-u.hp);telemetry.damageTaken+=damage;owner.damageTaken+=damage;
-    if(u.hp>0){telemetry.aliveUnitTicks++;owner.aliveUnitTicks++;if(u.navigationBlocked){telemetry.blockedUnitTicks++;owner.blockedUnitTicks++}if(travelled<.1){telemetry.stationaryUnitTicks++;owner.stationaryUnitTicks++}}
+    if(u.hp>0){telemetry.aliveUnitTicks++;owner.aliveUnitTicks++;const t=battle.units.find(e=>e.id===u.focus&&e.hp>0);if(t&&Math.hypot(t.x-u.x,t.y-u.y)>statsForTrace(u).range){telemetry.outOfRangeUnitTicks++;owner.outOfRangeUnitTicks++}if(u.navigationBlocked){telemetry.blockedUnitTicks++;owner.blockedUnitTicks++}if(travelled<.1){telemetry.stationaryUnitTicks++;owner.stationaryUnitTicks++}}
     previous.set(u.id,{x:u.x,y:u.y,hp:u.hp,focus:u.focus});
    }
    for(const e of battle.events.splice(0))events.push({time:+battle.time.toFixed(3),text:e});
