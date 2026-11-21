@@ -100,7 +100,7 @@ export function createPlaytest({seed=12345,types=['bruiser','rogue','ranged','br
   const report={round:result.round,arena:battle.arena.name,seed,combatTime:result.time,
    timedOut:result.time>=30-1e-6,ranking:[...result.ranking],damage:[...result.damage],
    remaining:[...result.remaining],eliminations:copy(result.eliminations),
-   events,frames,telemetry};
+   events,frames,telemetry,damageDealt:[...battle.damageDealt]};
   battles.push(report);
   history.push({kind:'combat',round:result.round,arena:report.arena,
    ranking:report.ranking,damage:report.damage,remaining:report.remaining,
