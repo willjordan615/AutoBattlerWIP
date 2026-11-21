@@ -110,3 +110,19 @@ test('mobility distance scales with chassis speed and speed upgrades',()=>{
  assert.ok(bruiser<rogue);assert.ok(boosted>bruiser);
  assert.ok(bruiser<30,'a single Bruiser dash must be short');
 });
+
+test('rogue disengages briefly after landing a melee attack',()=>{
+ const p=players();p[0].squad=[makeChassis('rogue')];const b=spawn(p);
+ b.units=b.units.filter(u=>u.owner===0||u.owner===1).slice(0,2);
+ const rogue=b.units.find(u=>u.owner===0),enemy=b.units.find(u=>u.owner===1);
+ rogue.x=200;rogue.y=200;enemy.x=235;enemy.y=200;rogue.cd=0;enemy.cd=100;
+ tick(b,STEP);assert.ok(rogue.skirmishUntil>b.time);
+ const x=rogue.x;tick(b,STEP);assert.ok(rogue.x<x,'rogue retreats after attacking');
+});
+test('ranged proactively retreats before enemy reaches melee',()=>{
+ const p=players();p[0].squad=[makeChassis('ranged')];const b=spawn(p);
+ b.units=b.units.filter(u=>u.owner===0||u.owner===1).slice(0,2);
+ const ranged=b.units.find(u=>u.owner===0),enemy=b.units.find(u=>u.owner===1);
+ ranged.x=200;ranged.y=200;enemy.x=315;enemy.y=200;ranged.cd=enemy.cd=100;
+ tick(b,STEP);assert.ok(ranged.x<200,'ranged retreats at 115 units, before melee');
+});
