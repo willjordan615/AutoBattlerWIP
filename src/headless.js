@@ -24,7 +24,7 @@ export function draftPool(match){
  let available=pool.filter(x=>x.kind!=='unit').length;
  for(let i=pool.length-1;i>=0&&available<full;i--)if(pool[i].kind==='unit'){pool[i]={...catalog.filter(x=>x.kind!=='unit')[Math.floor(match.random()*(catalog.length-3))],uid:pool[i].uid};available++}
  const order=match.lastRanking.length?match.lastRanking.filter(i=>match.players[i].hp>0).reverse():active;
- match.draft={pool,order,turn:0,picks:[]};match.phase='draft';return match.draft
+ match.draft={pool,originalPool:pool.map(card=>({...card})),order,turn:0,picks:[]};match.phase='draft';return match.draft
 }
 export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  const d=match.draft;if(match.phase!=='draft'||!d||d.order[d.turn]!==playerIndex)throw Error('Not this player\'s draft turn');
@@ -36,7 +36,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  if(card.kind==='target')for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
  const assignedSlot=unit.passives.length<2?unit.passives.length:passiveSlot;if(card.kind==='passive'){if(unit.passives.length<2)unit.passives.push(card.key);else{if(!Number.isInteger(passiveSlot)||passiveSlot<0||passiveSlot>1)throw Error('Invalid passive slot');unit.passives[passiveSlot]=card.key}}
  if(card.kind==='passive'){unit.modules=unit.modules.filter(m=>m.passiveSlot!==(assignedSlot+1));unit.modules.push({kind:card.kind,name:card.name,passiveSlot:assignedSlot+1})}else unit.modules.push({kind:card.kind,name:card.name})}
- d.pool.splice(index,1);d.picks.push({player:playerIndex,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';return card
+ d.pool.splice(index,1);d.picks.push({player:playerIndex,uid:card.uid,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';return card
 }
 export function autoDraft(match){if(!match.draft)draftPool(match);while(match.phase==='draft'){const d=match.draft,i=d.order[d.turn],p=match.players[i];const legalCards=d.pool.filter(c=>legal(p,c));const card=legalCards[Math.floor(match.random()*legalCards.length)];assign(match,i,card.uid,Math.floor(match.random()*p.squad.length),Math.floor(match.random()*2))}return match.draft.picks}
 function duel(match,a,b){const players=match.players.map((p,i)=>({...p,hp:i===a||i===b?100:0}));const battle=spawn(players,ARENAS[(match.round-1)%ARENAS.length],match.seed+match.round*101+a*13+b*7);for(let t=0;t<900;t++)if(tick(battle,STEP)!==null)break;const x=teamPercent(battle,a),y=teamPercent(battle,b);return x!==y?x>y?a:b:Math.min(a,b)}
