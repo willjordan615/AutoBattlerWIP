@@ -113,27 +113,55 @@ function targetsForAttack(state,u,target,st){
 export function positionScore(state,u,target,point,st,enemies){
  const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a!==u);
  const d=distance(point,target),old=distance(u,target),visible=clearLine(point,target,state.arena);
- const nearest=enemies.reduce((best,e)=>Math.min(best,distance(point,e)),Infinity);
- const threat=enemies.reduce((sum,e)=>{const r=distance(point,e),es=stats(e);return sum+(r<es.range+30?1:0)*es.damage/25},0);
+ // Anticipate where enemies are headed, rather than only where they stand.
+ // Intent is captured before any unit moves this tick, so evaluation is order-independent.
+ const forecast=enemies.map(e=>{
+  const es=stats(e),intent=e.intent||{x:0,y:0};
+  const future={x:e.x+intent.x*es.speed*.45,y:e.y+intent.y*es.speed*.45};
+  const now=distance(point,e),soon=distance(point,future);
+  const exposure=Math.max(0,1-Math.min(now,soon)/Math.max(1,es.range+es.radius+35));
+  const approaching=soon<now-3;
+  const aimed=e.focus===u.id?1.25:1;
+  return {e,es,now,soon,exposure,approaching,aimed};
+ });
+ const nearest=forecast.reduce((best,f)=>Math.min(best,f.now,f.soon),Infinity);
+ const threat=forecast.reduce((sum,f)=>sum+f.exposure*f.es.damage/25*f.aimed,0);
+ const approachingThreat=forecast.reduce((sum,f)=>sum+(f.approaching?Math.max(0,1-f.soon/Math.max(90,f.es.range+80))*.65:0)*f.es.damage/25,0);
  const threatenedAllies=allies.filter(a=>enemies.some(e=>e.focus===a.id||distance(e,a)<65));
  const allyDistance=allies.length?Math.min(...allies.map(a=>distance(point,a))):120;
  const protectionDistance=threatenedAllies.length?Math.min(...threatenedAllies.map(a=>distance(point,a))):120;
  const isolated=enemies.filter(e=>e!==target).every(e=>distance(point,e)>90);
- const rangeFit=1-Math.min(1,Math.abs(d-st.range*.85)/Math.max(60,st.range));
+ const ideal=st.range*.85;
+ const rangeFit=1-Math.min(1,Math.abs(d-ideal)/Math.max(35,st.range*.55));
  const attack=visible&&d<=st.range?1:0;
  const features={
   kill:(1-healthFraction(target))*(attack?.9:.3),
   damage:attack?1:.12,
-  threat:-threat*.5, // position: avoid exposure; targeting: prioritize dangerous enemies
+  threat:-(threat+approachingThreat)*.5, // incoming and imminent exposure
   distance:1-Math.min(1,d/300),
   allyProximity:1-Math.min(1,allyDistance/180),
-  safety:Math.min(1,nearest/130)-threat*.2,
+  safety:Math.min(1,nearest/Math.max(145,st.range*.95))-(threat+approachingThreat)*.55,
   protection:threatenedAllies.length?1-Math.min(1,protectionDistance/180):0,
   ability:(u.cd<=0&&attack?1:0)+(st.dash&&d>st.range&&d<st.range+100?.2:0),
   isolation:isolated?.6:0,
   preferredRange:rangeFit
  };
  let score=METRICS.reduce((sum,k)=>sum+(w[k]||0)*features[k],0);
+ // More safety-conscious allies yield space to teammates who prefer taking risks.
+ // The preference is relative: a bold ranged build may stand its ground.
+ const mySafety=w.safety||0;
+ for(const ally of allies){
+  const theirSafety=ally.chassis.weights.safety||0;
+  const yielding=Math.max(0,mySafety-theirSafety);
+  if(!yielding)continue;
+  const separation=distance(point,ally),now=distance(u,ally);
+  const buffer=st.radius+stats(ally).radius+26;
+  const allyIntent=ally.intent||{x:0,y:0};
+  const nextAlly={x:ally.x+allyIntent.x*stats(ally).speed*.35,y:ally.y+allyIntent.y*stats(ally).speed*.35};
+  const predicted=distance(point,nextAlly);
+  score-=yielding*.85*Math.max(0,1-Math.min(separation,predicted)/buffer);
+  if(now<buffer+18&&separation<now)score-=yielding*.22*(now-separation)/Math.max(1,st.speed*STEP);
+ }
  // Small inertial preference avoids jitter and keeps neutral weights functional.
  score+=.08*(d<old?1:0)-.03*distance(u,point)/Math.max(1,st.speed);
  return score;
@@ -143,8 +171,26 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  const blocked=!clearLine(u,target,state.arena,r);u.navigationBlocked=blocked;
  let nav=u.navigation;
  if(!blocked){nav=null;u.navigation=null}
- else if(!nav||nav.targetId!==target.id||distance(nav.destination,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,r)){
-  let destination={x:target.x,y:target.y};
+ else if(!nav||nav.targetId!==target.id||distance(nav.targetPosition,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,r)){
+  // Choose a reachable firing position, not the enemy's occupied center.
+  // Prefer the weighted tactical score while charging a modest path-length cost.
+  const ideal=st.range*.85;
+  const candidates=[{x:target.x,y:target.y}];
+  for(let i=0;i<16;i++){
+   const a=i*Math.PI/8;
+   for(const scale of [1, .7])candidates.push({x:target.x+Math.cos(a)*ideal*scale,y:target.y+Math.sin(a)*ideal*scale});
+  }
+  let destination=candidates[0],bestRoute=-Infinity;
+  for(const p of candidates){
+   if(p.x<20+r||p.x>700-r||p.y<20+r||p.y>500-r)continue;
+   if(state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o)))continue;
+   if(!clearLine(p,target,state.arena))continue;
+   const route=navigationPath(u,p,state.arena,r);
+   if(!route)continue;
+   const length=route.reduce((acc,node,i)=>acc+distance(i?route[i-1]:u,node),0);
+   const value=positionScore(state,u,target,p,st,enemies)-length*.002;
+   if(value>bestRoute){bestRoute=value;destination=p}
+  }
   // Fighters may stand closer to walls than another chassis can fit.
   // Route to the nearest accessible point, not the enemy's occupied center.
   for(const o of state.arena.obstacles){
@@ -155,7 +201,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
    }
   }
   const path=navigationPath(u,destination,state.arena,r);
-  nav=path?{targetId:target.id,destination:{x:target.x,y:target.y},path}:null;u.navigation=nav;
+  nav=path?{targetId:target.id,destination,targetPosition:{x:target.x,y:target.y},path}:null;u.navigation=nav;
  }
  if(blocked&&nav){
   while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(5,step*1.5))nav.path.shift();
@@ -167,7 +213,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   if(d>.01){const angle=Math.atan2(wp.y-u.y,wp.x-u.x);
    for(const offset of [0,.18,-.18,.4,-.4,.75,-.75,1.15,-1.15]){
     const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
-    if(valid(dir))return {...dir,score:0};
+    if(valid(dir)){const p={x:u.x+dir.x*step,y:u.y+dir.y*step};const score=positionScore(state,u,target,p,st,enemies);if(score>=positionScore(state,u,target,u,st,enemies)-.2)return {...dir,score};}
    }
   }
  }
@@ -237,7 +283,18 @@ function utilityMove(state,u,target,st,dt,enemies){
  state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:best.key});
  return true;
 }
-export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;utilityMove(state,u,t,st,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=(!u.moveDecision||state.tick%5===0||u.moveTarget!==t.id)?chooseMovement(state,u,t,st,enemies,dt):(u.moveDecision);
+export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];
+ // Snapshot intentions for all units before sequential movement begins.
+ for(const unit of state.units){
+  if(unit.hp<=0)continue;
+  const opponents=state.units.filter(e=>e.hp>0&&e.owner!==unit.owner);
+  const target=opponents.length?chooseTarget(state,unit,opponents):null;
+  unit.focus=target?.id??null;
+  const prior=unit.moveDecision||{x:0,y:0};
+  const norm=Math.hypot(prior.x,prior.y);
+  unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
+ }
+const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;utilityMove(state,u,t,st,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=chooseMovement(state,u,t,st,enemies,dt);
  u.moveDecision=direction;u.moveTarget=t.id;
  if(direction.x||direction.y){const step=st.speed*dt;u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
  if(inRange&&u.cd<=0){const volley=targetsForAttack(state,u,t,st);if(st.delivery==='projectile')for(const angle of volley.lanes)state.visualEvents.push({kind:'projectile',x:u.x,y:u.y,toX:u.x+Math.cos(angle)*st.range,toY:u.y+Math.sin(angle)*st.range,owner:u.owner});for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}u.cd+=st.rate}}
