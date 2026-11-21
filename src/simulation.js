@@ -130,30 +130,73 @@ export function positionScore(state,u,target,point,st,enemies){
  score+=.08*(d<old?1:0)-.03*distance(u,point)/Math.max(1,st.speed);
  return score;
 }
-export function chooseMovement(state,u,target,st,enemies,dt){
- const step=st.speed*dt,clearance=CHASSIS[u.type].radius+3;
- const blocked=!clearLine(u,target,state.arena,clearance);
- // A wall is a navigation constraint, not a preference that weights may override.
- // Cache the first waypoint for the five-tick steering interval.
- const waypoint=blocked?wayPoint(u,target,state.arena):target;
- const goal=blocked?waypoint:target,goalDist=distance(u,goal);
- const angle=Math.atan2(goal.y-u.y,goal.x-u.x);
- const dirs=[{x:0,y:0}];
- for(let i=0;i<8;i++){const theta=angle+i*Math.PI/4;dirs.push({x:Math.cos(theta),y:Math.sin(theta)})}
- let best={x:0,y:0,score:-Infinity};
- for(const dir of dirs){
-  const point={x:u.x+dir.x*step,y:u.y+dir.y*step};
-  const r=CHASSIS[u.type].radius+3;
-  if(point.x<20+r||point.x>700-r||point.y<20+r||point.y>500-r)continue;
-  if(!clearLine(u,point,state.arena,clearance))continue;
-  // While occluded, first solve the physical route. Tactical weights choose
-  // among viable directions but cannot reward walking into a wall.
-  const progress=goalDist-distance(point,goal);
-  if(blocked&&progress<=0)continue;
-  const score=positionScore(state,u,target,point,st,enemies)+(blocked?progress*3:0);
-  if(score>best.score+1e-8)best={...dir,score};
+// The weights select a tactical destination; pathfinding only gets us there.
+// Evaluate candidate destinations on a coarse grid, then use the visibility
+// graph to route around obstacles. Navigation is never scored as a draft stat.
+export function chooseTacticalGoal(state,u,target,st,enemies){
+ const r=CHASSIS[u.type].radius+5;
+ const candidates=[{x:u.x,y:u.y},{x:target.x,y:target.y}];
+ const distances=[Math.max(35,st.range*.8),Math.max(65,st.range*1.3),Math.max(110,st.range*1.9)];
+ for(const d of distances)for(let i=0;i<12;i++){
+  const a=i*Math.PI/6;
+  candidates.push({x:target.x+Math.cos(a)*d,y:target.y+Math.sin(a)*d});
+ }
+ let best={x:u.x,y:u.y},score=-Infinity;
+ for(const p of candidates){
+  if(p.x<20+r||p.x>700-r||p.y<20+r||p.y>500-r)continue;
+  if(state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o)))continue;
+  const path=pathTo(u,p,state.arena,r);
+  if(!path)continue;
+  // Path length is a modest opportunity cost, not a chassis-specific behavior.
+  const value=positionScore(state,u,target,p,st,enemies)-path.length/650;
+  if(value>score){score=value;best=p}
  }
  return best;
+}
+function pathTo(u,goal,arena,clearance){
+ if(clearLine(u,goal,arena,clearance))return {next:goal,length:distance(u,goal)};
+ const corners=arena.obstacles.flatMap(o=>[
+  {x:o.x-clearance-3,y:o.y-clearance-3},
+  {x:o.x+o.w+clearance+3,y:o.y-clearance-3},
+  {x:o.x-clearance-3,y:o.y+o.h+clearance+3},
+  {x:o.x+o.w+clearance+3,y:o.y+o.h+clearance+3}
+ ]).filter(p=>p.x>20+clearance&&p.x<700-clearance&&p.y>20+clearance&&p.y<500-clearance);
+ const nodes=[u,...corners,goal],dist=nodes.map(()=>Infinity),prev=nodes.map(()=>-1),seen=new Set();
+ dist[0]=0;
+ for(let n=0;n<nodes.length;n++){
+  let at=-1;for(let i=0;i<nodes.length;i++)if(!seen.has(i)&&(at<0||dist[i]<dist[at]))at=i;
+  if(at<0||!Number.isFinite(dist[at])||at===nodes.length-1)break;
+  seen.add(at);
+  for(let i=1;i<nodes.length;i++){
+   if(seen.has(i)||!clearLine(nodes[at],nodes[i],arena,clearance))continue;
+   const cost=dist[at]+distance(nodes[at],nodes[i]);
+   if(cost<dist[i]){dist[i]=cost;prev[i]=at}
+  }
+ }
+ const end=nodes.length-1;if(!Number.isFinite(dist[end]))return null;
+ let at=end;while(prev[at]>0)at=prev[at];
+ return {next:nodes[at],length:dist[end]};
+}
+export function chooseMovement(state,u,target,st,enemies,dt){
+ const r=CHASSIS[u.type].radius+5;
+ if(!u.tacticalGoal||state.tick%15===1||u.moveTarget!==target.id){
+  u.tacticalGoal=chooseTacticalGoal(state,u,target,st,enemies);
+ }
+ const goal=u.tacticalGoal,route=pathTo(u,goal,state.arena,r);
+ u.navigationBlocked=!clearLine(u,goal,state.arena,r);
+ if(!route)return {x:0,y:0};
+ const waypoint=route.next,d=distance(u,waypoint);
+ if(d<.4)return {x:0,y:0};
+ const dx=(waypoint.x-u.x)/d,dy=(waypoint.y-u.y)/d;
+ // Small local steering corrections are physical collision avoidance only.
+ const step=st.speed*dt;
+ for(const angle of [0,.25,-.25,.5,-.5,.85,-.85,1.2,-1.2]){
+  const c=Math.cos(angle),sn=Math.sin(angle),dir={x:dx*c-dy*sn,y:dx*sn+dy*c};
+  const point={x:u.x+dir.x*Math.min(step,d),y:u.y+dir.y*Math.min(step,d)};
+  if(point.x<20+r||point.x>700-r||point.y<20+r||point.y>500-r)continue;
+  if(clearLine(u,point,state.arena,r))return dir;
+ }
+ return {x:0,y:0};
 }
 function utilityMove(state,u,target,st,dt,enemies){
  const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time,burst=st.speed*.4;
