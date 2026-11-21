@@ -1,6 +1,6 @@
 import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=match-random-7';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-export const ATTACK_MODULES=['damage','rate','range','projectiles','piercing','area','knockback','speed','hp'];
+export const ATTACK_MODULES=['damage','rate','range','projectiles','piercing','area','knockback','taunt','speed','hp'];
 export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
  coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1}
