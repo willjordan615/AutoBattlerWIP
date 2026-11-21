@@ -25,7 +25,7 @@ Mobile-first, deterministic, four-player free-for-all autobattler. Source of tru
 - Two passive slots per chassis, with permanent replacement; basic regeneration, bulwark, haste and focus effects.
 - Collision with units, walls and rectangular obstacles; line-of-sight blocking and waypoint routing around obstacles; three curated arenas.
 - Fixed-step deterministic simulation with simultaneous attack-damage resolution and seeded random starting attack timing.
-- 30-second combat, early end on sole survivor, elimination-order placement, remaining team HP percentage at timeout, survivor-over-eliminated priority.
+- 30-second combat, early end on sole survivor, elimination-order placement, damage dealt by surviving teams at timeout (team HP percentage breaks damage ties), survivor-over-eliminated priority.
 - Full-roster 1v1 tiebreakers; pairwise deterministic tournament for multiway ties.
 - Persistent player HP, escalating placement damage, loss-streak bonus only for bottom-half finishes, elimination and victory.
 - Shared N+2 draft with duplicate cards, loser-first order after the first combat, no category quotas apart from legal-selection safeguarding, fresh pool each round, max three chassis.
