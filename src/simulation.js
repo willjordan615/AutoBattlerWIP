@@ -156,7 +156,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   const score=positionScore(state,u,target,point,st,enemies)+(blocked?progress*12:0);
   // Avoid infinite defensive stalling when a target is visible but outside
   // attack range. A minimum engagement bias does not dictate a chassis role.
-  const engagement=(!blocked&&distance(u,target)>st.range)?(distance(u,target)-distance(point,target))*.45:0;
+  const engagement=(!blocked&&distance(u,target)>st.range)?(distance(u,target)-distance(point,target))*.035:0;
   const adjusted=score+engagement;
   if(adjusted>best.score+1e-8)best={...dir,score:adjusted};
  }
