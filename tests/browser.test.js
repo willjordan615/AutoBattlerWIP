@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 class FakeNode{
  constructor(id=''){this.id=id;this.children=[];this.style={};this.value='1';this.textContent='';this.disabled=false;this.classList={add:()=>{}}}
+ setAttribute(name,value){this[name]=value}
  append(...children){this.children.push(...children)}
  replaceChildren(...children){this.children=children}
  prepend(child){this.children.unshift(child)}
@@ -23,6 +24,7 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  assert.equal($('choices').children.length>=4,true);
  const choice=$('choices').children.find(x=>x.onclick);
  choice.onclick();
+ assert.ok($('choices').children.some(x=>x.className==='draft-detail'));
  $('advance').onclick();
  assert.equal($('phaseTitle').textContent,'Combat in progress');
  for(let i=0;i<901&&$('phaseTitle').textContent==='Combat in progress';i++)$('step').onclick();
