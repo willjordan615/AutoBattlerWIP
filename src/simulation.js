@@ -88,6 +88,9 @@ function targetsForAttack(state,u,target,st){
 // consumes its own cooldown. Terrain still blocks every movement technique.
 function utilityMove(state,u,target,st,dt,enemies){
  const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time;
+ // Burst travel is a fraction of this chassis's actual movement speed.
+ // Speed upgrades and Haste apply; a slow Bruiser cannot inherit Rogue mobility.
+ const burst=st.speed*.4;
  const ready=key=>(cds[key]||0)<=now;
  const move=(key,point,distanceUnits,cooldown,options={})=>{
   const d=distance(u,point);if(d<1||!clearLine(u,point,state.arena,CHASSIS[u.type].radius+3))return false;
@@ -109,34 +112,34 @@ function utilityMove(state,u,target,st,dt,enemies){
  if(st.intercept&&ready('intercept')&&protection>=.5){
   const allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a!==u);
   const ally=allies.find(a=>enemies.some(e=>distance(a,e)<65)&&distance(u,a)>65&&distance(u,a)<200);
-  if(ally&&move('intercept',ally,Math.min(85,45+st.intercept*15),5))return true;
+  if(ally&&move('intercept',ally,burst*(.8+.2*st.intercept),5))return true;
  }
  if(st.dodge&&ready('dodge')&&threatened&&u.hp<u.maxHp*.8){
   const side=(u.id%2?1:-1),point={x:u.x-dy/mag*side*100,y:u.y+dx/mag*side*100};
-  if(move('dodge',point,28+st.dodge*12,5,{evade:.12+st.dodge*.04}))return true;
+  if(move('dodge',point,burst*(.65+.2*st.dodge),5,{evade:.12+st.dodge*.04}))return true;
  }
  if(st.disengage&&ready('disengage')&&enemies.filter(e=>distance(u,e)<75).length>=2){
   const point={x:u.x-dx/mag*110,y:u.y-dy/mag*110};
-  if(move('disengage',point,35+st.disengage*12,6))return true;
+  if(move('disengage',point,burst*(.75+.2*st.disengage),6))return true;
  }
  if(st.backstep&&ready('backstep')&&d<Math.max(55,st.range*.55)&&safety>=.3){
   const point={x:u.x-dx/mag*110,y:u.y-dy/mag*110};
-  if(move('backstep',point,35+st.backstep*12,4.5))return true;
+  if(move('backstep',point,burst*(.75+.2*st.backstep),4.5))return true;
  }
  // Follow Through passes the selected target and suppresses only that target's
  // body collision for the remainder of this simulation tick.
  if(st.followthrough&&ready('followthrough')&&d<st.range+25&&d>10){
   const point={x:target.x+dx/mag*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22),y:target.y+dy/mag*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22)};
-  if(move('followthrough',point,Math.min(120,45+st.followthrough*28),6,{phase:true}))return true;
+  if(move('followthrough',point,burst*(.8+.3*st.followthrough),6,{phase:true}))return true;
  }
  if(st.dash&&ready('dash')&&d>st.range+35&&d<st.range+190){
   const point={x:target.x-dx/mag*Math.max(10,st.range*.7),y:target.y-dy/mag*Math.max(10,st.range*.7)};
-  if(move('dash',point,45+st.dash*22,5))return true;
+  if(move('dash',point,burst*(1+.35*st.dash),5))return true;
  }
  if(st.flank&&ready('flank')&&d>st.range*.7&&d<st.range+100){
   const side=u.id%2?1:-1;
   const point={x:target.x-dx/mag*st.range+side*(-dy/mag)*(35+st.flank*12),y:target.y-dy/mag*st.range+side*(dx/mag)*(35+st.flank*12)};
-  if(move('flank',point,28+st.flank*10,4))return true;
+  if(move('flank',point,burst*(.65+.2*st.flank),4))return true;
  }
  return false;
 }
