@@ -78,10 +78,19 @@ export function createPlaytest({seed=12345,types=['bruiser','rogue','ranged','br
  function fight({trace=true}={}){
   if(match.phase!=='combat')throw Error('Complete all draft picks before combat');
   const battle=beginCombat(match),frames=[],events=[],samples=trace?Math.ceil(traceInterval/STEP):Infinity;
+  const telemetry={targetSwitches:0,blockedUnitTicks:0,stationaryUnitTicks:0,aliveUnitTicks:0,travelDistance:0,damageTaken:0,byOwner:{}};
+  const previous=new Map(battle.units.map(u=>[u.id,{x:u.x,y:u.y,hp:u.hp,focus:null}]));
   let outcome=null;
   if(trace)frames.push(snapshot(battle));
   for(let i=0;i<900;i++){
    outcome=tick(battle,STEP);
+   for(const u of battle.units){const prior=previous.get(u.id),owner=telemetry.byOwner[u.owner]||(telemetry.byOwner[u.owner]={targetSwitches:0,blockedUnitTicks:0,stationaryUnitTicks:0,aliveUnitTicks:0,travelDistance:0,damageTaken:0});
+    if(prior.focus!==null&&u.focus!==prior.focus){telemetry.targetSwitches++;owner.targetSwitches++}
+    const travelled=Math.hypot(u.x-prior.x,u.y-prior.y);telemetry.travelDistance+=travelled;owner.travelDistance+=travelled;
+    const damage=Math.max(0,prior.hp-u.hp);telemetry.damageTaken+=damage;owner.damageTaken+=damage;
+    if(u.hp>0){telemetry.aliveUnitTicks++;owner.aliveUnitTicks++;if(u.navigationBlocked){telemetry.blockedUnitTicks++;owner.blockedUnitTicks++}if(travelled<.1){telemetry.stationaryUnitTicks++;owner.stationaryUnitTicks++}}
+    previous.set(u.id,{x:u.x,y:u.y,hp:u.hp,focus:u.focus});
+   }
    for(const e of battle.events.splice(0))events.push({time:+battle.time.toFixed(3),text:e});
    if(trace&&((i+1)%samples===0||outcome!==null))frames.push(snapshot(battle));
    if(outcome!==null)break;
@@ -90,7 +99,7 @@ export function createPlaytest({seed=12345,types=['bruiser','rogue','ranged','br
   const report={round:result.round,arena:battle.arena.name,seed,combatTime:result.time,
    timedOut:result.time>=30-1e-6,ranking:[...result.ranking],damage:[...result.damage],
    remaining:[...result.remaining],eliminations:copy(result.eliminations),
-   events,frames};
+   events,frames,telemetry};
   battles.push(report);
   history.push({kind:'combat',round:result.round,arena:report.arena,
    ranking:report.ranking,damage:report.damage,remaining:report.remaining,
