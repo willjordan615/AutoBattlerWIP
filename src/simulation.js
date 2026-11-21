@@ -66,9 +66,7 @@ function targetsForAttack(state,u,target,st){
  const angle=Math.atan2(target.y-u.y,target.x-u.x);
  const count=Math.min(1+Math.max(0,st.projectiles-1),9);
  const spacing=.22; // 12.6 degrees between lanes
- const lanes=Array.from({length:count},(_,i)=>angle+(i-(count-1)/2)*spacing);
- // Keep one central lane on target for even counts as well as odd counts.
- if(count%2===0)lanes[Math.floor(count/2)-1]=angle;
+ const lanes=Array.from({length:count},(_,i)=>angle+(i===0?0:(i%2?1:-1)*Math.ceil(i/2)*spacing));
  const hits=[],hitIds=new Set();
  for(const lane of lanes){
   const dx=Math.cos(lane),dy=Math.sin(lane);
