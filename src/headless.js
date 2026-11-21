@@ -34,10 +34,35 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  const card=d.pool[index];if(!legal(player,card))throw Error('Illegal draft pick');
  if(card.kind==='unit')player.squad.push(makeChassis(card.key));
  else{const unit=player.squad[chassisIndex];if(!unit)throw Error('Invalid chassis slot');
- if(card.kind==='attack'||card.kind==='utility')unit.mods[card.key]++;
+ if(card.kind==='attack')unit.mods[card.key]++;
  if(card.kind==='target')for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
- const assignedSlot=unit.passives.length<2?unit.passives.length:passiveSlot;if(card.kind==='passive'){if(unit.passives.length<2)unit.passives.push(card.key);else{if(!Number.isInteger(passiveSlot)||passiveSlot<0||passiveSlot>1)throw Error('Invalid passive slot');unit.passives[passiveSlot]=card.key}}
- if(card.kind==='passive'){unit.modules=unit.modules.filter(m=>m.passiveSlot!==(assignedSlot+1));unit.modules.push({kind:card.kind,name:card.name,passiveSlot:assignedSlot+1})}else unit.modules.push({kind:card.kind,name:card.name})}
+ if(card.kind==='passive'||card.kind==='utility'){
+  const slots=unit.passives;
+  const assignedSlot=slots.length<2?slots.length:passiveSlot;
+  if(slots.length>=2&&(!Number.isInteger(passiveSlot)||passiveSlot<0||passiveSlot>1))throw Error('Invalid passive slot');
+  const previous=slots[assignedSlot];
+  // Replacing a utility removes its active combat effect, not just its label.
+  if(previous&&previous!==card.key&&UTILITY_MODULES.includes(previous))unit.mods[previous]=0;
+  if(card.kind==='utility'){
+   // Re-drafting an equipped utility strengthens it without using another slot.
+   const existing=slots.indexOf(card.key);
+   if(existing>=0){
+    unit.mods[card.key]=(unit.mods[card.key]||0)+1;
+    unit.modules=unit.modules.filter(m=>m.passiveSlot!==(existing+1));
+    unit.modules.push({kind:card.kind,name:card.name+' ×'+unit.mods[card.key],passiveSlot:existing+1});
+   }else{
+    slots[assignedSlot]=card.key;
+    unit.mods[card.key]=1;
+    unit.modules=unit.modules.filter(m=>m.passiveSlot!==(assignedSlot+1));
+    unit.modules.push({kind:card.kind,name:card.name,passiveSlot:assignedSlot+1});
+   }
+  }else{
+   slots[assignedSlot]=card.key;
+   unit.modules=unit.modules.filter(m=>m.passiveSlot!==(assignedSlot+1));
+   unit.modules.push({kind:card.kind,name:card.name,passiveSlot:assignedSlot+1});
+  }
+ }else unit.modules.push({kind:card.kind,name:card.name});
+ }
  d.pool.splice(index,1);d.picks.push({player:playerIndex,uid:card.uid,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';return card
 }
 export function autoDraft(match){if(!match.draft)draftPool(match);while(match.phase==='draft'){const d=match.draft,i=d.order[d.turn],p=match.players[i];const legalCards=d.pool.filter(c=>legal(p,c));const card=legalCards[Math.floor(match.random()*legalCards.length)];assign(match,i,card.uid,Math.floor(match.random()*p.squad.length),Math.floor(match.random()*2))}return match.draft.picks}
