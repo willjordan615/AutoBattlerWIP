@@ -38,7 +38,7 @@ Mobile-first, deterministic, four-player free-for-all autobattler. Source of tru
 - Multiway tiebreaks use pairwise full-roster duels and a deterministic player-index fallback if scores still tie. The GDD explicitly leaves the tournament procedure unresolved.
 - The pool generator ensures at least N non-chassis cards to guarantee that even three-chassis players can draft regardless of earlier picks. This technical legal-selection constraint should be revisited for variety.
 - Projectile delivery currently resolves hits instantly after line-of-sight checking; there is no traveling projectile entity.
-- Obstacle navigation is corner-waypoint steering, not full pathfinding. Complex mazes may trap units.
+- Obstacle navigation is a visibility-graph shortest-path steering approximation, not a dynamic navmesh. Complex mazes may trap units.
 - The utility AI is a practical initial approximation. Ability Opportunity has no independent active ability system yet; passives are basic.
 - The browser UI still duplicates some match logic and lacks an in-browser seed/replay inspector.
 - The per-tick multishot safeguard caps attack execution at 64 projectiles, though modules themselves are uncapped.
@@ -47,7 +47,7 @@ Mobile-first, deterministic, four-player free-for-all autobattler. Source of tru
 ## Verification
 
 - Tests in `tests/simulation.test.js` and `tests/headless.test.js` cover combat geometry, utility weights, simultaneous elimination, timeout, placement, loss streaks, drafting, passive replacement and seeded full-match replay.
-- The simulation suite (14 tests) and headless suite (8 tests) were exercised in a JavaScript test harness; full GitHub Actions status has not been verified.
+- The simulation suite (18 tests) and headless suite (8 tests) were exercised in a JavaScript test harness; full GitHub Actions status has not been verified.
 - A 30-seed headless match sweep finished with a single survivor in every seed (rounds 9–16), providing a smoke test rather than balance proof.
 
 ## Next work
