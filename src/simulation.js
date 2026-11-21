@@ -148,7 +148,8 @@ export function chooseTacticalGoal(state,u,target,st,enemies){
   const path=pathTo(u,p,state.arena,r);
   if(!path)continue;
   // Path length is a modest opportunity cost, not a chassis-specific behavior.
-  const value=positionScore(state,u,target,p,st,enemies)-path.length/650;
+  const attackable=distance(p,target)<=st.range&&clearLine(p,target,state.arena);
+  const value=positionScore(state,u,target,p,st,enemies)+ (attackable?2.2:0)-path.length/180;
   if(value>score){score=value;best=p}
  }
  return best;
