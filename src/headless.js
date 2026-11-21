@@ -34,7 +34,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  else{const unit=player.squad[chassisIndex];if(!unit)throw Error('Invalid chassis slot');
  if(card.kind==='attack')unit.mods[card.key]++;
  if(card.kind==='target')for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
- if(card.kind==='passive'){const assignedSlot=unit.passives.length<2?unit.passives.length:passiveSlot;if(unit.passives.length<2)unit.passives.push(card.key);else{if(!Number.isInteger(passiveSlot)||passiveSlot<0||passiveSlot>1)throw Error('Invalid passive slot');unit.passives[passiveSlot]=card.key}}
+ const assignedSlot=unit.passives.length<2?unit.passives.length:passiveSlot;if(card.kind==='passive'){if(unit.passives.length<2)unit.passives.push(card.key);else{if(!Number.isInteger(passiveSlot)||passiveSlot<0||passiveSlot>1)throw Error('Invalid passive slot');unit.passives[passiveSlot]=card.key}}
  if(card.kind==='passive'){unit.modules=unit.modules.filter(m=>m.passiveSlot!==(assignedSlot+1));unit.modules.push({kind:card.kind,name:card.name,passiveSlot:assignedSlot+1})}else unit.modules.push({kind:card.kind,name:card.name})}
  d.pool.splice(index,1);d.picks.push({player:playerIndex,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';return card
 }
