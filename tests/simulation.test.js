@@ -16,3 +16,8 @@ test('round winner takes zero persistent damage',()=>{const p=players();resolveP
 test('bottom-half streak breaks on top-half finish',()=>{const p=players();resolvePlayerHP(p,[0,1,2,3],1);assert.equal(p[3].streak,1);resolvePlayerHP(p,[3,1,0,2],2);assert.equal(p[3].streak,0)});
 test('damage increases with round number',()=>{assert.ok(placementDamage(10,4,4,0)>placementDamage(1,4,4,0))});
 test('deterministic simulation for same seed',()=>{const run=()=>{const s=spawn(players(),ARENAS[1],17);for(let i=0;i<900;i++)if(tick(s,STEP)!==null)break;return s.units.map(u=>[u.hp,u.x,u.y])};assert.deepEqual(run(),run())});
+
+test('attack mutations stack linearly and compose',()=>{const c=makeChassis('ranged');c.mods.projectiles=2;c.mods.piercing=2;c.mods.damage=3;const st=stats({type:'ranged',chassis:c});assert.equal(st.projectiles,3);assert.equal(st.piercing,2);assert.equal(st.damage,26)});
+test('targeting mutation weights stack additively',()=>{const c=makeChassis('bruiser');const initial=c.weights.kill;c.weights.kill+=1;c.weights.kill+=1;assert.equal(c.weights.kill,initial+2)});
+test('defensive passive changes defense and regen preserves max HP',()=>{const c=makeChassis('bruiser');c.passives.push('bulwark','regen');const st=stats({type:'bruiser',chassis:c});assert.equal(st.defense,8);const p=players();p[0].squad[0]=c;const battle=spawn(p);const u=battle.units[0];u.hp=u.maxHp-10;u.cd=1000;tick(battle,STEP);assert.ok(u.hp>u.maxHp-10&&u.hp<=u.maxHp)});
+test('eliminations on the same tick form a placement tie',()=>{const p=players(),s=spawn(p);s.units[1].hp=0;s.units[2].hp=0;s.eliminations=[{owner:1,tick:17},{owner:2,tick:17}];const groups=placementGroups(s);assert.deepEqual(groups.at(-1),[1,2])});
