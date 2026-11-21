@@ -1,7 +1,7 @@
-import {CHASSIS,ARENAS,STEP,tick,rng} from './simulation.js?v=spread-9';
-import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=spread-9';
-import {cardDetail} from './module-info.js?v=spread-9';
-import {chooseCpuDraft} from './draft-ai.js?v=spread-9';
+import {CHASSIS,ARENAS,STEP,tick,rng} from './simulation.js?v=mobility-10';
+import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=mobility-10';
+import {cardDetail} from './module-info.js?v=mobility-10';
+import {chooseCpuDraft} from './draft-ai.js?v=mobility-10';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let effects=[],match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null;
