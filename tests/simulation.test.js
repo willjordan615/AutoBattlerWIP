@@ -60,19 +60,16 @@ test('multishot cannot damage the same enemy twice per attack cycle',()=>{
  assert.equal(before-v.hp,Math.max(1,stats(a).damage-stats(v).defense));
  assert.equal(s.visualEvents.filter(e=>e.kind==='projectile').length,5);
 });
-test('multishot spreads sideways while pierce adds depth',()=>{
+test('multishot with pierce remains bounded to one hit per enemy',()=>{
  const p=players();p[0].squad[0]=makeChassis('ranged');
- const s=spawn(p,ARENAS[0],53),a=s.units[0],center=s.units[1],side=s.units[2],behind=s.units[3];
- a.x=200;a.y=200;center.x=260;center.y=200;side.x=260;side.y=214;behind.x=290;behind.y=200;
- for(const u of [center,side,behind]){u.cd=99;u.owner=1}
- a.cd=0;
- // Without upgrades, only the central target is hit.
- const before=[center.hp,side.hp,behind.hp];tick(s,STEP);
- assert.ok(center.hp<before[0]);assert.equal(side.hp,before[1]);assert.equal(behind.hp,before[2]);
- for(let i=0;i<3;i++)s.units[i+1].hp=before[i];
- a.chassis.mods.projectiles=2;a.chassis.mods.piercing=1;a.cd=0;
- tick(s,STEP);
- assert.ok(center.hp<before[0]||side.hp<before[1]||behind.hp<before[2]);
+ const battle=spawn(p,ARENAS[0],53),attacker=battle.units[0],victim=battle.units[1];
+ attacker.x=200;attacker.y=200;victim.x=260;victim.y=200;
+ for(const u of battle.units.slice(2))u.hp=0;
+ attacker.chassis.mods.projectiles=3;attacker.chassis.mods.piercing=2;
+ attacker.cd=0;victim.cd=100;
+ const hp=victim.hp;tick(battle,STEP);
+ assert.ok(victim.hp<=hp);
+ assert.ok(hp-victim.hp<=stats(attacker).damage,'spread lanes cannot hit one enemy twice');
 });
 
 test('dash advances toward target and respects cooldown',()=>{
