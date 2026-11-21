@@ -12,7 +12,10 @@ export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  const st=CHASSIS[type],m=unit.mods;
  if(card.kind==='utility'){
  const scores={dash:type==='ranged'?12:28,dodge:24,backstep:type==='ranged'?31:15,flank:type==='rogue'?27:19,disengage:type==='ranged'?27:19,intercept:type==='bruiser'?28:14,followthrough:type==='rogue'?30:23};
- return (scores[card.key]||18)-Math.max(0,(m[card.key]||0)-1)*4;
+ let score=(scores[card.key]||18)-Math.max(0,(m[card.key]||0)-1)*4;
+ if(unit.passives.includes(card.key))return score-9;
+ if(unit.passives.length===2)score-=8;
+ return score;
  }
  if(card.kind==='attack'){
  const scores={damage:24+2/(st.damage+m.damage*2)*35,rate:25,range:type==='ranged'?19:26,projectiles:22,piercing:20,area:15,knockback:12,taunt:type==='bruiser'?29:21,speed:type==='ranged'?19:25,hp:type==='bruiser'?26:19};
@@ -42,7 +45,7 @@ export function chooseCpuDraft(match,index){
  for(const card of match.draft.pool){if(!legal(player,card))continue;
  const slots=card.kind==='unit'?1:player.squad.length;
  for(let chassisIndex=0;chassisIndex<slots;chassisIndex++){
- const passiveSlots=card.kind==='passive'&&player.squad[chassisIndex].passives.length>=2?2:1;
+ const passiveSlots=(card.kind==='passive'||card.kind==='utility')&&player.squad[chassisIndex].passives.length>=2?2:1;
  for(let passiveSlot=0;passiveSlot<passiveSlots;passiveSlot++){
  const score=scoreDraft(player,card,chassisIndex,passiveSlot);
  // Seeded small variation avoids rigid choices without sacrificing strategic preferences.
