@@ -27,7 +27,21 @@ function segmentRect(a,b,o,pad=0){const dx=b.x-a.x,dy=b.y-a.y;let lo=0,hi=1;for(
 export function clearLine(a,b,arena=ARENAS[0],pad=0){return !arena.obstacles.some(o=>segmentRect(a,b,o,pad))}
 function wayPoint(u,target,arena){const clearance=CHASSIS[u.type].radius+5;if(clearLine(u,target,arena,clearance))return target;const corners=arena.obstacles.flatMap(o=>[{x:o.x-clearance-2,y:o.y-clearance-2},{x:o.x+o.w+clearance+2,y:o.y-clearance-2},{x:o.x-clearance-2,y:o.y+o.h+clearance+2},{x:o.x+o.w+clearance+2,y:o.y+o.h+clearance+2}]).filter(p=>p.x>25&&p.x<695&&p.y>25&&p.y<495);const nodes=[u,...corners,target],end=nodes.length-1,dist=nodes.map(()=>Infinity),prev=nodes.map(()=>-1),seen=new Set();dist[0]=0;while(seen.size<nodes.length){let at=-1;for(let i=0;i<nodes.length;i++)if(!seen.has(i)&&(at<0||dist[i]<dist[at]))at=i;if(at<0||!Number.isFinite(dist[at])||at===end)break;seen.add(at);for(let i=1;i<nodes.length;i++){if(seen.has(i)||i===at||!clearLine(nodes[at],nodes[i],arena,clearance))continue;const cost=dist[at]+distance(nodes[at],nodes[i]);if(cost<dist[i]){dist[i]=cost;prev[i]=at}}}if(!Number.isFinite(dist[end]))return target;let at=end;while(prev[at]>0)at=prev[at];return nodes[at]}
 function healthFraction(u){return clamp(u.hp/u.maxHp,0,1)}
-export function chooseTarget(state,u,enemies){if(u.tauntedUntil>state.time){const forced=enemies.find(e=>e.id===u.tauntedBy);if(forced)return forced}const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a.id!==u.id),st=stats(u);let best=null,score=-Infinity;for(const e of enemies){const d=distance(u,e),ratio=healthFraction(e),enemyStats=stats(e),enemyAllies=state.units.filter(a=>a.hp>0&&a.owner===e.owner&&a.id!==e.id),isolated=enemyAllies.length?Math.min(...enemyAllies.map(a=>distance(a,e)))/200:1,nearAllies=allies.length?Math.min(...allies.map(a=>distance(a,e))):250;const features={kill:1-ratio,damage:st.damage/Math.max(1,e.hp),threat:enemyStats.damage/30+(e.focus===u.id?.5:0),distance:1-d/500,allyProximity:1-nearAllies/500,safety:d/500,protection:allies.some(a=>e.focus===a.id)?1:0,ability:u.cd<=0?1:0,isolation:clamp(isolated,0,1),preferredRange:1-Math.abs(d-st.range)/500};let value=METRICS.reduce((sum,k)=>sum+(w[k]||0)*features[k],0);if(u.focus===e.id)value+=.2;if(value>score){score=value;best=e}}return best}
+export function targetScoreDetails(state,u,e){
+ const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a.id!==u.id),st=stats(u);
+ const d=distance(u,e),ratio=healthFraction(e),enemyStats=stats(e),enemyAllies=state.units.filter(a=>a.hp>0&&a.owner===e.owner&&a.id!==e.id);
+ const isolated=enemyAllies.length?Math.min(...enemyAllies.map(a=>distance(a,e)))/200:1,nearAllies=allies.length?Math.min(...allies.map(a=>distance(a,e))):250;
+ const features={kill:1-ratio,damage:st.damage/Math.max(1,e.hp),threat:enemyStats.damage/30+(e.focus===u.id?.5:0),distance:1-d/500,allyProximity:1-nearAllies/500,safety:d/500,protection:allies.some(a=>e.focus===a.id)?1:0,ability:u.cd<=0?1:0,isolation:clamp(isolated,0,1),preferredRange:1-Math.abs(d-st.range)/500};
+ const contributions=Object.fromEntries(METRICS.map(k=>[k,(w[k]||0)*features[k]]));
+ const total=METRICS.reduce((sum,k)=>sum+contributions[k],0)+(u.focus===e.id?.2:0);
+ return {total,features,contributions};
+}
+export function chooseTarget(state,u,enemies){
+ if(u.tauntedUntil>state.time){const forced=enemies.find(e=>e.id===u.tauntedBy);if(forced)return forced}
+ let best=null,score=-Infinity;
+ for(const e of enemies){const value=targetScoreDetails(state,u,e).total;if(value>score){score=value;best=e}}
+ return best;
+}
 // Profile 1: local teammate-aware steering. Score proposed moves before collision resolution.
 export function steerAroundAllies(state,u,desired,step){
  const allies=state.units.filter(v=>v!==u&&v.hp>0&&v.owner===u.owner);
