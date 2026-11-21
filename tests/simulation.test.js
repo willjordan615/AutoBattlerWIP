@@ -25,3 +25,21 @@ test('eliminations on the same tick form a placement tie',()=>{const p=players()
 test('all players receive unique randomized corners and move corners every round',()=>{const p=players();for(let seed=1;seed<=30;seed++){let previous=null;for(let round=1;round<=8;round++){const a=spawn(p,ARENAS[0],seed+round*991,round,previous),b=spawn(p,ARENAS[0],seed+round*991,round,previous);assert.deepEqual(a.spawnSlots,b.spawnSlots);assert.deepEqual([...a.spawnSlots].sort(),[0,1,2,3]);if(previous)for(let i=0;i<4;i++)assert.ok(a.spawnSlots[i]!==previous[i]);for(let i=0;i<4;i++){const unit=a.units.find(u=>u.owner===i);assert.ok(unit);const corner=a.spawnSlots[i];assert.ok((corner===0||corner===3?unit.x<200:unit.x>500));assert.ok((corner===0||corner===1?unit.y<200:unit.y>300))}previous=a.spawnSlots}}});
 
 test('combat emits floating damage and projectile visual events without changing HP math',()=>{const p=players();const state=spawn(p,ARENAS[0],33);const attacker=state.units.find(u=>u.type==='ranged');const victim=state.units.find(u=>u.owner!==attacker.owner);for(const u of state.units)if(u!==attacker&&u!==victim)u.hp=0;attacker.x=200;attacker.y=200;victim.x=260;victim.y=200;attacker.cd=0;const before=victim.hp;tick(state,STEP);assert.ok(state.visualEvents.some(e=>e.kind==='projectile'&&e.owner===attacker.owner));const damage=state.visualEvents.find(e=>e.kind==='damage'&&e.owner===victim.owner);assert.ok(damage);assert.equal(damage.value,before-victim.hp);tick(state,STEP);assert.ok(!state.visualEvents.some(e=>e.kind==='projectile'))});
+
+test('Bruiser base damage is 13',()=>{assert.equal(CHASSIS.bruiser.damage,13)});
+test('taunt forces the struck enemy to target its attacker and expires',()=>{
+ const p=players(),state=spawn(p,ARENAS[0],47);
+ const taunter=state.units[0],victim=state.units[1],alternative=state.units[2];
+ for(const u of state.units)if(u!==taunter&&u!==victim&&u!==alternative)u.hp=0;
+ taunter.chassis.mods.taunt=2;
+ taunter.x=200;taunter.y=200;victim.x=226;victim.y=200;
+ alternative.x=229;alternative.y=200;
+ // Force a hit on the victim; the alternative is on the attacker's team.
+ alternative.owner=taunter.owner;alternative.cd=99;victim.cd=99;taunter.cd=0;
+ tick(state,STEP);
+ assert.equal(victim.tauntedBy,taunter.id);
+ assert.ok(victim.tauntedUntil-state.time>.49);
+ assert.equal(chooseTarget(state,victim,[taunter,alternative]),taunter);
+ state.time=victim.tauntedUntil+.001;
+ assert.notEqual(victim.tauntedUntil>state.time,true);
+});
