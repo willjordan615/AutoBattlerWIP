@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=inspector-15';
-import {legal} from './headless.js?v=inspector-15';
+import {CHASSIS} from './simulation.js?v=utility-slots-16';
+import {legal} from './headless.js?v=utility-slots-16';
 // Profile 3: deterministic, explainable module scoring. Higher scores win.
 export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  if(!legal(player,card))return -Infinity;
