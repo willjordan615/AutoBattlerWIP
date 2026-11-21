@@ -26,3 +26,20 @@ test('timeout ranks surviving teams by damage dealt rather than passive health p
  assert.equal(ranking[0],1);
  assert.equal(ranking[3],0);
 });
+
+test('utilities share two passive slots and replacing one removes its effect',()=>{
+ const m=createMatch();draftPool(m);const u=m.players[0].squad[0];
+ const pick=(key,kind,slot=0)=>{const card={uid:'forced-'+key+'-'+m.draft.turn,kind,key,name:key};m.draft.pool[0]=card;assign(m,m.draft.order[m.draft.turn],card.uid,0,slot)};
+ pick('dash','utility');assert.deepEqual(u.passives,['dash']);assert.equal(u.mods.dash,1);
+ // Other players' draft turns are used to advance; set the same player's turn for focused equipment tests.
+ m.draft.turn=0;m.draft.order=[0,0,0,0];m.phase='draft';
+ pick('regen','passive');assert.deepEqual(u.passives,['dash','regen']);
+ pick('intercept','utility',0);assert.deepEqual(u.passives,['intercept','regen']);
+ assert.equal(u.mods.dash,0);assert.equal(u.mods.intercept,1);
+ assert.equal(u.modules.some(x=>x.name==='dash'),false);
+});
+test('redrafting equipped utility stacks without occupying a new slot',()=>{
+ const m=createMatch();draftPool(m);m.draft.order=[0,0,0,0];const u=m.players[0].squad[0];
+ const pick=(n)=>{const card={uid:'utility-'+n,kind:'utility',key:'dodge',name:'Dodge'};m.draft.pool[0]=card;assign(m,0,card.uid)};
+ pick(1);pick(2);assert.deepEqual(u.passives,['dodge']);assert.equal(u.mods.dodge,2);
+});
