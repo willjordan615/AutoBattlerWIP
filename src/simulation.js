@@ -161,7 +161,7 @@ function utilityMove(state,u,target,st,dt,enemies){
  if(d>st.range*.7&&d<st.range+100)for(const side of [-1,1])offer('flank',{x:target.x-dx*st.range-side*dy*(35+st.flank*12),y:target.y-dy*st.range+side*dx*(35+st.flank*12)},burst*(.65+.2*st.flank),4);
  // Abilities are optional tools. Their projected position must beat staying
  // and ordinary walking; high Safety/Protection/etc. determines their use.
- const normal=chooseMovement(state,u,target,st,enemies,dt);
+ const normal=u.moveDecision||{x:0,y:0};
  const walk={x:u.x+normal.x*st.speed*dt,y:u.y+normal.y*st.speed*dt};
  const threshold=Math.max(base,positionScore(state,u,target,walk,st,enemies))+.015;
  const best=proposals.sort((a,b)=>b.score-a.score)[0];
@@ -173,7 +173,8 @@ function utilityMove(state,u,target,st,dt,enemies){
  state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:best.key});
  return true;
 }
-export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;utilityMove(state,u,t,st,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=chooseMovement(state,u,t,st,enemies,dt);
+export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;utilityMove(state,u,t,st,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=(!u.moveDecision||state.tick%5===0||u.moveTarget!==t.id)?chooseMovement(state,u,t,st,enemies,dt):(u.moveDecision);
+ u.moveDecision=direction;u.moveTarget=t.id;
  if(direction.x||direction.y){const step=st.speed*dt;u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
  if(inRange&&u.cd<=0){const volley=targetsForAttack(state,u,t,st);if(st.delivery==='projectile')for(const angle of volley.lanes)state.visualEvents.push({kind:'projectile',x:u.x,y:u.y,toX:u.x+Math.cos(angle)*st.range,toY:u.y+Math.sin(angle)*st.range,owner:u.owner});for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}u.cd+=st.rate}}
  resolveCollision(state);const totals=new Map();for(const a of attacks)if(!(a.target.evadingUntil>state.time))totals.set(a.target,(totals.get(a.target)||0)+a.damage);for(const [target,damage] of totals){const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner})}// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
