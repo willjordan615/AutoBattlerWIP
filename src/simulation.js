@@ -154,7 +154,11 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   // favor standing still. While occluded, waypoint progress dominates local
   // tactical preferences; once visible, normal weight scoring resumes.
   const score=positionScore(state,u,target,point,st,enemies)+(blocked?progress*12:0);
-  if(score>best.score+1e-8)best={...dir,score};
+  // Avoid infinite defensive stalling when a target is visible but outside
+  // attack range. A minimum engagement bias does not dictate a chassis role.
+  const engagement=(!blocked&&distance(u,target)>st.range)?(distance(u,target)-distance(point,target))*.45:0;
+  const adjusted=score+engagement;
+  if(adjusted>best.score+1e-8)best={...dir,score:adjusted};
  }
  return best;
 }
