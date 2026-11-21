@@ -7,7 +7,7 @@ Mobile-first, browser-hosted deterministic four-player free-for-all autobattler.
 - Four players (one human, three CPU in this prototype).
 - Starting choice: Bruiser, Rogue, or Ranged chassis.
 - Maximum three chassis per player. Chassis builds persist; individual combat HP resets each round.
-- Every round has one **shared** pool of **N + 2 = 6** draft options. Each player chooses one; chosen options are removed. Remaining options are discarded; the next round draws a new pool.
+- Before the first combat and after every subsequent combat round, players use one **shared** pool of **N + 2** draft options (six with four active players). Each player chooses one; chosen options are removed. Remaining options are discarded; the next round draws a new pool.
 - Draft choices are new chassis, upgrades assigned to one specific chassis, or targeting/passive modules assigned to one specific chassis.
 - Targeting preferences accumulate as weighted modifiers, rather than replacing the entire targeting system.
 - Each chassis holds at most two active passives; drafting a third replaces the oldest active passive (temporary prototype replacement rule).
@@ -17,11 +17,11 @@ Mobile-first, browser-hosted deterministic four-player free-for-all autobattler.
 
 - No dependencies; open `index.html` locally or host with GitHub Pages.
 - Canvas rendering, fixed-step (30 Hz) seeded simulation, arena wall clamping, pairwise collision separation, commitment-based weighted targeting, and simultaneous attack damage within each simulation tick.
-- One human draft followed by three CPU selections from the **same** shared pool. This is sequential rather than a simultaneous hidden draft.
+- Drafting is sequential from the **same** shared pool: initial draft uses provisional player order 0→3; subsequent drafts run in reverse of the most recent combat placement. CPU picks automatically resolve before or after the human turn as appropriate. Duplicate cards are allowed.
 - CPU decisions are deliberately basic.
 - Combat ends when only one team has living units or after a 75-second timeout. Timeout and simultaneous elimination currently use remaining normalized unit HP for ranking.
 - No pathfinding around obstacles, projectile visuals, full attack-modifier system, equipment sprites, or 1v1 tiebreaker implementation yet.
-- A 40-round emergency match cap remains as a prototype safeguard.
+- No fixed match-round cap. The current combat timeout remains provisional and still needs to be reduced to the GDD's 30 seconds.
 
 ## Next implementation priorities
 
