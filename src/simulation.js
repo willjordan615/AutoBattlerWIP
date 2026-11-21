@@ -25,7 +25,15 @@ function rectHit(x,y,r,o){return Math.hypot(x-clamp(x,o.x,o.x+o.w),y-clamp(y,o.y
 export function bound(u,arena=ARENAS[0]){const r=CHASSIS[u.type].radius+3;u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r);for(const o of arena.obstacles){if(!rectHit(u.x,u.y,r,o))continue;const cx=clamp(u.x,o.x,o.x+o.w),cy=clamp(u.y,o.y,o.y+o.h);let dx=u.x-cx,dy=u.y-cy,d=Math.hypot(dx,dy);if(d<.0001){const sides=[{v:Math.abs(u.x-o.x),x:o.x-r,y:u.y},{v:Math.abs(u.x-(o.x+o.w)),x:o.x+o.w+r,y:u.y},{v:Math.abs(u.y-o.y),x:u.x,y:o.y-r},{v:Math.abs(u.y-(o.y+o.h)),x:u.x,y:o.y+o.h+r}].sort((a,b)=>a.v-b.v);u.x=sides[0].x;u.y=sides[0].y}else{u.x=cx+dx/d*r;u.y=cy+dy/d*r}u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r)}}
 function segmentRect(a,b,o,pad=0){const dx=b.x-a.x,dy=b.y-a.y;let lo=0,hi=1;for(const [p,q] of [[-dx,a.x-(o.x-pad)],[dx,o.x+o.w+pad-a.x],[-dy,a.y-(o.y-pad)],[dy,o.y+o.h+pad-a.y]]){if(Math.abs(p)<1e-9){if(q<0)return false;continue}const t=q/p;if(p<0)lo=Math.max(lo,t);else hi=Math.min(hi,t);if(lo>hi)return false}return true}
 export function clearLine(a,b,arena=ARENAS[0],pad=0){return !arena.obstacles.some(o=>segmentRect(a,b,o,pad))}
-function wayPoint(u,target,arena){const clearance=CHASSIS[u.type].radius+5;if(clearLine(u,target,arena,clearance))return target;const corners=arena.obstacles.flatMap(o=>[{x:o.x-clearance-2,y:o.y-clearance-2},{x:o.x+o.w+clearance+2,y:o.y-clearance-2},{x:o.x-clearance-2,y:o.y+o.h+clearance+2},{x:o.x+o.w+clearance+2,y:o.y+o.h+clearance+2}]).filter(p=>p.x>25&&p.x<695&&p.y>25&&p.y<495);const nodes=[u,...corners,target],end=nodes.length-1,dist=nodes.map(()=>Infinity),prev=nodes.map(()=>-1),seen=new Set();dist[0]=0;while(seen.size<nodes.length){let at=-1;for(let i=0;i<nodes.length;i++)if(!seen.has(i)&&(at<0||dist[i]<dist[at]))at=i;if(at<0||!Number.isFinite(dist[at])||at===end)break;seen.add(at);for(let i=1;i<nodes.length;i++){if(seen.has(i)||i===at||!clearLine(nodes[at],nodes[i],arena,clearance))continue;const cost=dist[at]+distance(nodes[at],nodes[i]);if(cost<dist[i]){dist[i]=cost;prev[i]=at}}}if(!Number.isFinite(dist[end]))return target;let at=end;while(prev[at]>0)at=prev[at];return nodes[at]}
+function navigationPath(start,end,arena,r){
+ if(clearLine(start,end,arena,r))return [end];
+ const corners=arena.obstacles.flatMap(o=>[{x:o.x-r-3,y:o.y-r-3},{x:o.x+o.w+r+3,y:o.y-r-3},{x:o.x-r-3,y:o.y+o.h+r+3},{x:o.x+o.w+r+3,y:o.y+o.h+r+3}]).filter(p=>p.x>20+r&&p.x<700-r&&p.y>20+r&&p.y<500-r);
+ const nodes=[start,...corners,end],n=nodes.length,dist=Array(n).fill(Infinity),prev=Array(n).fill(-1),seen=Array(n).fill(false);dist[0]=0;
+ for(let k=0;k<n;k++){let at=-1;for(let i=0;i<n;i++)if(!seen[i]&&(at<0||dist[i]<dist[at]))at=i;if(at<0||!Number.isFinite(dist[at])||at===n-1)break;seen[at]=true;
+  for(let j=1;j<n;j++){if(seen[j]||!clearLine(nodes[at],nodes[j],arena,r))continue;const cost=dist[at]+distance(nodes[at],nodes[j]);if(cost<dist[j]){dist[j]=cost;prev[j]=at}}
+ }
+ if(!Number.isFinite(dist[n-1]))return null;const path=[];let at=n-1;while(at>0){path.unshift(nodes[at]);at=prev[at];if(at<0)return null}return path;
+}
 function healthFraction(u){return clamp(u.hp/u.maxHp,0,1)}
 export function targetScoreDetails(state,u,e){
  const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a.id!==u.id),st=stats(u);
@@ -131,48 +139,35 @@ export function positionScore(state,u,target,point,st,enemies){
  return score;
 }
 export function chooseMovement(state,u,target,st,enemies,dt){
- const step=st.speed*dt,clearance=CHASSIS[u.type].radius+3;
- const blocked=!clearLine(u,target,state.arena,clearance);
- // A wall is a navigation constraint, not a preference that weights may override.
- // Cache the first waypoint for the five-tick steering interval.
- const waypoint=blocked?wayPoint(u,target,state.arena):target;
- u.navigationBlocked=blocked;
- const goal=blocked?waypoint:target,goalDist=distance(u,goal);
- const angle=Math.atan2(goal.y-u.y,goal.x-u.x);
- const dirs=[{x:0,y:0}];
+ const step=st.speed*dt,r=CHASSIS[u.type].radius+3;
+ const blocked=!clearLine(u,target,state.arena,r);u.navigationBlocked=blocked;
+ let nav=u.navigation;
+ if(!blocked){nav=null;u.navigation=null}
+ else if(!nav||nav.targetId!==target.id||distance(nav.destination,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,r)){
+  const path=navigationPath(u,target,state.arena,r);
+  nav=path?{targetId:target.id,destination:{x:target.x,y:target.y},path}:null;u.navigation=nav;
+ }
+ if(blocked&&nav){
+  while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(5,step*1.5))nav.path.shift();
+  for(let i=nav.path.length-1;i>0;i--)if(clearLine(u,nav.path[i],state.arena,r)){nav.path.splice(0,i);break}
+ }
+ const valid=dir=>{const p={x:u.x+dir.x*step,y:u.y+dir.y*step};return p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&clearLine(u,p,state.arena,r)};
+ if(blocked&&nav){
+  const wp=nav.path[0],d=distance(u,wp);
+  if(d>.01){const angle=Math.atan2(wp.y-u.y,wp.x-u.x);
+   for(const offset of [0,.18,-.18,.4,-.4,.75,-.75,1.15,-1.15]){
+    const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
+    if(valid(dir))return {...dir,score:0};
+   }
+  }
+ }
+ const angle=Math.atan2(target.y-u.y,target.x-u.x),dirs=[{x:0,y:0}];
  for(let i=0;i<8;i++){const theta=angle+i*Math.PI/4;dirs.push({x:Math.cos(theta),y:Math.sin(theta)})}
  let best={x:0,y:0,score:-Infinity};
- for(const dir of dirs){
+ for(const dir of dirs){if((dir.x||dir.y)&&!valid(dir))continue;
   const point={x:u.x+dir.x*step,y:u.y+dir.y*step};
-  const r=CHASSIS[u.type].radius+3;
-  if(point.x<20+r||point.x>700-r||point.y<20+r||point.y>500-r)continue;
-  if(!clearLine(u,point,state.arena,clearance))continue;
-  // While occluded, first solve the physical route. Tactical weights choose
-  // among viable directions but cannot reward walking into a wall.
-  const progress=goalDist-distance(point,goal);
-  if(blocked&&progress<=0)continue;
-  // A reachable attack position is worth pursuing even when defensive weights
-  // favor standing still. While occluded, waypoint progress dominates local
-  // tactical preferences; once visible, normal weight scoring resumes.
-  const score=positionScore(state,u,target,point,st,enemies)+(blocked?progress*12:0);
-  // Avoid infinite defensive stalling when a target is visible but outside
-  // attack range. A minimum engagement bias does not dictate a chassis role.
-  const engagement=(!blocked&&distance(u,target)>st.range)?(distance(u,target)-distance(point,target))*.035:0;
-  const adjusted=score+engagement;
-  if(adjusted>best.score+1e-8)best={...dir,score:adjusted};
- }
- // Navigation must not accept indefinite inaction against an unreachable enemy.
- // Follow the obstacle waypoint even when local tactical scoring favors holding.
- // Legitimate holds (in range and unobstructed) remain entirely weight-driven.
- if(blocked&&best.x===0&&best.y===0){
-  const radius=CHASSIS[u.type].radius+3;
-  const headings=[0,.2,-.2,.45,-.45,.8,-.8,1.2,-1.2,Math.PI];
-  for(const offset of headings){
-   const theta=angle+offset,dir={x:Math.cos(theta),y:Math.sin(theta)};
-   const p={x:u.x+dir.x*step,y:u.y+dir.y*step};
-   if(p.x<20+radius||p.x>700-radius||p.y<20+radius||p.y>500-radius)continue;
-   if(clearLine(u,p,state.arena,clearance))return {...dir,score:0};
-  }
+  const score=positionScore(state,u,target,point,st,enemies)+(!blocked&&distance(u,target)>st.range?(distance(u,target)-distance(point,target))*.035:0);
+  if(score>best.score+1e-8)best={...dir,score};
  }
  return best;
 }
