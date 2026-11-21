@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {CHASSIS,stats,bound,chooseTarget,resolveCollision,tick} from '../src/simulation.js';
+const chassis=(type='bruiser')=>({type,mods:{hp:0,damage:0,speed:0,rate:0,range:0},targetWeights:{nearest:1,weak:0,threat:0,backline:0},passives:[],modules:[]});
+const unit=(id,owner,type,x,y)=>{const c=chassis(type);const u={id,owner,type,chassis:c,x,y,cd:0,focus:null,hp:1,maxHp:1};u.hp=u.maxHp=stats(u).hp;return u};
+const state=(units)=>({phase:'fight',time:0,units,events:[],players:[0,1,2,3].map(i=>({name:'Player '+i,hp:100}))});
+test('individual chassis upgrades do not affect teammates',()=>{const a=unit(0,0,'bruiser',100,100),b=unit(1,0,'bruiser',140,100);a.chassis.mods.hp=2;assert.equal(stats(a).hp,215);assert.equal(stats(b).hp,155)});
+test('wall boundaries clamp every archetype',()=>{for(const type of Object.keys(CHASSIS)){const u=unit(0,0,type,-100,900);bound(u);assert.ok(u.x>=22+CHASSIS[type].radius+3);assert.ok(u.y<=498-CHASSIS[type].radius-3)}});
+test('collision resolution separates overlapping fighters',()=>{const a=unit(0,0,'bruiser',300,250),b=unit(100,1,'bruiser',300,250),s=state([a,b]);resolveCollision(s);assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>=CHASSIS.bruiser.radius*2+4.99)});
+test('weighted targeting can prefer wounded enemies',()=>{const a=unit(0,0,'ranged',100,100),b=unit(100,1,'bruiser',130,100),c=unit(200,2,'bruiser',180,100),s=state([a,b,c]);c.hp=10;a.chassis.targetWeights.weak=3;assert.equal(chooseTarget(s,a,[b,c]),c)});
+test('simultaneous lethal attacks can eliminate both fighters',()=>{const a=unit(0,0,'bruiser',100,100),b=unit(100,1,'bruiser',120,100),s=state([a,b]);a.hp=b.hp=1;const alive=tick(s,1/30);assert.deepEqual(alive,[]);assert.equal(a.hp,0);assert.equal(b.hp,0)});
+test('same initial state produces deterministic outcome',()=>{function run(){const s=state([unit(0,0,'rogue',100,100),unit(100,1,'bruiser',200,100)]);for(let i=0;i<900;i++){if(tick(s,1/30)!==null)break}return s.units.map(u=>[u.hp,u.x,u.y])}assert.deepEqual(run(),run())});
