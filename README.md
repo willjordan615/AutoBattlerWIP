@@ -57,3 +57,11 @@ Mobile-first, deterministic, four-player free-for-all autobattler. Source of tru
 3. Improve obstacle-aware navigation and cooperative ally movement.
 4. Provide replay export, inspectable AI decisions, and automated balance reports.
 5. Tune balance values using the GDD's validation goals and mobile profiling.
+
+## Headless balance diagnostics
+
+Run `npm run balance:report -- 100 strategic 1` for 100 matches with the same heuristic draft AI as the browser bots. Run `npm run balance:report -- 100 random 1` for a random-draft baseline, or `npm run balance:random` for the default random sample. Add `--json` for full machine-readable output. The three positional arguments are match count, drafting mode, and reproducible integer seed. This script runs in Node and does not require a browser.
+
+The report measures starting chassis win rates (with rotating starting seats), seat bias, match lengths, 30-second combat timeouts, arena frequency, average persistent HP damage by placement, draft offer and pick rates, module association with match wins, first-pick outcomes, and heuristic warning flags. Chassis samples are not perfectly equal in small batches because a four-player game has three chassis types; the repeated archetype rotates between matches. All four seats use the same chosen drafting strategy, so the report is a mirror-policy baseline, not a human-vs-bot benchmark.
+
+**Interpretation:** module win rates are correlations and can be heavily confounded by chassis, draft order, and other modules. The warning thresholds (10 percentage points for chassis/seat win rates, 15 points for module correlations with at least 30 exposures, and 20% timeout rate) are screening heuristics, not significance tests. Run hundreds of matches and compare both drafting modes before adjusting stats. The current engine's deterministic seed allows reproducing suspicious outcomes.
