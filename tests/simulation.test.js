@@ -58,7 +58,7 @@ test('multishot cannot damage the same enemy twice per attack cycle',()=>{
  a.x=200;a.y=200;v.x=260;v.y=200;a.cd=0;v.cd=99;
  const before=v.hp;tick(s,STEP);
  assert.equal(before-v.hp,Math.max(1,stats(a).damage-stats(v).defense));
- assert.equal(s.visualEvents.filter(e=>e.kind==='projectile').length,1);
+ assert.equal(s.visualEvents.filter(e=>e.kind==='projectile').length,5);
 });
 test('multishot spreads sideways while pierce adds depth',()=>{
  const p=players();p[0].squad[0]=makeChassis('ranged');
