@@ -17,8 +17,8 @@ export const ARENAS=[
 ];
 export const WIDTH=720,HEIGHT=520,STEP=1/30,DURATION=30;
 export function rng(seed=12345){let s=seed>>>0;return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
-export function makeChassis(type){if(!CHASSIS[type])throw Error('Unknown chassis');return {type,mods:{hp:0,damage:0,speed:0,rate:0,range:0,projectiles:0,piercing:0,area:0,knockback:0,taunt:0},weights:Object.fromEntries(METRICS.map((m,i)=>[m,BASE_WEIGHTS[type][i]])),passives:[],modules:[]}}
-export function stats(u){const c=CHASSIS[u.type],m=u.chassis.mods;return {hp:c.hp+m.hp*20,damage:c.damage+m.damage*2,speed:(c.speed+m.speed*18)*(u.chassis.passives.includes('haste')?1.25:1),range:c.range+m.range*20,rate:c.rate/(1+m.rate*.15)/(u.chassis.passives.includes('focus')?1.15:1),defense:c.defense+(u.chassis.passives.includes('bulwark')?3:0),radius:c.radius,projectiles:1+m.projectiles,piercing:m.piercing,area:m.area,knockback:m.knockback,taunt:m.taunt||0,delivery:c.delivery}}
+export function makeChassis(type){if(!CHASSIS[type])throw Error('Unknown chassis');return {type,mods:{hp:0,damage:0,speed:0,rate:0,range:0,projectiles:0,piercing:0,area:0,knockback:0,taunt:0,dash:0,dodge:0,backstep:0,flank:0,disengage:0,intercept:0,followthrough:0},weights:Object.fromEntries(METRICS.map((m,i)=>[m,BASE_WEIGHTS[type][i]])),passives:[],modules:[]}}
+export function stats(u){const c=CHASSIS[u.type],m=u.chassis.mods;return {hp:c.hp+m.hp*20,damage:c.damage+m.damage*2,speed:(c.speed+m.speed*18)*(u.chassis.passives.includes('haste')?1.25:1),range:c.range+m.range*20,rate:c.rate/(1+m.rate*.15)/(u.chassis.passives.includes('focus')?1.15:1),defense:c.defense+(u.chassis.passives.includes('bulwark')?3:0),radius:c.radius,projectiles:1+m.projectiles,piercing:m.piercing,area:m.area,knockback:m.knockback,taunt:m.taunt||0,dash:m.dash||0,dodge:m.dodge||0,backstep:m.backstep||0,flank:m.flank||0,disengage:m.disengage||0,intercept:m.intercept||0,followthrough:m.followthrough||0,delivery:c.delivery}}
 export function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function rectHit(x,y,r,o){return Math.hypot(x-clamp(x,o.x,o.x+o.w),y-clamp(y,o.y,o.y+o.h))<r}
@@ -48,7 +48,7 @@ export function steerAroundAllies(state,u,desired,step){
  if(score>bestScore){bestScore=score;best=dir}
  }return best
 }
-export function resolveCollision(state){const units=state.units.filter(u=>u.hp>0);for(let i=0;i<units.length;i++)for(let j=i+1;j<units.length;j++){const a=units[i],b=units[j],min=CHASSIS[a.type].radius+CHASSIS[b.type].radius+5;let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>=min)continue;if(d<.001){dx=a.id<b.id?1:-1;dy=0;d=1}const delta=(min-d)/2;a.x-=dx/d*delta;a.y-=dy/d*delta;b.x+=dx/d*delta;b.y+=dy/d*delta;bound(a,state.arena);bound(b,state.arena)}}
+export function resolveCollision(state){const units=state.units.filter(u=>u.hp>0);for(let i=0;i<units.length;i++)for(let j=i+1;j<units.length;j++){const a=units[i],b=units[j];if((a.phasingUntil>state.time&&a.phaseTarget===b.id)||(b.phasingUntil>state.time&&b.phaseTarget===a.id))continue;const min=CHASSIS[a.type].radius+CHASSIS[b.type].radius+5;let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>=min)continue;if(d<.001){dx=a.id<b.id?1:-1;dy=0;d=1}const delta=(min-d)/2;a.x-=dx/d*delta;a.y-=dy/d*delta;b.x+=dx/d*delta;b.y+=dy/d*delta;bound(a,state.arena);bound(b,state.arena)}}
 export function teamPercent(state,owner){const team=state.units.filter(u=>u.owner===owner);const max=team.reduce((n,u)=>n+u.maxHp,0);return max?team.reduce((n,u)=>n+Math.max(0,u.hp),0)/max:0}
 // Randomize the *owner-to-corner assignment*, not just the arena orientation.
 // When a prior assignment is supplied, no player repeats their previous corner.
@@ -58,7 +58,7 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,mobilityCd:{},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
 function targetsForAttack(state,u,target,st){
@@ -83,8 +83,65 @@ function targetsForAttack(state,u,target,st){
  }
  return {hits,lanes};
 }
-export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;if(!u.nav||u.nav.target!==t.id||state.tick%10===0)u.nav={target:t.id,point:wayPoint(u,t,state.arena)};let destination=u.nav.point;if(u.chassis.weights.safety>1.8&&d<160){destination={x:u.x+(u.x-t.x),y:u.y+(u.y-t.y)}}else if(st.delivery==='projectile'&&d<st.range*.48){destination={x:u.x+(u.x-t.x),y:u.y+(u.y-t.y)}}else if(inRange)destination=u;const travel=distance(u,destination);if(travel>1){const attackPenalty=inRange?.25:1,step=Math.min(st.speed*dt*attackPenalty,travel);const desired={x:(destination.x-u.x)/travel,y:(destination.y-u.y)/travel};const dir=steerAroundAllies(state,u,desired,step);u.move=dir;u.x+=dir.x*step;u.y+=dir.y*step;bound(u,state.arena)}if(inRange&&u.cd<=0){const volley=targetsForAttack(state,u,t,st);if(st.delivery==='projectile')for(const angle of volley.lanes)state.visualEvents.push({kind:'projectile',x:u.x,y:u.y,toX:u.x+Math.cos(angle)*st.range,toY:u.y+Math.sin(angle)*st.range,owner:u.owner});for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}u.cd+=st.rate}}
- resolveCollision(state);const totals=new Map();for(const a of attacks)totals.set(a.target,(totals.get(a.target)||0)+a.damage);for(const [target,damage] of totals){const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner})}// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
+
+// Utility movement is deterministic, shares the existing targeting weights, and
+// consumes its own cooldown. Terrain still blocks every movement technique.
+function utilityMove(state,u,target,st,dt,enemies){
+ const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time;
+ const ready=key=>(cds[key]||0)<=now;
+ const move=(key,point,distanceUnits,cooldown,options={})=>{
+  const d=distance(u,point);if(d<1||!clearLine(u,point,state.arena,CHASSIS[u.type].radius+3))return false;
+  const step=Math.min(distanceUnits,d),ox=u.x,oy=u.y;
+  u.x+=(point.x-u.x)/d*step;u.y+=(point.y-u.y)/d*step;
+  bound(u,state.arena);
+  if(distance(u,{x:ox,y:oy})<1)return false;
+  cds[key]=now+cooldown;
+  if(options.evade)u.evadingUntil=now+options.evade;
+  if(options.phase){u.phasingUntil=now+dt+.01;u.phaseTarget=target.id}
+  state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:key});
+  return true
+ };
+ const d=distance(u,target),dx=target.x-u.x,dy=target.y-u.y,mag=Math.max(1,d);
+ const nearest=enemies.reduce((best,e)=>Math.min(best,distance(u,e)),Infinity);
+ const threatened=nearest<Math.max(55,st.range*.55);
+ const safety=u.chassis.weights.safety||0,protection=u.chassis.weights.protection||0;
+ // Intercept is a protective reposition, not a teleport to the enemy.
+ if(st.intercept&&ready('intercept')&&protection>=.5){
+  const allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a!==u);
+  const ally=allies.find(a=>enemies.some(e=>distance(a,e)<65)&&distance(u,a)>65&&distance(u,a)<200);
+  if(ally&&move('intercept',ally,Math.min(85,45+st.intercept*15),5))return true;
+ }
+ if(st.dodge&&ready('dodge')&&threatened&&u.hp<u.maxHp*.8){
+  const side=(u.id%2?1:-1),point={x:u.x-dy/mag*side*100,y:u.y+dx/mag*side*100};
+  if(move('dodge',point,28+st.dodge*12,5,{evade:.12+st.dodge*.04}))return true;
+ }
+ if(st.disengage&&ready('disengage')&&enemies.filter(e=>distance(u,e)<75).length>=2){
+  const point={x:u.x-dx/mag*110,y:u.y-dy/mag*110};
+  if(move('disengage',point,35+st.disengage*12,6))return true;
+ }
+ if(st.backstep&&ready('backstep')&&d<Math.max(55,st.range*.55)&&safety>=.3){
+  const point={x:u.x-dx/mag*110,y:u.y-dy/mag*110};
+  if(move('backstep',point,35+st.backstep*12,4.5))return true;
+ }
+ // Follow Through passes the selected target and suppresses only that target's
+ // body collision for the remainder of this simulation tick.
+ if(st.followthrough&&ready('followthrough')&&d<st.range+25&&d>10){
+  const point={x:target.x+dx/mag*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22),y:target.y+dy/mag*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22)};
+  if(move('followthrough',point,Math.min(120,45+st.followthrough*28),6,{phase:true}))return true;
+ }
+ if(st.dash&&ready('dash')&&d>st.range+35&&d<st.range+190){
+  const point={x:target.x-dx/mag*Math.max(10,st.range*.7),y:target.y-dy/mag*Math.max(10,st.range*.7)};
+  if(move('dash',point,45+st.dash*22,5))return true;
+ }
+ if(st.flank&&ready('flank')&&d>st.range*.7&&d<st.range+100){
+  const side=u.id%2?1:-1;
+  const point={x:target.x-dx/mag*st.range+side*(-dy/mag)*(35+st.flank*12),y:target.y-dy/mag*st.range+side*(dx/mag)*(35+st.flank*12)};
+  if(move('flank',point,28+st.flank*10,4))return true;
+ }
+ return false;
+}
+export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;utilityMove(state,u,t,st,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;if(!u.nav||u.nav.target!==t.id||state.tick%10===0)u.nav={target:t.id,point:wayPoint(u,t,state.arena)};let destination=u.nav.point;if(u.chassis.weights.safety>1.8&&d<160){destination={x:u.x+(u.x-t.x),y:u.y+(u.y-t.y)}}else if(st.delivery==='projectile'&&d<st.range*.48){destination={x:u.x+(u.x-t.x),y:u.y+(u.y-t.y)}}else if(inRange)destination=u;const travel=distance(u,destination);if(travel>1){const attackPenalty=inRange?.25:1,step=Math.min(st.speed*dt*attackPenalty,travel);const desired={x:(destination.x-u.x)/travel,y:(destination.y-u.y)/travel};const dir=steerAroundAllies(state,u,desired,step);u.move=dir;u.x+=dir.x*step;u.y+=dir.y*step;bound(u,state.arena)}if(inRange&&u.cd<=0){const volley=targetsForAttack(state,u,t,st);if(st.delivery==='projectile')for(const angle of volley.lanes)state.visualEvents.push({kind:'projectile',x:u.x,y:u.y,toX:u.x+Math.cos(angle)*st.range,toY:u.y+Math.sin(angle)*st.range,owner:u.owner});for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}u.cd+=st.rate}}
+ resolveCollision(state);const totals=new Map();for(const a of attacks)if(!(a.target.evadingUntil>state.time))totals.set(a.target,(totals.get(a.target)||0)+a.damage);for(const [target,damage] of totals){const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner})}// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
  // Multiple simultaneous taunts resolve deterministically in attack processing order.
  for(const a of attacks){if(a.taunt>0&&a.source.hp>0&&a.target.hp>0){a.target.tauntedBy=a.source.id;a.target.tauntedUntil=state.time+.25*a.taunt}}
  for(const a of attacks){if(a.knockback&&a.target.hp>0){const d=Math.max(1,distance(a.source,a.target));a.target.x+=(a.target.x-a.source.x)/d*a.knockback*4;a.target.y+=(a.target.y-a.source.y)/d*a.knockback*4;bound(a.target,state.arena)}}
