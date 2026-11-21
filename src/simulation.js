@@ -261,8 +261,14 @@ function utilityMove(state,u,target,st,dt,enemies){
  const nearest=enemies.reduce((n,e)=>Math.min(n,distance(u,e)),Infinity);
  const threatened=nearest<Math.max(65,st.range*.65);
  const allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a!==u);
- const ally=allies.find(a=>enemies.some(e=>distance(a,e)<65)&&distance(u,a)>65&&distance(u,a)<200);
- if(ally)offer('intercept',ally,burst*(.8+.2*st.intercept),5);
+ // Intercept the aggressor, not the ally being defended.
+ // Prefer an enemy explicitly focused on an ally; nearby threats are a fallback.
+ const attackers=enemies.flatMap(e=>allies.map(a=>({
+  enemy:e,ally:a,explicit:e.focus===a.id,proximity:distance(e,a)
+ })).filter(pair=>pair.explicit||pair.proximity<65))
+ .sort((a,b)=>Number(b.explicit)-Number(a.explicit)||a.proximity-b.proximity||distance(u,a.enemy)-distance(u,b.enemy)||a.enemy.id-b.enemy.id);
+ const intercept=attackers.find(pair=>distance(u,pair.enemy)>st.range*.6&&distance(u,pair.enemy)<260);
+ if(intercept)offer('intercept',intercept.enemy,burst*(.8+.2*st.intercept),5);
  if(threatened)offer('dodge',{x:u.x-dy*100,y:u.y+dx*100},burst*(.65+.2*st.dodge),5,{evade:.12+st.dodge*.04});
  if(enemies.filter(e=>distance(u,e)<75).length>=2)offer('disengage',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*st.disengage),6);
  if(d<Math.max(85,st.range*.8))offer('backstep',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*st.backstep),4.5);
