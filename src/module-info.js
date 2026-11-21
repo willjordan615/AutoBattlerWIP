@@ -1,13 +1,13 @@
 // Profile 2: player-facing, source-of-truth card descriptions.
 // Values match the current prototype's simulation formulas.
 export const DETAILS={
- 'utility:dash':'Close toward the selected enemy when outside attack range. Cooldown 5 seconds; stacks increase travel distance.',
- 'utility:dodge':'When injured and threatened, roll sideways and briefly evade attacks. Cooldown 5 seconds; stacks extend movement and evasion.',
- 'utility:backstep':'Retreat when the selected enemy gets too close. Uses the existing Safety weight. Cooldown 4.5 seconds.',
- 'utility:flank':'Reposition toward an offset angle around the selected enemy. Cooldown 4 seconds; stacks extend movement.',
- 'utility:disengage':'Retreat when two or more enemies crowd the chassis. Cooldown 6 seconds; stacks extend retreat.',
- 'utility:intercept':'Move toward an ally threatened by nearby enemies, influenced by Protection weight. Cooldown 5 seconds.',
- 'utility:followthrough':'Surge past the selected enemy and ignore only its body block during the movement. Terrain and other units still block. Cooldown 6 seconds; stacks extend travel.',
+ 'utility:dash':'Offers a speed-scaled approach burst when weighted positioning favors it. Cooldown 5 seconds; stacks increase travel distance.',
+ 'utility:dodge':'Offers a sideways evasive roll when the weighted movement policy favors it. Cooldown 5 seconds; stacks extend movement and evasion.',
+ 'utility:backstep':'Offers a backward burst when weighted positioning favors distance. Cooldown 4.5 seconds.',
+ 'utility:flank':'Offers an angled approach when the position evaluator favors it. Cooldown 4 seconds; stacks extend movement.',
+ 'utility:disengage':'Offers an escape burst when enemies crowd the chassis and weights favor retreat. Cooldown 6 seconds; stacks extend retreat.',
+ 'utility:intercept':'Offers a burst toward a threatened ally, evaluated using the existing ten weights. Cooldown 5 seconds.',
+ 'utility:followthrough':'Offers a burst past the selected enemy when weighted positioning favors it, ignoring only that enemy’s body block. Terrain and other units still block. Cooldown 6 seconds; stacks extend travel.',
  'unit:bruiser':'Recruit a durable melee fighter. Adds one Bruiser chassis to your squad (maximum 3).',
  'unit:rogue':'Recruit a fast melee fighter. Adds one Rogue chassis to your squad (maximum 3).',
  'unit:ranged':'Recruit a long-range fighter. Adds one Ranged chassis to your squad (maximum 3).',
