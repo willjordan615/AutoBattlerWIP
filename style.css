@@ -48,3 +48,10 @@
 .choice .draft-owner{display:inline-block;margin-top:7px;padding:3px 7px;border-radius:5px;background:#354960;color:#e3edff;font-size:11px;font-weight:700;line-height:1.3}
 .choice:disabled{cursor:default}
 .choice.claimed:disabled{opacity:.82}
+
+.draft-history{border:1px solid #344b63;border-radius:9px;padding:9px;margin-bottom:17px}
+.draft-history summary{cursor:pointer;font-size:13px;font-weight:750;color:#cce7f6}
+#draftHistoryItems{margin-top:7px}
+.draft-history-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;border-top:1px solid #29394e;padding:7px 0;font-size:12px}
+.draft-history-row span{min-width:0;overflow-wrap:anywhere}
+.draft-history-row strong{flex-shrink:0;font-size:11px}
