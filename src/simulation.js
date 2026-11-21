@@ -86,78 +86,96 @@ function targetsForAttack(state,u,target,st){
 
 // Utility movement is deterministic, shares the existing targeting weights, and
 // consumes its own cooldown. Terrain still blocks every movement technique.
-function utilityMove(state,u,target,st,dt,enemies){
- const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time;
- // Burst travel is a fraction of this chassis's actual movement speed.
- // Speed upgrades and Haste apply; a slow Bruiser cannot inherit Rogue mobility.
- const burst=st.speed*.4;
- const ready=key=>(cds[key]||0)<=now;
- const move=(key,point,distanceUnits,cooldown,options={})=>{
-  const d=distance(u,point);if(d<1||!clearLine(u,point,state.arena,CHASSIS[u.type].radius+3))return false;
-  const step=Math.min(distanceUnits,d),ox=u.x,oy=u.y;
-  u.x+=(point.x-u.x)/d*step;u.y+=(point.y-u.y)/d*step;
-  bound(u,state.arena);
-  if(distance(u,{x:ox,y:oy})<1)return false;
-  cds[key]=now+cooldown;
-  if(options.evade)u.evadingUntil=now+options.evade;
-  if(options.phase){u.phasingUntil=now+dt+.01;u.phaseTarget=target.id}
-  state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:key});
-  return true
+// Shared movement policy: the same ten editable weights score every position.
+// Chassis differ through stats and initial weights, never privileged AI branches.
+export function positionScore(state,u,target,point,st,enemies){
+ const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a!==u);
+ const d=distance(point,target),old=distance(u,target),visible=clearLine(point,target,state.arena);
+ const nearest=enemies.reduce((best,e)=>Math.min(best,distance(point,e)),Infinity);
+ const threat=enemies.reduce((sum,e)=>{const r=distance(point,e),es=stats(e);return sum+(r<es.range+30?1:0)*es.damage/25},0);
+ const threatenedAllies=allies.filter(a=>enemies.some(e=>e.focus===a.id||distance(e,a)<65));
+ const allyDistance=allies.length?Math.min(...allies.map(a=>distance(point,a))):120;
+ const protectionDistance=threatenedAllies.length?Math.min(...threatenedAllies.map(a=>distance(point,a))):120;
+ const isolated=enemies.filter(e=>e!==target).every(e=>distance(point,e)>90);
+ const rangeFit=1-Math.min(1,Math.abs(d-st.range*.85)/Math.max(60,st.range));
+ const attack=visible&&d<=st.range?1:0;
+ const features={
+  kill:(1-healthFraction(target))*(attack?.9:.3),
+  damage:attack?1:.12,
+  threat:-threat*.5,
+  distance:1-Math.min(1,d/300),
+  allyProximity:1-Math.min(1,allyDistance/180),
+  safety:Math.min(1,nearest/130)-threat*.2,
+  protection:threatenedAllies.length?1-Math.min(1,protectionDistance/180):0,
+  ability:(u.cd<=0&&attack?1:0)+(st.dash&&d>st.range&&d<st.range+100?.2:0),
+  isolation:isolated?.6:0,
+  preferredRange:rangeFit
  };
- const d=distance(u,target),dx=target.x-u.x,dy=target.y-u.y,mag=Math.max(1,d);
- const nearest=enemies.reduce((best,e)=>Math.min(best,distance(u,e)),Infinity);
- const threatened=nearest<Math.max(55,st.range*.55);
- const safety=u.chassis.weights.safety||0,protection=u.chassis.weights.protection||0;
- // Intercept is a protective reposition, not a teleport to the enemy.
- if(st.intercept&&ready('intercept')&&protection>=.5){
-  const allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a!==u);
-  const ally=allies.find(a=>enemies.some(e=>distance(a,e)<65)&&distance(u,a)>65&&distance(u,a)<200);
-  if(ally&&move('intercept',ally,burst*(.8+.2*st.intercept),5))return true;
- }
- if(st.dodge&&ready('dodge')&&threatened&&u.hp<u.maxHp*.8){
-  const side=(u.id%2?1:-1),point={x:u.x-dy/mag*side*100,y:u.y+dx/mag*side*100};
-  if(move('dodge',point,burst*(.65+.2*st.dodge),5,{evade:.12+st.dodge*.04}))return true;
- }
- if(st.disengage&&ready('disengage')&&enemies.filter(e=>distance(u,e)<75).length>=2){
-  const point={x:u.x-dx/mag*110,y:u.y-dy/mag*110};
-  if(move('disengage',point,burst*(.75+.2*st.disengage),6))return true;
- }
- if(st.backstep&&ready('backstep')&&d<Math.max(55,st.range*.55)&&safety>=.3){
-  const point={x:u.x-dx/mag*110,y:u.y-dy/mag*110};
-  if(move('backstep',point,burst*(.75+.2*st.backstep),4.5))return true;
- }
- // Follow Through passes the selected target and suppresses only that target's
- // body collision for the remainder of this simulation tick.
- if(st.followthrough&&ready('followthrough')&&d<st.range+25&&d>10){
-  const point={x:target.x+dx/mag*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22),y:target.y+dy/mag*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22)};
-  if(move('followthrough',point,burst*(.8+.3*st.followthrough),6,{phase:true}))return true;
- }
- if(st.dash&&ready('dash')&&d>st.range+35&&d<st.range+190){
-  const point={x:target.x-dx/mag*Math.max(10,st.range*.7),y:target.y-dy/mag*Math.max(10,st.range*.7)};
-  if(move('dash',point,burst*(1+.35*st.dash),5))return true;
- }
- if(st.flank&&ready('flank')&&d>st.range*.7&&d<st.range+100){
-  const side=u.id%2?1:-1;
-  const point={x:target.x-dx/mag*st.range+side*(-dy/mag)*(35+st.flank*12),y:target.y-dy/mag*st.range+side*(dx/mag)*(35+st.flank*12)};
-  if(move('flank',point,burst*(.65+.2*st.flank),4))return true;
- }
- return false;
+ let score=METRICS.reduce((sum,k)=>sum+(w[k]||0)*features[k],0);
+ // Small inertial preference avoids jitter and keeps neutral weights functional.
+ score+=.08*(d<old?1:0)-.03*distance(u,point)/Math.max(1,st.speed);
+ return score;
 }
-export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;utilityMove(state,u,t,st,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;if(!u.nav||u.nav.target!==t.id||state.tick%10===0)u.nav={target:t.id,point:wayPoint(u,t,state.arena)};let destination=u.nav.point;if(u.type==='ranged'){
- // Ranged units actively preserve a firing lane rather than waiting for melee.
- const closest=enemies.reduce((a,e)=>distance(u,e)<distance(u,a)?e:a,enemies[0]);
- const nearest=distance(u,closest);
- if(nearest<Math.max(95,st.range*.82)){
-  destination={x:u.x+(u.x-closest.x),y:u.y+(u.y-closest.y)};
- }else if(inRange)destination=u;
-}else if(u.type==='rogue'){
- // Rogues cycle in and out of melee after attacks, using natural speed.
- // Their retreat is brief, not a permanent refusal to engage.
- const retreating=u.skirmishUntil>state.time;
- if(retreating&&d<Math.max(80,st.range*2.1)){
-  destination={x:u.x+(u.x-t.x),y:u.y+(u.y-t.y)};
- }else if(inRange)destination=u;
-}else if(u.chassis.weights.safety>1.8&&d<160){destination={x:u.x+(u.x-t.x),y:u.y+(u.y-t.y)}}else if(inRange)destination=u;const travel=distance(u,destination);if(travel>1){const attackPenalty=inRange?.25:1,step=Math.min(st.speed*dt*attackPenalty,travel);const desired={x:(destination.x-u.x)/travel,y:(destination.y-u.y)/travel};const dir=steerAroundAllies(state,u,desired,step);u.move=dir;u.x+=dir.x*step;u.y+=dir.y*step;bound(u,state.arena)}if(inRange&&u.cd<=0){const volley=targetsForAttack(state,u,t,st);if(st.delivery==='projectile')for(const angle of volley.lanes)state.visualEvents.push({kind:'projectile',x:u.x,y:u.y,toX:u.x+Math.cos(angle)*st.range,toY:u.y+Math.sin(angle)*st.range,owner:u.owner});for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}u.cd+=st.rate;if(u.type==='rogue'&&volley.hits.length)u.skirmishUntil=state.time+Math.min(.65,st.rate*.55)}}
+export function chooseMovement(state,u,target,st,enemies,dt){
+ const step=st.speed*dt,dirs=[{x:0,y:0}];
+ const to={x:target.x-u.x,y:target.y-u.y},angle=Math.atan2(to.y,to.x);
+ for(let i=0;i<8;i++){const theta=angle+i*Math.PI/4;dirs.push({x:Math.cos(theta),y:Math.sin(theta)})}
+ // Route around solid obstacles without giving any chassis a special policy.
+ const waypoint=wayPoint(u,target,state.arena),wd=distance(u,waypoint);
+ if(wd>1)dirs.push({x:(waypoint.x-u.x)/wd,y:(waypoint.y-u.y)/wd});
+ let best={x:0,y:0,score:-Infinity};
+ for(const dir of dirs){
+  const point={x:u.x+dir.x*step,y:u.y+dir.y*step};
+  if(!clearLine(u,point,state.arena,CHASSIS[u.type].radius+3))continue;
+  const score=positionScore(state,u,target,point,st,enemies);
+  if(score>best.score+1e-8)best={...dir,score};
+ }
+ return best;
+}
+function utilityMove(state,u,target,st,dt,enemies){
+ const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time,burst=st.speed*.4;
+ const ready=key=>(cds[key]||0)<=now;
+ const base=positionScore(state,u,target,u,st,enemies);
+ const d=distance(u,target),dx=(target.x-u.x)/Math.max(1,d),dy=(target.y-u.y)/Math.max(1,d);
+ const proposals=[];
+ const offer=(key,point,dist,cooldown,options={})=>{
+  if(!st[key]||!ready(key))return;
+  const length=distance(u,point);
+  if(length<1)return;
+  const step=Math.min(dist,length);
+  const p={x:u.x+(point.x-u.x)/length*step,y:u.y+(point.y-u.y)/length*step};
+  if(!clearLine(u,p,state.arena,CHASSIS[u.type].radius+3))return;
+  const score=positionScore(state,u,target,p,st,enemies);
+  proposals.push({key,p,score,cooldown,options});
+ };
+ const nearest=enemies.reduce((n,e)=>Math.min(n,distance(u,e)),Infinity);
+ const threatened=nearest<Math.max(65,st.range*.65);
+ const allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a!==u);
+ const ally=allies.find(a=>enemies.some(e=>distance(a,e)<65)&&distance(u,a)>65&&distance(u,a)<200);
+ if(ally)offer('intercept',ally,burst*(.8+.2*st.intercept),5);
+ if(threatened)offer('dodge',{x:u.x-dy*100,y:u.y+dx*100},burst*(.65+.2*st.dodge),5,{evade:.12+st.dodge*.04});
+ if(enemies.filter(e=>distance(u,e)<75).length>=2)offer('disengage',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*st.disengage),6);
+ if(d<Math.max(85,st.range*.8))offer('backstep',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*st.backstep),4.5);
+ if(d<st.range+25&&d>10)offer('followthrough',{x:target.x+dx*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22),y:target.y+dy*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22)},burst*(.8+.3*st.followthrough),6,{phase:true});
+ if(d>st.range+35&&d<st.range+190)offer('dash',{x:target.x-dx*Math.max(10,st.range*.7),y:target.y-dy*Math.max(10,st.range*.7)},burst*(1+.35*st.dash),5);
+ if(d>st.range*.7&&d<st.range+100)for(const side of [-1,1])offer('flank',{x:target.x-dx*st.range-side*dy*(35+st.flank*12),y:target.y-dy*st.range+side*dx*(35+st.flank*12)},burst*(.65+.2*st.flank),4);
+ // Abilities are optional tools. Their projected position must beat staying
+ // and ordinary walking; high Safety/Protection/etc. determines their use.
+ const normal=chooseMovement(state,u,target,st,enemies,dt);
+ const walk={x:u.x+normal.x*st.speed*dt,y:u.y+normal.y*st.speed*dt};
+ const threshold=Math.max(base,positionScore(state,u,target,walk,st,enemies))+.015;
+ const best=proposals.sort((a,b)=>b.score-a.score)[0];
+ if(!best||best.score<=threshold)return false;
+ const ox=u.x,oy=u.y;u.x=best.p.x;u.y=best.p.y;bound(u,state.arena);
+ cds[best.key]=now+best.cooldown;
+ if(best.options.evade)u.evadingUntil=now+best.options.evade;
+ if(best.options.phase){u.phasingUntil=now+dt+.01;u.phaseTarget=target.id}
+ state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:best.key});
+ return true;
+}
+export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;utilityMove(state,u,t,st,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=chooseMovement(state,u,t,st,enemies,dt);
+ if(direction.x||direction.y){const step=st.speed*dt;u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
+ if(inRange&&u.cd<=0){const volley=targetsForAttack(state,u,t,st);if(st.delivery==='projectile')for(const angle of volley.lanes)state.visualEvents.push({kind:'projectile',x:u.x,y:u.y,toX:u.x+Math.cos(angle)*st.range,toY:u.y+Math.sin(angle)*st.range,owner:u.owner});for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}u.cd+=st.rate}}
  resolveCollision(state);const totals=new Map();for(const a of attacks)if(!(a.target.evadingUntil>state.time))totals.set(a.target,(totals.get(a.target)||0)+a.damage);for(const [target,damage] of totals){const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner})}// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
  // Multiple simultaneous taunts resolve deterministically in attack processing order.
  for(const a of attacks){if(a.taunt>0&&a.source.hp>0&&a.target.hp>0){a.target.tauntedBy=a.source.id;a.target.tauntedUntil=state.time+.25*a.taunt}}
