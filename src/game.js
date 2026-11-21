@@ -1,7 +1,7 @@
-import {CHASSIS,ARENAS,STEP,tick} from './simulation.js';
-import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js';
-import {cardDetail} from './module-info.js';
-import {chooseCpuDraft} from './draft-ai.js';
+import {CHASSIS,ARENAS,STEP,tick} from './simulation.js?v=combat-fx-6';
+import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=combat-fx-6';
+import {cardDetail} from './module-info.js?v=combat-fx-6';
+import {chooseCpuDraft} from './draft-ai.js?v=combat-fx-6';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let effects=[],match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null;
