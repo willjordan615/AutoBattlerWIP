@@ -42,7 +42,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
   if(slots.length>=2&&(!Number.isInteger(passiveSlot)||passiveSlot<0||passiveSlot>1))throw Error('Invalid passive slot');
   const previous=slots[assignedSlot];
   // Replacing a utility removes its active combat effect, not just its label.
-  if(previous&&previous!==card.key&&UTILITY_MODULES.includes(previous))unit.mods[previous]=0;
+  if(previous&&!(card.kind==='utility'&&slots.includes(card.key))&&UTILITY_MODULES.includes(previous))unit.mods[previous]=0;
   if(card.kind==='utility'){
    // Re-drafting an equipped utility strengthens it without using another slot.
    const existing=slots.indexOf(card.key);
