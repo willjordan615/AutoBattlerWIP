@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent} from '../src/simulation.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
 test('chassis mutations are independent',()=>{const a=makeChassis('bruiser'),b=makeChassis('bruiser');a.mods.hp=2;assert.equal(stats({type:'bruiser',chassis:a}).hp,195);assert.equal(stats({type:'bruiser',chassis:b}).hp,155)});
 test('wall clamping for all archetypes',()=>{for(const type of Object.keys(CHASSIS)){const u={type,x:-100,y:900};bound(u);assert.ok(u.x>20&&u.y<500)}});
@@ -143,4 +143,28 @@ test('navigation can step away from target to round a barrier',()=>{
  const a=b.units[0],enemy=b.units[1];a.x=317;a.y=199;enemy.x=400;enemy.y=200;
  const d=chooseMovement(b,a,enemy,stats(a),[enemy],STEP);
  assert.ok(d.x!==0||d.y!==0,'must choose a physical detour rather than idle');
+});
+
+test('approaching enemies lower predicted safety',()=>{
+ const b=spawn(players());const u=b.units.find(x=>x.type==='ranged'),e=b.units.find(x=>x.owner!==u.owner);
+ b.units=[u,e];u.x=200;u.y=200;e.x=335;e.y=200;
+ e.intent={x:1,y:0};const leaving=positionScore(b,u,e,u,stats(u),[e]);
+ e.intent={x:-1,y:0};const approaching=positionScore(b,u,e,u,stats(u),[e]);
+ assert.ok(approaching<leaving,'approaching enemy should lower safety');
+});
+test('high-safety ally gives room to lower-safety frontline ally',()=>{
+ const p=players();p[0].squad=[makeChassis('ranged'),makeChassis('bruiser')];
+ const b=spawn(p),u=b.units.find(x=>x.owner===0&&x.type==='ranged'),ally=b.units.find(x=>x.owner===0&&x.type==='bruiser'),e=b.units.find(x=>x.owner===1);
+ b.units=[u,ally,e];u.x=200;u.y=200;ally.x=219;ally.y=200;e.x=350;e.y=200;
+ ally.intent={x:-1,y:0};
+ const near=positionScore(b,u,e,{x:203,y:200},stats(u),[e]);
+ const away=positionScore(b,u,e,{x:197,y:200},stats(u),[e]);
+ assert.ok(away>near,'cautious unit should yield to the frontline');
+});
+test('ranged preferred distance beats closing to point blank',()=>{
+ const b=spawn(players());const u=b.units.find(x=>x.type==='ranged'),e=b.units.find(x=>x.owner!==u.owner);
+ b.units=[u,e];u.x=200;u.y=200;e.x=250;e.y=200;
+ const close=positionScore(b,u,e,{x:215,y:200},stats(u),[e]);
+ const retreat=positionScore(b,u,e,{x:185,y:200},stats(u),[e]);
+ assert.ok(retreat>close,'ranged unit should favor retreat toward firing distance');
 });
