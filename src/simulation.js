@@ -30,7 +30,7 @@ function navigationPath(start,end,arena,r){
  const corners=arena.obstacles.flatMap(o=>[{x:o.x-r-3,y:o.y-r-3},{x:o.x+o.w+r+3,y:o.y-r-3},{x:o.x-r-3,y:o.y+o.h+r+3},{x:o.x+o.w+r+3,y:o.y+o.h+r+3}]).filter(p=>p.x>20+r&&p.x<700-r&&p.y>20+r&&p.y<500-r);
  const nodes=[start,...corners,end],n=nodes.length,dist=Array(n).fill(Infinity),prev=Array(n).fill(-1),seen=Array(n).fill(false);dist[0]=0;
  for(let k=0;k<n;k++){let at=-1;for(let i=0;i<n;i++)if(!seen[i]&&(at<0||dist[i]<dist[at]))at=i;if(at<0||!Number.isFinite(dist[at])||at===n-1)break;seen[at]=true;
-  for(let j=1;j<n;j++){if(seen[j]||!clearLine(nodes[at],nodes[j],arena,r))continue;const cost=dist[at]+distance(nodes[at],nodes[j]);if(cost<dist[j]){dist[j]=cost;prev[j]=at}}
+  for(let j=1;j<n;j++){if(seen[j]||!clearLine(nodes[at],nodes[j],arena,j===n-1?0:r))continue;const cost=dist[at]+distance(nodes[at],nodes[j]);if(cost<dist[j]){dist[j]=cost;prev[j]=at}}
  }
  if(!Number.isFinite(dist[n-1]))return null;const path=[];let at=n-1;while(at>0){path.unshift(nodes[at]);at=prev[at];if(at<0)return null}return path;
 }
@@ -143,13 +143,13 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  const blocked=!clearLine(u,target,state.arena,r);u.navigationBlocked=blocked;
  let nav=u.navigation;
  if(!blocked){nav=null;u.navigation=null}
- else if(!nav||nav.targetId!==target.id||distance(nav.destination,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,r)){
+ else if(!nav||nav.targetId!==target.id||distance(nav.destination,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,nav.path.length===1?0:r)){
   const path=navigationPath(u,target,state.arena,r);
   nav=path?{targetId:target.id,destination:{x:target.x,y:target.y},path}:null;u.navigation=nav;
  }
  if(blocked&&nav){
   while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(5,step*1.5))nav.path.shift();
-  for(let i=nav.path.length-1;i>0;i--)if(clearLine(u,nav.path[i],state.arena,r)){nav.path.splice(0,i);break}
+  for(let i=nav.path.length-1;i>0;i--)if(clearLine(u,nav.path[i],state.arena,i===nav.path.length-1?0:r)){nav.path.splice(0,i);break}
  }
  const valid=dir=>{const p={x:u.x+dir.x*step,y:u.y+dir.y*step};return p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&clearLine(u,p,state.arena,r)};
  if(blocked&&nav){
