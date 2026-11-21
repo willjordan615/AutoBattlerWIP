@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {makeChassis,steerAroundAllies,spawn,ARENAS,STEP,tick} from '../src/simulation.js';
+import {createMatch,draftPool,assign} from '../src/headless.js';
+import {scoreDraft,chooseCpuDraft} from '../src/draft-ai.js';
+import {cardDetail} from '../src/module-info.js';
+test('teammate steering deflects from a blocked straight path',()=>{const a={id:1,owner:0,type:'bruiser',x:100,y:100,hp:100,chassis:makeChassis('bruiser')},b={id:2,owner:0,type:'bruiser',x:132,y:100,hp:100,chassis:makeChassis('bruiser')};const dir=steerAroundAllies({units:[a,b]},a,{x:1,y:0},2);assert.ok(Math.abs(dir.y)>0.1||dir.x<0.5)});
+test('teammate steering preserves free paths',()=>{const a={id:1,owner:0,type:'rogue',x:100,y:100,hp:100},b={id:2,owner:0,type:'rogue',x:400,y:400,hp:100};const dir=steerAroundAllies({units:[a,b]},a,{x:1,y:0},2);assert.ok(dir.x>.99)});
+test('module cards explain speed vs haste and player HP vs chassis HP',()=>{assert.match(cardDetail({kind:'attack',key:'speed'}),/18/);assert.match(cardDetail({kind:'passive',key:'haste'}),/25%/);assert.match(cardDetail({kind:'attack',key:'hp'}),/Not the player/);});
+test('CPU scores favor synergy and chassis identity',()=>{const p={hp:100,squad:[makeChassis('ranged')]};assert.ok(scoreDraft(p,{kind:'target',key:'skirmisher'})>scoreDraft(p,{kind:'target',key:'guardian'}));p.squad[0].mods.projectiles=2;assert.ok(scoreDraft(p,{kind:'attack',key:'piercing'})>scoreDraft({hp:100,squad:[makeChassis('ranged')]},{kind:'attack',key:'piercing'}))});
+test('CPU chooses a legal shared card',()=>{const m=createMatch();draftPool(m);const p=chooseCpuDraft(m,0);assign(m,0,p.card.uid,p.chassisIndex,p.passiveSlot);assert.equal(m.draft.turn,1)});
