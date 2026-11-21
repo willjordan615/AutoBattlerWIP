@@ -129,3 +129,18 @@ test('the same weights can make a ranged chassis aggressive',()=>{
  assert.ok(chooseMovement(b,a,enemy,stats(a),[enemy],STEP).x>0);
 });
 
+
+test('navigation follows a persistent detour around a pillar',()=>{
+ const b=spawn(players(),ARENAS[1]);b.units=b.units.slice(0,2);
+ const a=b.units[0],enemy=b.units[1];a.x=259.68;a.y=258.91;enemy.x=336.02;enemy.y=233.73;
+ a.cd=enemy.cd=1000;
+ let moved=0;for(let i=0;i<150;i++){const before={x:a.x,y:a.y};tick(b,STEP);moved+=Math.hypot(a.x-before.x,a.y-before.y)}
+ assert.ok(moved>30,'obstructed fighter should travel around the pillar');
+ assert.ok(clearLine(a,enemy,b.arena,CHASSIS[a.type].radius+3),'fighter should eventually regain a route to target');
+});
+test('navigation can step away from target to round a barrier',()=>{
+ const b=spawn(players(),ARENAS[2]);b.units=b.units.slice(0,2);
+ const a=b.units[0],enemy=b.units[1];a.x=317;a.y=199;enemy.x=400;enemy.y=200;
+ const d=chooseMovement(b,a,enemy,stats(a),[enemy],STEP);
+ assert.ok(d.x!==0||d.y!==0,'must choose a physical detour rather than idle');
+});
