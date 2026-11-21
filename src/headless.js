@@ -35,7 +35,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  if(card.kind==='attack')unit.mods[card.key]++;
  if(card.kind==='target')for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
  if(card.kind==='passive'){if(unit.passives.length<2)unit.passives.push(card.key);else{if(!Number.isInteger(passiveSlot)||passiveSlot<0||passiveSlot>1)throw Error('Invalid passive slot');unit.passives[passiveSlot]=card.key}}
- unit.modules.push({kind:card.kind,name:card.name})}
+ if(card.kind==='passive'){unit.modules=unit.modules.filter(m=>m.passiveSlot!==((unit.passives.length<2?unit.passives.length-1:passiveSlot)+1));unit.modules.push({kind:card.kind,name:card.name,passiveSlot:(unit.passives.length<2?unit.passives.length-1:passiveSlot)+1})}else unit.modules.push({kind:card.kind,name:card.name})}
  d.pool.splice(index,1);d.picks.push({player:playerIndex,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';return card
 }
 export function autoDraft(match){if(!match.draft)draftPool(match);while(match.phase==='draft'){const d=match.draft,i=d.order[d.turn],p=match.players[i];const legalCards=d.pool.filter(c=>legal(p,c));const card=legalCards[Math.floor(match.random()*legalCards.length)];assign(match,i,card.uid,Math.floor(match.random()*p.squad.length),Math.floor(match.random()*2))}return match.draft.picks}
