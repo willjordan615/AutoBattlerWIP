@@ -1,4 +1,4 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=chassis-ai-12';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=weighted-movement-13';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
 export const ATTACK_MODULES=['damage','rate','range','projectiles','piercing','area','knockback','taunt','speed','hp'];
 export const UTILITY_MODULES=['dash','dodge','backstep','flank','disengage','intercept','followthrough'];
