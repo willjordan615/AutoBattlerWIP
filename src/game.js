@@ -1,4 +1,4 @@
-import {CHASSIS,ARENAS,STEP,tick} from './simulation.js?v=combat-fx-6';
+import {CHASSIS,ARENAS,STEP,tick,rng} from './simulation.js?v=combat-fx-6';
 import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=combat-fx-6';
 import {cardDetail} from './module-info.js?v=combat-fx-6';
 import {chooseCpuDraft} from './draft-ai.js?v=combat-fx-6';
@@ -9,7 +9,8 @@ function log(s){const d=document.createElement('div');d.textContent=s;$('log').p
 function button(text,detail,fn){const b=document.createElement('button');b.className='choice';const title=document.createElement('strong');title.textContent=text;const desc=document.createElement('span');desc.textContent=detail;b.append(title,desc);b.onclick=fn;return b}
 function shortCard(card){if(card.kind==='unit')return 'New chassis · '+CHASSIS[card.key].hp+' HP';if(card.kind==='passive')return 'Passive · 1 of 2 slots';if(card.kind==='target')return 'Targeting priority +1';return ({damage:'+4 attack damage',rate:'Faster attacks',range:'+20 attack reach',projectiles:'+1 attack instance',piercing:'+1 extra target',area:'Wider attack',knockback:'Stronger knockback',speed:'+18 movement speed',hp:'+30 chassis combat HP'})[card.key]||'Attack upgrade'}
 function reset(){effects=[];cancelAnimationFrame(frame);match=null;battle=null;chosen=null;lastResult=null;completedDraft=null;view='start';paused=false;acc=0;$('log').replaceChildren();$('results').textContent='Choose a starting chassis.';$('pause').disabled=true;$('step').disabled=true;$('pause').textContent='Pause';$('timer').textContent='0.0s';render();draw()}
-function create(type){match=createMatch([type,'bruiser','rogue','ranged'],12345);draftPool(match);view='draft';chosen=null;log('Match created. First draft precedes combat.');processBots();render()}
+function freshSeed(){if(globalThis.crypto?.getRandomValues){const values=new Uint32Array(1);globalThis.crypto.getRandomValues(values);return values[0]}return (Date.now()^Math.floor(Math.random()*0x100000000))>>>0}
+function create(type){const seed=freshSeed(),random=rng(seed),bots=['bruiser','rogue','ranged'];for(let i=bots.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[bots[i],bots[j]]=[bots[j],bots[i]]}match=createMatch([type,...bots],seed);draftPool(match);view='draft';chosen=null;log('Match created. First draft precedes combat.');processBots();render()}
 function processBots(){while(match.phase==='draft'&&match.draft.order[match.draft.turn]!==0){const index=match.draft.order[match.draft.turn],choice=chooseCpuDraft(match,index);assign(match,index,choice.card.uid,choice.chassisIndex,choice.passiveSlot);log(match.players[index].name+' drafts '+choice.card.name)}if(match.phase==='combat')startCombat()}
 function choose(card){chosen=card.uid;render()}
 function takePick(){if(!chosen)return;const card=match.draft.pool.find(c=>c.uid===chosen);if(!card)return;const chassis=Number($('slot')?.value||0),passive=Number($('passiveSlot')?.value||0);assign(match,0,card.uid,chassis,passive);log('You draft '+card.name);chosen=null;processBots();render()}
