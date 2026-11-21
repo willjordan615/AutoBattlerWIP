@@ -1,13 +1,13 @@
 // Profile 2: player-facing, source-of-truth card descriptions.
 // Values match the current prototype's simulation formulas.
 export const DETAILS={
- 'utility:dash':'Offers a speed-scaled approach burst when weighted positioning favors it. Cooldown 5 seconds; stacks increase travel distance.',
- 'utility:dodge':'Offers a sideways evasive roll when the weighted movement policy favors it. Cooldown 5 seconds; stacks extend movement and evasion.',
- 'utility:backstep':'Offers a backward burst when weighted positioning favors distance. Cooldown 4.5 seconds.',
- 'utility:flank':'Offers an angled approach when the position evaluator favors it. Cooldown 4 seconds; stacks extend movement.',
- 'utility:disengage':'Offers an escape burst when enemies crowd the chassis and weights favor retreat. Cooldown 6 seconds; stacks extend retreat.',
- 'utility:intercept':'Offers a burst toward a threatened ally, evaluated using the existing ten weights. Cooldown 5 seconds.',
- 'utility:followthrough':'Offers a burst past the selected enemy when weighted positioning favors it, ignoring only that enemy’s body block. Terrain and other units still block. Cooldown 6 seconds; stacks extend travel.',
+ 'utility:dash':'Uses one of two shared passive/utility slots. Offers a speed-scaled approach burst when weighted positioning favors it. Cooldown 5 seconds; repeat drafts strengthen the equipped utility.',
+ 'utility:dodge':'Uses one of two shared passive/utility slots. Offers a sideways evasive roll when the weighted movement policy favors it. Cooldown 5 seconds; stacks extend movement and evasion.',
+ 'utility:backstep':'Uses one of two shared passive/utility slots. Offers a backward burst when weighted positioning favors distance. Cooldown 4.5 seconds.',
+ 'utility:flank':'Uses one of two shared passive/utility slots. Offers an angled approach when the position evaluator favors it. Cooldown 4 seconds; stacks extend movement.',
+ 'utility:disengage':'Uses one of two shared passive/utility slots. Offers an escape burst when enemies crowd the chassis and weights favor retreat. Cooldown 6 seconds; stacks extend retreat.',
+ 'utility:intercept':'Uses one of two shared passive/utility slots. Offers a burst toward an enemy targeting or threatening an ally, evaluated using the existing ten weights. Cooldown 5 seconds.',
+ 'utility:followthrough':'Uses one of two shared passive/utility slots. Offers a burst past the selected enemy when weighted positioning favors it, ignoring only that enemy’s body block. Terrain and other units still block. Cooldown 6 seconds; stacks extend travel.',
  'unit:bruiser':'Recruit a durable melee fighter. Adds one Bruiser chassis to your squad (maximum 3).',
  'unit:rogue':'Recruit a fast melee fighter. Adds one Rogue chassis to your squad (maximum 3).',
  'unit:ranged':'Recruit a long-range fighter. Adds one Ranged chassis to your squad (maximum 3).',
