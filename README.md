@@ -14,7 +14,7 @@ Mobile-first, deterministic, four-player free-for-all autobattler. Source of tru
 - Headless API: `import {simulate} from './src/headless.js'; const match = simulate(12345)`.
 - `src/simulation.js` is independent of DOM/Canvas and runs a fixed 30 Hz combat simulation.
 - `src/headless.js` runs drafting, full matches, tiebreakers and persistent HP without rendering.
-- `src/game.js` remains the browser UI adapter; some draft/match orchestration is duplicated pending consolidation.
+- `src/game.js` is a browser-only adapter. It imports the shared draft and match lifecycle from `src/headless.js`, rather than maintaining a second rules engine.
 
 ## GDD mechanics implemented
 
@@ -40,19 +40,19 @@ Mobile-first, deterministic, four-player free-for-all autobattler. Source of tru
 - Projectile delivery currently resolves hits instantly after line-of-sight checking; there is no traveling projectile entity.
 - Obstacle navigation is a visibility-graph shortest-path steering approximation, not a dynamic navmesh. Complex mazes may trap units.
 - The utility AI is a practical initial approximation. Ability Opportunity has no independent active ability system yet; passives are basic.
-- The browser UI still duplicates some match logic and lacks an in-browser seed/replay inspector.
+- The browser UI lacks an in-browser seed/replay inspector. The browser AI draft policy is independent of the headless random-pick policy, but both use the same draft legality and assignment rules.
 - The per-tick multishot safeguard caps attack execution at 64 projectiles, though modules themselves are uncapped.
 - Online multiplayer, accounts, rankings and production art are outside prototype scope.
 
 ## Verification
 
-- Tests in `tests/simulation.test.js` and `tests/headless.test.js` cover combat geometry, utility weights, simultaneous elimination, timeout, placement, loss streaks, drafting, passive replacement and seeded full-match replay.
+- Tests in `tests/simulation.test.js`, `tests/headless.test.js` and `tests/browser.test.js` cover combat geometry, utility weights, simultaneous elimination, timeout, placement, loss streaks, drafting, passive replacement and seeded full-match replay.
 - The simulation suite (18 tests) and headless suite (8 tests) were exercised in a JavaScript test harness; full GitHub Actions status has not been verified.
 - A 30-seed headless match sweep finished with a single survivor in every seed (rounds 9–16), providing a smoke test rather than balance proof.
 
 ## Next work
 
-1. Consolidate the browser adapter onto `src/headless.js` to eliminate duplicated orchestration.
+1. Validate the browser integration test in GitHub Actions and conduct a real-device playtest.
 2. Implement projectile travel and spatial effects with deterministic events.
 3. Improve obstacle-aware navigation and cooperative ally movement.
 4. Provide replay export, inspectable AI decisions, and automated balance reports.
