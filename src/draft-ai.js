@@ -11,7 +11,7 @@ export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  if(!unit)return -Infinity;
  const st=CHASSIS[type],m=unit.mods;
  if(card.kind==='attack'){
- const scores={damage:24+4/(st.damage+m.damage*4)*35,rate:25,range:type==='ranged'?19:26,projectiles:34,piercing:20,area:15,knockback:12,speed:type==='ranged'?19:25,hp:type==='bruiser'?26:19};
+ const scores={damage:24+4/(st.damage+m.damage*4)*35,rate:25,range:type==='ranged'?19:26,projectiles:34,piercing:20,area:15,knockback:12,taunt:type==='bruiser'?29:21,speed:type==='ranged'?19:25,hp:type==='bruiser'?26:19};
  let score=scores[card.key]||10;
  if(card.key==='projectiles')score+=m.piercing*5;
  if(card.key==='piercing')score+=m.projectiles*6;
