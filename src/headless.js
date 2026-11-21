@@ -20,7 +20,7 @@ export function legal(player,card){return player.hp>0&&(card.kind!=='unit'||play
 export function draftPool(match){
  const active=match.players.map((p,i)=>p.hp>0?i:-1).filter(i=>i>=0);
  const pool=Array.from({length:active.length+2},(_,i)=>({...catalog[Math.floor(match.random()*catalog.length)],uid:match.round+'-'+i}));
- const full=active.filter(i=>match.players[i].squad.length>=3).length;
+ const full=active.length;
  let available=pool.filter(x=>x.kind!=='unit').length;
  for(let i=pool.length-1;i>=0&&available<full;i--)if(pool[i].kind==='unit'){pool[i]={...catalog.filter(x=>x.kind!=='unit')[Math.floor(match.random()*(catalog.length-3))],uid:pool[i].uid};available++}
  const order=match.lastRanking.length?match.lastRanking.filter(i=>match.players[i].hp>0).reverse():active;
