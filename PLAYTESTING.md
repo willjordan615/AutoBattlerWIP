@@ -24,3 +24,21 @@ The agent can inspect `state().draft.choices` and choose any legal `{uid,slot,pa
 ## Reproducibility and limitations
 
 A session's seed, draft history, and battle reports are accessible with `state()`, `history()`, and `battles()`. The initial draft is processed in seat order, so bots preceding the controlled seat may already have picked before the first observation. All unit stats and AI weights are visible. The engine still has its own 30-second combat limit. Trace frames are sampled rather than a full per-tick replay, and `run` uses the current game mechanics without modifying the browser UI.
+
+## Strategy comparison and combat diagnostics
+
+```js
+import {comparePolicies,POLICIES,createPlaytest} from './scripts/playtest-harness.js';
+console.log(comparePolicies({matches:40,seed:20261121}));
+const game=createPlaytest({seed:20261121});
+const choice=POLICIES.balanced(game.state());
+game.pick(choice.uid,choice.slot,choice.passiveSlot);
+const {report}=game.fight({trace:false});
+console.log(report.telemetry,report.telemetry.byOwner);
+```
+
+The four exported deterministic policies are `balanced`, `aggressive`, `defensive`, and `tactical`. `comparePolicies` runs each against the existing strategic CPU with the same sequence of seeds. This is an initial comparison, not a full four-policy round robin.
+
+Each combat report now includes per-owner and total `targetSwitches`, `blockedUnitTicks`, `stationaryUnitTicks`, `aliveUnitTicks`, `travelDistance`, and `damageTaken`. The movement counters sample every simulation tick, including when full frame tracing is disabled.
+
+**Navigation experiment note (2026-11-21):** A destination-search prototype increased timeouts in a 12-match trial, so it was reverted. The existing obstacle waypoint system remains in production. Don't infer a navigation fix from the new diagnostics alone.
