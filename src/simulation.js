@@ -116,7 +116,7 @@ export function positionScore(state,u,target,point,st,enemies){
  const features={
   kill:(1-healthFraction(target))*(attack?.9:.3),
   damage:attack?1:.12,
-  threat:-threat*.5,
+  threat:-threat*.5, // position: avoid exposure; targeting: prioritize dangerous enemies
   distance:1-Math.min(1,d/300),
   allyProximity:1-Math.min(1,allyDistance/180),
   safety:Math.min(1,nearest/130)-threat*.2,
