@@ -9,3 +9,5 @@ test('passives have exactly two active slots with replacement',()=>{const m=crea
 test('round winner is protected and drafting resumes',()=>{const m=createMatch();draftPool(m);autoDraft(m);const result=fight(m);assert.equal(m.players[result.ranking[0]].hp,100);assert.equal(m.round,2);assert.equal(m.phase,'draft')});
 test('seeded matches replay identically',()=>{const a=simulate(41),b=simulate(41);assert.deepEqual(a.history,b.history);assert.equal(a.phase,'finished')});
 test('thirty seeded matches terminate with one survivor',()=>{for(let seed=1;seed<=30;seed++){const m=simulate(seed,100);assert.equal(m.phase,'finished');assert.equal(m.players.filter(p=>p.hp>0).length,1)}})
+
+test('shared draft retains all original options and records claiming player',()=>{const m=createMatch();draftPool(m);const original=m.draft.originalPool.map(c=>c.uid);const uid=m.draft.pool[0].uid;assign(m,0,uid);assert.equal(m.draft.originalPool.length,6);assert.deepEqual(m.draft.originalPool.map(c=>c.uid),original);assert.equal(m.draft.pool.length,5);assert.equal(m.draft.picks[0].uid,uid);assert.equal(m.draft.picks[0].player,0)});
