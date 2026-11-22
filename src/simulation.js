@@ -27,7 +27,7 @@ function segmentRect(a,b,o,pad=0){const dx=b.x-a.x,dy=b.y-a.y;let lo=0,hi=1;for(
 export function clearLine(a,b,arena=ARENAS[0],pad=0){return !arena.obstacles.some(o=>segmentRect(a,b,o,pad))}
 function navigationPath(start,end,arena,r){
  if(clearLine(start,end,arena,r))return [end];
- const corners=arena.obstacles.flatMap(o=>[{x:o.x-r-3,y:o.y-r-3},{x:o.x+o.w+r+3,y:o.y-r-3},{x:o.x-r-3,y:o.y+o.h+r+3},{x:o.x+o.w+r+3,y:o.y+o.h+r+3}]).filter(p=>p.x>20+r&&p.x<700-r&&p.y>20+r&&p.y<500-r);
+ const corners=arena.obstacles.flatMap(o=>[{x:o.x-r-5,y:o.y-r-5},{x:o.x+o.w+r+5,y:o.y-r-5},{x:o.x-r-5,y:o.y+o.h+r+5},{x:o.x+o.w+r+5,y:o.y+o.h+r+5}]).filter(p=>p.x>20+r&&p.x<700-r&&p.y>20+r&&p.y<500-r);
  const nodes=[start,...corners,end],n=nodes.length,dist=Array(n).fill(Infinity),prev=Array(n).fill(-1),seen=Array(n).fill(false);dist[0]=0;
  for(let k=0;k<n;k++){let at=-1;for(let i=0;i<n;i++)if(!seen[i]&&(at<0||dist[i]<dist[at]))at=i;if(at<0||!Number.isFinite(dist[at])||at===n-1)break;seen[at]=true;
   for(let j=1;j<n;j++){if(seen[j]||!clearLine(nodes[at],nodes[j],arena,r))continue;const cost=dist[at]+distance(nodes[at],nodes[j]);if(cost<dist[j]){dist[j]=cost;prev[j]=at}}
@@ -167,7 +167,7 @@ export function positionScore(state,u,target,point,st,enemies){
  return score;
 }
 export function chooseMovement(state,u,target,st,enemies,dt){
- const step=st.speed*dt,r=CHASSIS[u.type].radius+3;
+ const step=st.speed*dt,r=CHASSIS[u.type].radius+9;
  const blocked=!clearLine(u,target,state.arena,r);u.navigationBlocked=blocked;
  let nav=u.navigation;
  if(!blocked){nav=null;u.navigation=null}
