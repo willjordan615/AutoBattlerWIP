@@ -197,13 +197,14 @@ export function positionScore(state,u,target,point,st,enemies){
 }
 export function chooseMovement(state,u,target,st,enemies,dt){
  const arena=state.arena,step=st.speed*dt,r=CHASSIS[u.type].radius+3;
- const terrainBlocked=!clearLine(u,target,arena,r);
+ const terrainBlocked=!clearLine(u,target,arena,0);
  const actorPressure=actorClearance(state,u,u,dt);
  u.navigationBlocked=terrainBlocked;u.navigationActorPressure=actorPressure;
  let nav=u.navigation;
- const hasGoal=distance(u,target)>Math.min(st.range*.85,st.range-5);
+ const hasGoal=terrainBlocked||distance(u,target)>Math.min(st.range*.85,st.range-5);
  // A direct attack position needs no terrain route. Tactical movement is free to
  // choose a preferred range, provided no terrain detour is being completed.
+ if(nav&&!terrainBlocked&&distance(u,target)<=st.range){u.navigation=null;u.navProgress=null;nav=null}
  if(nav&&nav.path.length){
   while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(7,step*1.5))nav.path.shift();
   // Skip only if terrain visibility genuinely makes a later waypoint reachable.
