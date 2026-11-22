@@ -203,3 +203,13 @@ test('moving teammate influences obstacle-aware steering without freezing the fi
  assert.ok(Number.isFinite(decision.x)&&Number.isFinite(decision.y));
  assert.ok(decision.x!==0||decision.y!==0,'dynamic actor should not force complete inaction');
 });
+
+test('opt-in diagnostics capture movement and attacks without changing simulation results',()=>{
+ const make=()=>{const b=spawn(players(),ARENAS[1],211);b.units=b.units.slice(0,2);return b};
+ const plain=make(),instrumented=make();instrumented.diagnostics={units:{}};
+ for(let i=0;i<120;i++){tick(plain,STEP);tick(instrumented,STEP)}
+ assert.deepEqual(instrumented.units.map(u=>[u.x,u.y,u.hp]),plain.units.map(u=>[u.x,u.y,u.hp]));
+ const records=Object.values(instrumented.diagnostics.units);
+ assert.ok(records.length>0);
+ assert.ok(records.every(r=>r.frames>0&&Number.isFinite(r.actual)&&Number.isFinite(r.replans)));
+});
