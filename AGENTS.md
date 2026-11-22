@@ -30,3 +30,6 @@ If Node cannot access the repository locally, use the GitHub connector to fetch 
 
 ## Collaboration preferences
 Make sensible implementation decisions without frequent interruptions. Batch related work. Prefer reproducible seeded tests and root-cause fixes. Preserve performance on low-end Android devices. Do not claim tests passed unless they executed.
+
+## Navigation and timeout diagnostics
+Run `npm run diagnose:navigation -- 8 1` for seeded strategic matches plus fixed terrain scenarios. Add `--json` for per-unit movement traces and timeout classifications. The combat engine's opt-in `battle.diagnostics={units:{}}` collects idle frames, blocked frames, path replans, waypoint changes, stuck events, reversals, collision displacement loss, attack opportunities, shots, damage, and sampled positions. Diagnostics are disabled in normal gameplay. Treat timeout classifications as hypotheses, not proven causes. Use the fixed Central Barrier bruiser scenario as a known regression until it clears reliably.
