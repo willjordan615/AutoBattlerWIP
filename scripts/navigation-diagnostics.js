@@ -60,11 +60,14 @@ export function runNavigationDiagnostics({matches=8,seed=1}={}){
   a.x=arena===ARENAS[1]?255:315;a.y=arena===ARENAS[1]?215:200;
   enemy.x=arena===ARENAS[1]?360:420;enemy.y=a.y;
   a.cd=enemy.cd=1000;
-  // The enemy remains stationary; this fixture tests the approacher's routing.
-  enemy.chassis.weights=Object.fromEntries(Object.keys(enemy.chassis.weights).map(k=>[k,0]));
+  // Freeze the target position across ticks so the route fixture is reproducible.
+  const fixed={x:enemy.x,y:enemy.y};
   b.diagnostics={units:{}};
   let everClear=false;
-  for(let t=0;t<300;t++){tick(b,STEP);everClear ||=clearLine(a,enemy,arena,CHASSIS[type].radius+3)}
+  for(let t=0;t<300;t++){
+   tick(b,STEP);enemy.x=fixed.x;enemy.y=fixed.y;enemy.moveDecision={x:0,y:0};enemy.intent={x:0,y:0};
+   everClear ||=clearLine(a,enemy,arena)&&Math.hypot(a.x-enemy.x,a.y-enemy.y)<=CHASSIS[type].range;
+  }
   fixtures.push({...summarize(b,'fixed '+arena.name+' '+type),everClear});
  }
  const timeouts=battles.filter(b=>b.timeout);
