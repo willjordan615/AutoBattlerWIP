@@ -25,6 +25,21 @@ function rectHit(x,y,r,o){return Math.hypot(x-clamp(x,o.x,o.x+o.w),y-clamp(y,o.y
 export function bound(u,arena=ARENAS[0]){const r=CHASSIS[u.type].radius+3;u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r);for(const o of arena.obstacles){if(!rectHit(u.x,u.y,r+2,o))continue;const cx=clamp(u.x,o.x,o.x+o.w),cy=clamp(u.y,o.y,o.y+o.h);let dx=u.x-cx,dy=u.y-cy,d=Math.hypot(dx,dy);if(d<.0001){const sides=[{v:Math.abs(u.x-o.x),x:o.x-r,y:u.y},{v:Math.abs(u.x-(o.x+o.w)),x:o.x+o.w+r,y:u.y},{v:Math.abs(u.y-o.y),x:u.x,y:o.y-r},{v:Math.abs(u.y-(o.y+o.h)),x:u.x,y:o.y+o.h+r}].sort((a,b)=>a.v-b.v);u.x=sides[0].x;u.y=sides[0].y}else{u.x=cx+dx/d*r;u.y=cy+dy/d*r}u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r)}}
 function segmentRect(a,b,o,pad=0){const dx=b.x-a.x,dy=b.y-a.y;let lo=0,hi=1;for(const [p,q] of [[-dx,a.x-(o.x-pad)],[dx,o.x+o.w+pad-a.x],[-dy,a.y-(o.y-pad)],[dy,o.y+o.h+pad-a.y]]){if(Math.abs(p)<1e-9){if(q<0)return false;continue}const t=q/p;if(p<0)lo=Math.max(lo,t);else hi=Math.min(hi,t);if(lo>hi)return false}return true}
 export function clearLine(a,b,arena=ARENAS[0],pad=0){return !arena.obstacles.some(o=>segmentRect(a,b,o,pad))}
+// Exact physical clearance is used only to connect a chassis already hugging
+// a corner to the stable terrain graph. Ordinary graph edges remain conservative.
+function physicalLineClear(a,b,arena,r){
+ for(const o of arena.obstacles){
+  if(segmentRect(a,b,o))return false;
+  if(rectHit(a.x,a.y,r,o)||rectHit(b.x,b.y,r,o))return false;
+  const dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy;
+  for(const corner of [{x:o.x,y:o.y},{x:o.x+o.w,y:o.y},
+    {x:o.x,y:o.y+o.h},{x:o.x+o.w,y:o.y+o.h}]){
+   const t=length?clamp(((corner.x-a.x)*dx+(corner.y-a.y)*dy)/length,0,1):0;
+   if(Math.hypot(a.x+dx*t-corner.x,a.y+dy*t-corner.y)<r)return false;
+  }
+ }
+ return true;
+}
 function navigationPath(start,end,arena,r,viaPenalty=0){
  const margin=4;
  const corners=arena.obstacles.flatMap(o=>[
@@ -33,15 +48,15 @@ function navigationPath(start,end,arena,r,viaPenalty=0){
  ]).filter(p=>p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r
    &&arena.obstacles.every(o=>!rectHit(p.x,p.y,r+1,o)));
  const nodes=[start,...corners,end],n=nodes.length,dist=Array(n).fill(Infinity),prev=Array(n).fill(-1),seen=Array(n).fill(false);
- const legal=(p,q)=>clearLine(p,q,arena,r);
- if(legal(start,end))return [end];
+ const legal=(p,q,first=false)=>clearLine(p,q,arena,r)||(first&&physicalLineClear(p,q,arena,r));
+ if(legal(start,end,true))return [end];
  dist[0]=0;
  for(let k=0;k<n;k++){
   let at=-1;for(let i=0;i<n;i++)if(!seen[i]&&(at===-1||dist[i]<dist[at]))at=i;
   if(at<0||!Number.isFinite(dist[at])||at===n-1)break;
   seen[at]=true;
   for(let j=1;j<n;j++){
-   if(seen[j]||!legal(nodes[at],nodes[j]))continue;
+   if(seen[j]||!legal(nodes[at],nodes[j],at===0))continue;
    const candidate=dist[at]+distance(nodes[at],nodes[j])+(at===0&&j!==n-1?viaPenalty:0);
    if(candidate<dist[j]){dist[j]=candidate;prev[j]=at}
   }
@@ -237,7 +252,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
    }
   }
  }
- const refresh=nav&&(nav.targetId!==target.id||distance(nav.targetPosition,target)>Math.max(65,st.range*.6));
+ const refresh=nav&&(nav.targetId!==target.id||distance(nav.targetPosition,target)>Math.max(105,st.range*.8));
  if(refresh){nav=null;u.navigation=null;u.navProgress=null}
  // An active detour is sticky: temporary actors and small target motion never
  // change the side of the obstacle being traversed.
