@@ -89,4 +89,8 @@ if(process.argv[1]&&import.meta.url===new URL('file://'+process.argv[1]).href){
   for(const b of report.fixtures)console.log(b.scenario+': '+(b.everClear?'route regained':'NO CLEAR ROUTE')+'; stuck '+b.summary.stuck+', replans '+b.summary.replans);
   console.log('Use --json for detailed per-unit traces.');
  }
+ if(report.navigationFlags.length||report.fixtures.some(f=>!f.everClear)){
+  console.error('Navigation regression: prolonged immobilization or failed fixed-terrain approach');
+  process.exitCode=1;
+ }
 }
