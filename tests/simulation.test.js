@@ -168,3 +168,25 @@ test('ranged preferred distance beats closing to point blank',()=>{
  const retreat=positionScore(b,u,e,{x:185,y:200},stats(u),[e]);
  assert.ok(retreat>close,'ranged unit should favor retreat toward firing distance');
 });
+
+test('corner recovery detects stalls and eventually routes a ranged fighter around central barrier',()=>{
+ const b=spawn(players(),ARENAS[2],101);b.units=b.units.slice(0,2);
+ const a=b.units[0],enemy=b.units[1];
+ a.x=315;a.y=200;enemy.x=420;enemy.y=200;
+ a.chassis=makeChassis('ranged');a.type='ranged';a.cd=enemy.cd=1000;
+ let escaped=false;
+ for(let i=0;i<300;i++){
+  b.time+=STEP;
+  const dir=chooseMovement(b,a,enemy,stats(a),[enemy],STEP);
+  a.x+=dir.x*stats(a).speed*STEP;a.y+=dir.y*stats(a).speed*STEP;
+  bound(a,b.arena);
+  if(clearLine(a,enemy,b.arena,CHASSIS[a.type].radius+3)){escaped=true;break}
+ }
+ assert.ok(escaped,'fighter should round the central barrier rather than loop on its corner');
+});
+test('stuck detector counts repeated lack of progress and triggers recovery',()=>{
+ const b=spawn(players(),ARENAS[2],103);b.units=b.units.slice(0,2);
+ const a=b.units[0],enemy=b.units[1];a.x=315;a.y=200;enemy.x=420;enemy.y=200;
+ for(let i=0;i<35;i++){b.time+=STEP;chooseMovement(b,a,enemy,stats(a),[enemy],STEP)}
+ assert.ok(a.navStuckCount>=1,'unchanged position across a full second must trigger stuck recovery');
+});
