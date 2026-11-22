@@ -24,25 +24,7 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function rectHit(x,y,r,o){return Math.hypot(x-clamp(x,o.x,o.x+o.w),y-clamp(y,o.y,o.y+o.h))<r}
 export function bound(u,arena=ARENAS[0]){const r=CHASSIS[u.type].radius+3;u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r);for(const o of arena.obstacles){if(!rectHit(u.x,u.y,r+2,o))continue;const cx=clamp(u.x,o.x,o.x+o.w),cy=clamp(u.y,o.y,o.y+o.h);let dx=u.x-cx,dy=u.y-cy,d=Math.hypot(dx,dy);if(d<.0001){const sides=[{v:Math.abs(u.x-o.x),x:o.x-r,y:u.y},{v:Math.abs(u.x-(o.x+o.w)),x:o.x+o.w+r,y:u.y},{v:Math.abs(u.y-o.y),x:u.x,y:o.y-r},{v:Math.abs(u.y-(o.y+o.h)),x:u.x,y:o.y+o.h+r}].sort((a,b)=>a.v-b.v);u.x=sides[0].x;u.y=sides[0].y}else{u.x=cx+dx/d*r;u.y=cy+dy/d*r}u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r)}}
 function segmentRect(a,b,o,pad=0){const dx=b.x-a.x,dy=b.y-a.y;let lo=0,hi=1;for(const [p,q] of [[-dx,a.x-(o.x-pad)],[dx,o.x+o.w+pad-a.x],[-dy,a.y-(o.y-pad)],[dy,o.y+o.h+pad-a.y]]){if(Math.abs(p)<1e-9){if(q<0)return false;continue}const t=q/p;if(p<0)lo=Math.max(lo,t);else hi=Math.min(hi,t);if(lo>hi)return false}return true}
-// Exact swept-circle/rectangle clearance. Axis-aligned inflation falsely
-// blocks legitimate routes around corners when a chassis is diagonally close.
-function pointSegmentDistanceSq(p,a,b){
- const dx=b.x-a.x,dy=b.y-a.y,length=dx*dx+dy*dy;
- const t=length?clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/length,0,1):0;
- return (p.x-a.x-dx*t)**2+(p.y-a.y-dy*t)**2;
-}
-function segmentNearObstacle(a,b,o,pad){
- if(segmentRect(a,b,o,0))return true;
- if(pad<=0)return false;
- if(rectHit(a.x,a.y,pad,o)||rectHit(b.x,b.y,pad,o))return true;
- const corners=[{x:o.x,y:o.y},{x:o.x+o.w,y:o.y},
-  {x:o.x,y:o.y+o.h},{x:o.x+o.w,y:o.y+o.h}];
- return corners.some(c=>pointSegmentDistanceSq(c,a,b)<pad*pad);
-}
-export function clearLine(a,b,arena=ARENAS[0],pad=0){
- return !arena.obstacles.some(o=>segmentNearObstacle(a,b,o,pad));
-}
-// Visibility graph only models permanent terrain. Actors are handled by local steering.
+export function clearLine(a,b,arena=ARENAS[0],pad=0){return !arena.obstacles.some(o=>segmentRect(a,b,o,pad))}
 function navigationPath(start,end,arena,r,viaPenalty=0){
  const margin=4;
  const corners=arena.obstacles.flatMap(o=>[
@@ -94,6 +76,14 @@ export function chooseTarget(state,u,enemies){
  if(u.tauntedUntil>state.time){const forced=enemies.find(e=>e.id===u.tauntedBy);if(forced)return forced}
  let best=null,score=-Infinity;
  for(const e of enemies){const value=targetScoreDetails(state,u,e).total;if(value>score){score=value;best=e}}
+ const current=enemies.find(e=>e.id===u.focus);
+ // Routing to a target is a commitment. Small score changes should not flip
+ // destinations every tick, especially while turning around solid obstacles.
+ if(current&&current!==best){
+  const currentScore=targetScoreDetails(state,u,current).total;
+  const hysteresis=u.navigation?.path?.length?.6:.24;
+  if(score-currentScore<hysteresis)return current;
+ }
  return best;
 }
 // Profile 1: local teammate-aware steering. Score proposed moves before collision resolution.
