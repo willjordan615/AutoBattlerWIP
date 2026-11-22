@@ -207,7 +207,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(6,step*2))nav.path.shift();
   for(let i=nav.path.length-1;i>0;i--)if(clearLine(u,nav.path[i],state.arena,r)){nav.path.splice(0,i);break}
  }
- const valid=dir=>{const p={x:u.x+dir.x*step,y:u.y+dir.y*step};return p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&clearLine(u,p,state.arena,0)&&!state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o)&&!rectHit(u.x,u.y,r+2,o))};
+ const valid=dir=>{const p={x:u.x+dir.x*step,y:u.y+dir.y*step};return p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&clearLine(u,p,state.arena,r)&&!state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o))};
  if(blocked&&nav){
   const wp=nav.path[0],d=distance(u,wp);
   if(d>.01){
