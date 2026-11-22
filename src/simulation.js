@@ -167,10 +167,20 @@ export function positionScore(state,u,target,point,st,enemies){
  return score;
 }
 export function chooseMovement(state,u,target,st,enemies,dt){
- const step=st.speed*dt,r=CHASSIS[u.type].radius+9;
+ const step=st.speed*dt,r=CHASSIS[u.type].radius+5;
  const blocked=!clearLine(u,target,state.arena,r);u.navigationBlocked=blocked;
  let nav=u.navigation;
+ // Detect lack of actual displacement over a rolling interval, not merely
+ // repeated steering commands. Collision resolution can cancel valid moves.
+ const progress=u.navProgress||(u.navProgress={x:u.x,y:u.y,time:state.time,stalls:0});
+ if(state.time-progress.time>=.45){
+  const moved=distance(u,progress);
+  progress.stalls=moved<Math.max(3,st.speed*.045)?progress.stalls+1:0;
+  progress.x=u.x;progress.y=u.y;progress.time=state.time;
+  if(progress.stalls>=2){u.navigation=null;nav=null;u.navRecoverUntil=state.time+.75;progress.stalls=0;u.navStuckCount=(u.navStuckCount||0)+1}
+ }
  if(!blocked){nav=null;u.navigation=null}
+ else if(!nav&&u.navRecoverUntil>state.time){/* Preserve wall-following recovery. */}
  else if(!nav||nav.targetId!==target.id||distance(nav.targetPosition,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,r)){
   // Choose a reachable firing position, not the enemy's occupied center.
   // Prefer the weighted tactical score while charging a modest path-length cost.
@@ -200,7 +210,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
     const nearest=choices.sort((a,b)=>a.d-b.d)[0];destination={x:nearest.x,y:nearest.y};
    }
   }
-  const path=navigationPath(u,destination,state.arena,r);
+  const path=bestRoute>-Infinity?navigationPath(u,destination,state.arena,r):null;
   nav=path?{targetId:target.id,destination,targetPosition:{x:target.x,y:target.y},path}:null;u.navigation=nav;
  }
  if(blocked&&nav){
@@ -232,6 +242,8 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   for(const o of obstructing){
    const corners=[{x:o.x-r-5,y:o.y-r-5},{x:o.x-r-5,y:o.y+o.h+r+5},{x:o.x+o.w+r+5,y:o.y-r-5},{x:o.x+o.w+r+5,y:o.y+o.h+r+5}]
     .sort((a,b)=>distance(u,a)+distance(a,target)-distance(u,b)-distance(b,target));
+   const recoveryIndex=(u.navStuckCount||0)%Math.max(1,corners.length);
+   if(u.navRecoverUntil>state.time)corners.push(...corners.splice(0,recoveryIndex));
    for(const corner of corners){const angle=Math.atan2(corner.y-u.y,corner.x-u.x);
     for(const offset of [0,.3,-.3,.7,-.7,1.2,-1.2]){
      const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
