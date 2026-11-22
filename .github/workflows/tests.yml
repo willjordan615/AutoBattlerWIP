@@ -14,4 +14,4 @@ jobs:
       - run: npm test
       - run: node scripts/agent-playtest.js 12 1
 
-      - run: node scripts/navigation-diagnostics.js 2 1
+      - run: node scripts/navigation-diagnostics.js 8 1
