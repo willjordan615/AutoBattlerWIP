@@ -190,3 +190,16 @@ test('stuck detector counts repeated lack of progress and triggers recovery',()=
  for(let i=0;i<35;i++){b.time+=STEP;chooseMovement(b,a,enemy,stats(a),[enemy],STEP)}
  assert.ok(a.navStuckCount>=1,'unchanged position across a full second must trigger stuck recovery');
 });
+
+test('moving teammate influences obstacle-aware steering without freezing the fighter',()=>{
+ const p=players();p[0].squad=[makeChassis('bruiser'),makeChassis('bruiser')];
+ const b=spawn(p,ARENAS[1],137);
+ const units=b.units.filter(u=>u.owner===0),enemy=b.units.find(u=>u.owner===1);
+ b.units=[...units,enemy];
+ const [a,ally]=units;
+ a.x=245;a.y=225;ally.x=263;ally.y=225;enemy.x=365;enemy.y=225;
+ ally.intent={x:0,y:-1};
+ const decision=chooseMovement(b,a,enemy,stats(a),[enemy],STEP);
+ assert.ok(Number.isFinite(decision.x)&&Number.isFinite(decision.y));
+ assert.ok(decision.x!==0||decision.y!==0,'dynamic actor should not force complete inaction');
+});
