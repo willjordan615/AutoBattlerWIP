@@ -51,6 +51,58 @@ function navigationPath(start,end,arena,r,viaPenalty=0){
  while(at>0){route.unshift(nodes[at]);at=prev[at];if(at<0)return null}
  return route;
 }
+// Coarse deterministic A* fallback for corner cases the small visibility
+// graph cannot represent (especially starts adjacent to inflated walls).
+// This is invoked only after route failure, never per render tick.
+function gridNavigationPath(start,end,arena,r){
+ const size=16,cols=42,rows=29;
+ const point=(ix,iy)=>({x:28+ix*size,y:28+iy*size});
+ const inside=(ix,iy)=>ix>=0&&iy>=0&&ix<cols&&iy<rows;
+ const free=(p)=>p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r
+  &&arena.obstacles.every(o=>!rectHit(p.x,p.y,r+1,o));
+ const key=(x,y)=>y*cols+x,pts=[],nearest=[];
+ for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+  const p=point(x,y);
+  if(!free(p))continue;
+  pts.push({x,y,p});
+  if(distance(p,start)<=size*2.2&&clearLine(start,p,arena,0))nearest.push({id:key(x,y),d:distance(start,p)});
+ }
+ if(!nearest.length)return null;
+ nearest.sort((a,b)=>a.d-b.d);
+ const count=cols*rows,dist=Array(count).fill(Infinity),previous=Array(count).fill(-1),visited=new Uint8Array(count),open=[];
+ for(const cell of nearest.slice(0,6)){dist[cell.id]=cell.d;open.push(cell.id)}
+ const goal=(p)=>distance(p,end)<size*1.5&&clearLine(p,end,arena,r);
+ let finish=-1;
+ const dirs=[[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+ for(let countSteps=0;open.length&&countSteps<cols*rows;countSteps++){
+  let best=0,bestF=Infinity;
+  for(let i=0;i<open.length;i++){
+   const id=open[i],x=id%cols,y=Math.floor(id/cols);
+   const f=dist[id]+distance(point(x,y),end);
+   if(f<bestF){bestF=f;best=i}
+  }
+  const id=open.splice(best,1)[0];if(visited[id])continue;visited[id]=1;
+  const x=id%cols,y=Math.floor(id/cols),p=point(x,y);
+  if(goal(p)){finish=id;break}
+  for(const [dx,dy] of dirs){
+   const xx=x+dx,yy=y+dy;if(!inside(xx,yy))continue;
+   const next=point(xx,yy),ni=key(xx,yy);
+   if(visited[ni]||!free(next)||!clearLine(p,next,arena,r))continue;
+   const cost=dist[id]+distance(p,next);
+   if(cost<dist[ni]){dist[ni]=cost;previous[ni]=id;open.push(ni)}
+  }
+ }
+ if(finish<0)return null;
+ const path=[end];let id=finish;
+ while(id>=0){path.unshift(point(id%cols,Math.floor(id/cols)));id=previous[id]}
+ // Greedy terrain-visible smoothing. The first leg is allowed to start close
+ // to a corner; local physical steering checks every individual movement.
+ for(let i=0;i<path.length-2;){
+  if(clearLine(i===0?start:path[i-1],path[i+1],arena,r))path.splice(i,1);
+  else i++;
+ }
+ return path;
+}
 function actorClearance(state,u,point,seconds=0){
  let pressure=0;
  for(const other of state.units){
@@ -81,7 +133,7 @@ export function chooseTarget(state,u,enemies){
  // destinations every tick, especially while turning around solid obstacles.
  if(current&&current!==best){
   const currentScore=targetScoreDetails(state,u,current).total;
-  const hysteresis=u.navigation?.path?.length?.6:.24;
+  const hysteresis=u.navigation?.path?.length?.35:.15;
   if(score-currentScore<hysteresis)return current;
  }
  return best;
@@ -256,7 +308,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
    if(p.x<20+r||p.x>700-r||p.y<20+r||p.y>500-r)continue;
    if(arena.obstacles.some(o=>rectHit(p.x,p.y,r+1,o)))continue;
    if(!clearLine(p,target,arena,0))continue;
-   const route=navigationPath(u,p,arena,r);
+   const route=(u.navAlternate||0)%2?gridNavigationPath(u,p,arena,r)||navigationPath(u,p,arena,r):navigationPath(u,p,arena,r)||gridNavigationPath(u,p,arena,r);
    if(!route)continue;
    const length=route.reduce((sum,node,i)=>sum+distance(i?route[i-1]:u,node),0);
    // Distance is meaningful to avoid massive detours; a clear firing line
@@ -341,7 +393,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
    {x:o.x-r-6,y:o.y-r-6},{x:o.x+o.w+r+6,y:o.y-r-6},
    {x:o.x-r-6,y:o.y+o.h+r+6},{x:o.x+o.w+r+6,y:o.y+o.h+r+6}
   ]).filter(p=>p.x>20+r&&p.x<700-r&&p.y>20+r&&p.y<500-r);
-  const options=corners.map(p=>({p,route:navigationPath(u,p,arena,r)})).filter(x=>x.route);
+  const options=corners.map(p=>({p,route:navigationPath(u,p,arena,r)||gridNavigationPath(u,p,arena,r)})).filter(x=>x.route);
   options.sort((a,b)=>distance(a.p,target)+distance(u,a.p)-distance(b.p,target)-distance(u,b.p));
   if(options.length){
    const choice=options[(u.navAlternate||0)%Math.min(2,options.length)];
