@@ -258,6 +258,34 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   }
   if(chosen){nav=chosen;u.navigation=nav;u.navProgress={time:state.time,best:remaining(nav),failures:0}}
  }
+ // Independent collision-deadlock detector: route progress alone cannot
+ // diagnose characters pushed back by teammates or enemies in open sightlines.
+ const activeApproach=distance(u,target)>st.range||terrainBlocked;
+ const motion=u.navMotion||(u.navMotion={x:u.x,y:u.y,time:state.time,stalls:0});
+ if(state.time-motion.time>=.65){
+  const displaced=distance(u,motion);
+  if(activeApproach&&displaced<Math.max(4,st.speed*.07))motion.stalls++;
+  else motion.stalls=0;
+  motion.x=u.x;motion.y=u.y;motion.time=state.time;
+  if(motion.stalls>=2){
+   motion.stalls=0;
+   const heading=Math.atan2(target.y-u.y,target.x-u.x);
+   const sign=(u.id+Math.floor(state.time))%2?1:-1;
+   const side=heading+sign*Math.PI/2;
+   // Choose an accessible side step rather than following the same blocked
+   // forward instruction. Different unit IDs break symmetric traffic jams.
+   const options=[side,side+Math.PI,heading+sign*2.2,heading-sign*2.2];
+   for(const a of options){
+    const p={x:clamp(u.x+Math.cos(a)*Math.max(35,st.radius*3),20+r,700-r),
+             y:clamp(u.y+Math.sin(a)*Math.max(35,st.radius*3),20+r,500-r)};
+    if(!arena.obstacles.some(o=>rectHit(p.x,p.y,r,o))&&clearLine(u,p,arena,r)){
+     u.localEscape={point:p,until:state.time+1.4};
+     u.navStuckCount=(u.navStuckCount||0)+1;
+     break;
+    }
+   }
+  }
+ }
  const valid=(dir)=>{
   const p={x:u.x+dir.x*step,y:u.y+dir.y*step};
   return p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r
@@ -279,6 +307,14 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   }
   return selected;
  };
+ if(u.localEscape){
+  if(state.time>u.localEscape.until||distance(u,u.localEscape.point)<Math.max(7,step*2)){u.localEscape=null}
+  else{
+   const direction=steer(u.localEscape.point,true);
+   if(direction)return direction;
+   u.localEscape=null;
+  }
+ }
  if(nav&&nav.path.length){
   const waypoint=nav.path[0];
   if(distance(u,waypoint)<Math.max(7,step*1.5)&&nav.path.length===1){
