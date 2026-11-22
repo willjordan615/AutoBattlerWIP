@@ -204,17 +204,25 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   nav=path?{targetId:target.id,destination,targetPosition:{x:target.x,y:target.y},path}:null;u.navigation=nav;
  }
  if(blocked&&nav){
-  while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(5,step*1.5))nav.path.shift();
+  while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(6,step*2))nav.path.shift();
   for(let i=nav.path.length-1;i>0;i--)if(clearLine(u,nav.path[i],state.arena,r)){nav.path.splice(0,i);break}
  }
  const valid=dir=>{const p={x:u.x+dir.x*step,y:u.y+dir.y*step};return p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&clearLine(u,p,state.arena,0)&&!state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o)&&!rectHit(u.x,u.y,r+2,o))};
  if(blocked&&nav){
   const wp=nav.path[0],d=distance(u,wp);
-  if(d>.01){const angle=Math.atan2(wp.y-u.y,wp.x-u.x);
-   for(const offset of [0,.18,-.18,.4,-.4,.75,-.75,1.15,-1.15]){
+  if(d>.01){
+   // Commit to the waypoint until it is reached. Tactical scoring at each
+   // individual step can otherwise reject the necessary move away from target,
+   // leaving a fighter oscillating against an obstacle corner.
+   const angle=Math.atan2(wp.y-u.y,wp.x-u.x);
+   const offsets=[0,.18,-.18,.4,-.4,.75,-.75,1.15,-1.15];
+   for(const offset of offsets){
     const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
-    if(valid(dir)){const p={x:u.x+dir.x*step,y:u.y+dir.y*step};const score=positionScore(state,u,target,p,st,enemies);if(score>=positionScore(state,u,target,u,st,enemies)-.2)return {...dir,score};}
+    if(valid(dir))return {...dir,score:positionScore(state,u,target,{x:u.x+dir.x*step,y:u.y+dir.y*step},st,enemies)};
    }
+   // A blocked waypoint may have become unreachable after collision
+   // resolution. Invalidate it and use wall-following recovery this tick.
+   u.navigation=null;nav=null;
   }
  }
  if(blocked&&!nav){
