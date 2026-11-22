@@ -179,7 +179,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   progress.x=u.x;progress.y=u.y;progress.time=state.time;
   if(progress.stalls>=2){u.navigation=null;nav=null;u.navRecoverUntil=state.time+.75;progress.stalls=0;u.navStuckCount=(u.navStuckCount||0)+1}
  }
- if(!blocked){nav=null;u.navigation=null}
+ if(!blocked){nav=null;u.navigation=null;u.recoveryCorner=null}
  else if(!nav&&u.navRecoverUntil>state.time){/* Preserve wall-following recovery. */}
  else if(!nav||nav.targetId!==target.id||distance(nav.targetPosition,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,r)){
   // Choose a reachable firing position, not the enemy's occupied center.
@@ -212,6 +212,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   }
   const path=bestRoute>-Infinity?navigationPath(u,destination,state.arena,r):null;
   nav=path?{targetId:target.id,destination,targetPosition:{x:target.x,y:target.y},path}:null;u.navigation=nav;
+  if(nav)u.recoveryCorner=null;
  }
  if(blocked&&nav){
   while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(6,step*2))nav.path.shift();
@@ -240,14 +241,15 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   // the nearest corner until the visibility graph becomes traversable.
   const obstructing=state.arena.obstacles.filter(o=>!clearLine(u,target,{obstacles:[o]},r));
   for(const o of obstructing){
-   const corners=[{x:o.x-r-5,y:o.y-r-5},{x:o.x-r-5,y:o.y+o.h+r+5},{x:o.x+o.w+r+5,y:o.y-r-5},{x:o.x+o.w+r+5,y:o.y+o.h+r+5}]
+   const corners=[{x:o.x-r-12,y:o.y-r-12},{x:o.x-r-12,y:o.y+o.h+r+12},{x:o.x+o.w+r+12,y:o.y-r-12},{x:o.x+o.w+r+12,y:o.y+o.h+r+12}]
     .sort((a,b)=>distance(u,a)+distance(a,target)-distance(u,b)-distance(b,target));
    const recoveryIndex=(u.navStuckCount||0)%Math.max(1,corners.length);
    if(u.navRecoverUntil>state.time)corners.push(...corners.splice(0,recoveryIndex));
+   if(u.recoveryCorner&&distance(u,u.recoveryCorner)>Math.max(8,step*3))corners.unshift(u.recoveryCorner);
    for(const corner of corners){const angle=Math.atan2(corner.y-u.y,corner.x-u.x);
     for(const offset of [0,.3,-.3,.7,-.7,1.2,-1.2]){
      const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
-     if(valid(dir))return {...dir,score:0};
+     if(valid(dir)){u.recoveryCorner=corner;return {...dir,score:0}}
     }
    }
   }
