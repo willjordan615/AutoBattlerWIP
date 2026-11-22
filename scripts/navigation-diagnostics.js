@@ -70,9 +70,12 @@ export function runNavigationDiagnostics({matches=8,seed=1}={}){
   }
   fixtures.push({...summarize(b,'fixed '+arena.name+' '+type),everClear});
  }
+ const navigationFlags=battles.flatMap(b=>Object.entries(b.units)
+  .filter(([id,u])=>(u.maxPursuitStallFrames||0)>=90)
+  .map(([id,u])=>({scenario:b.scenario,id,owner:u.owner,type:u.type,stalledSeconds:+(u.maxPursuitStallFrames*STEP).toFixed(2),shots:u.shots,blockedFrames:u.blocked})));
  const timeouts=battles.filter(b=>b.timeout);
  const causes={};for(const b of timeouts)causes[b.summary.cause]=(causes[b.summary.cause]||0)+1;
- return {config:{matches,seed},battles:battles.length,timeouts:timeouts.length,causes,timeoutDetails:timeouts,fixtures};
+ return {config:{matches,seed},battles:battles.length,timeouts:timeouts.length,causes,navigationFlags,timeoutDetails:timeouts,fixtures};
 }
 if(process.argv[1]&&import.meta.url===new URL('file://'+process.argv[1]).href){
  const report=runNavigationDiagnostics({matches:Number(process.argv[2]||8),seed:Number(process.argv[3]||1)});
@@ -80,6 +83,8 @@ if(process.argv[1]&&import.meta.url===new URL('file://'+process.argv[1]).href){
  else{
   console.log('NAVIGATION DIAGNOSTICS: '+report.battles+' battles, '+report.timeouts+' timeouts');
   console.log('Timeout classifications: '+JSON.stringify(report.causes));
+  console.log('Pursuit immobilizations >=3s: '+report.navigationFlags.length);
+  for(const flag of report.navigationFlags)console.log(flag.scenario+': '+flag.type+' '+flag.id+' immobilized '+flag.stalledSeconds+'s');
   for(const b of report.timeoutDetails)console.log(b.scenario+': '+b.summary.cause+'; blocked '+b.summary.blockedRatio+', idle '+b.summary.idleRatio+', replans '+b.summary.replans+', collision loss '+b.summary.collisions);
   for(const b of report.fixtures)console.log(b.scenario+': '+(b.everClear?'route regained':'NO CLEAR ROUTE')+'; stuck '+b.summary.stuck+', replans '+b.summary.replans);
   console.log('Use --json for detailed per-unit traces.');
