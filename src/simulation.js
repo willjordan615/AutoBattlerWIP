@@ -177,10 +177,10 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   const moved=distance(u,progress);
   progress.stalls=moved<Math.max(3,st.speed*.045)?progress.stalls+1:0;
   progress.x=u.x;progress.y=u.y;progress.time=state.time;
-  if(progress.stalls>=2){u.navigation=null;nav=null;u.navRecoverUntil=state.time+.75;progress.stalls=0;u.navStuckCount=(u.navStuckCount||0)+1}
+  if(progress.stalls>=2){u.navigation=null;nav=null;u.recoveryCorner=null;u.navRecoverUntil=state.time+1.5;progress.stalls=0;u.navStuckCount=(u.navStuckCount||0)+1}
  }
  if(!blocked){nav=null;u.navigation=null;u.recoveryCorner=null}
- else if(!nav&&u.navRecoverUntil>state.time){/* Preserve wall-following recovery. */}
+ else if(!nav&&(u.navRecoverUntil>state.time||u.recoveryCorner)){/* Preserve wall-following recovery until line of sight clears. */}
  else if(!nav||nav.targetId!==target.id||distance(nav.targetPosition,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,r)){
   // Choose a reachable firing position, not the enemy's occupied center.
   // Prefer the weighted tactical score while charging a modest path-length cost.
