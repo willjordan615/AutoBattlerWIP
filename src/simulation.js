@@ -204,7 +204,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  const hasGoal=terrainBlocked||distance(u,target)>Math.min(st.range*.85,st.range-5);
  // A direct attack position needs no terrain route. Tactical movement is free to
  // choose a preferred range, provided no terrain detour is being completed.
- if(nav&&!terrainBlocked&&distance(u,target)<=st.range){u.navigation=null;u.navProgress=null;nav=null}
+ if(nav&&!terrainBlocked&&distance(u,target)<=st.range){u.navigation=null;u.navProgress=null;nav=null;u.navNextPlanTime=state.time+.35}
  if(nav&&nav.path.length){
   while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(7,step*1.5))nav.path.shift();
   // Skip only if terrain visibility genuinely makes a later waypoint reachable.
@@ -233,7 +233,8 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  if(refresh){nav=null;u.navigation=null;u.navProgress=null}
  // An active detour is sticky: temporary actors and small target motion never
  // change the side of the obstacle being traversed.
- if(!nav&&terrainBlocked&&hasGoal){
+ if(!nav&&terrainBlocked&&hasGoal&&state.time>=(u.navNextPlanTime||0)){
+  u.navNextPlanTime=state.time+.4;
   const ideal=Math.max(st.radius+CHASSIS[target.type].radius+4,st.range*.78);
   const points=[];
   for(let i=0;i<16;i++){
@@ -290,7 +291,8 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   }
  }
  // If pathfinding cannot start, try reachable corners, committing to one.
- if(terrainBlocked&&hasGoal&&!nav){
+ if(terrainBlocked&&hasGoal&&!nav&&state.time>=(u.navNextPlanTime||0)){
+  u.navNextPlanTime=state.time+.4;
   const corners=arena.obstacles.flatMap(o=>[
    {x:o.x-r-6,y:o.y-r-6},{x:o.x+o.w+r+6,y:o.y-r-6},
    {x:o.x-r-6,y:o.y+o.h+r+6},{x:o.x+o.w+r+6,y:o.y+o.h+r+6}
