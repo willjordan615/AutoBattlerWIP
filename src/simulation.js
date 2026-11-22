@@ -308,7 +308,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
    if(p.x<20+r||p.x>700-r||p.y<20+r||p.y>500-r)continue;
    if(arena.obstacles.some(o=>rectHit(p.x,p.y,r+1,o)))continue;
    if(!clearLine(p,target,arena,0))continue;
-   const route=(u.navAlternate||0)%2?gridNavigationPath(u,p,arena,r)||navigationPath(u,p,arena,r):navigationPath(u,p,arena,r)||gridNavigationPath(u,p,arena,r);
+   const route=navigationPath(u,p,arena,r)||gridNavigationPath(u,p,arena,r);
    if(!route)continue;
    const length=route.reduce((sum,node,i)=>sum+distance(i?route[i-1]:u,node),0);
    // Distance is meaningful to avoid massive detours; a clear firing line
