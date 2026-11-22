@@ -25,35 +25,43 @@ function rectHit(x,y,r,o){return Math.hypot(x-clamp(x,o.x,o.x+o.w),y-clamp(y,o.y
 export function bound(u,arena=ARENAS[0]){const r=CHASSIS[u.type].radius+3;u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r);for(const o of arena.obstacles){if(!rectHit(u.x,u.y,r+2,o))continue;const cx=clamp(u.x,o.x,o.x+o.w),cy=clamp(u.y,o.y,o.y+o.h);let dx=u.x-cx,dy=u.y-cy,d=Math.hypot(dx,dy);if(d<.0001){const sides=[{v:Math.abs(u.x-o.x),x:o.x-r,y:u.y},{v:Math.abs(u.x-(o.x+o.w)),x:o.x+o.w+r,y:u.y},{v:Math.abs(u.y-o.y),x:u.x,y:o.y-r},{v:Math.abs(u.y-(o.y+o.h)),x:u.x,y:o.y+o.h+r}].sort((a,b)=>a.v-b.v);u.x=sides[0].x;u.y=sides[0].y}else{u.x=cx+dx/d*r;u.y=cy+dy/d*r}u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r)}}
 function segmentRect(a,b,o,pad=0){const dx=b.x-a.x,dy=b.y-a.y;let lo=0,hi=1;for(const [p,q] of [[-dx,a.x-(o.x-pad)],[dx,o.x+o.w+pad-a.x],[-dy,a.y-(o.y-pad)],[dy,o.y+o.h+pad-a.y]]){if(Math.abs(p)<1e-9){if(q<0)return false;continue}const t=q/p;if(p<0)lo=Math.max(lo,t);else hi=Math.min(hi,t);if(lo>hi)return false}return true}
 export function clearLine(a,b,arena=ARENAS[0],pad=0){return !arena.obstacles.some(o=>segmentRect(a,b,o,pad))}
-function navigationPath(start,end,arena,r,state=null,unit=null){
- if(clearLine(start,end,arena,r))return [end];
- const corners=arena.obstacles.flatMap(o=>[{x:o.x-r-5,y:o.y-r-5},{x:o.x+o.w+r+5,y:o.y-r-5},{x:o.x-r-5,y:o.y+o.h+r+5},{x:o.x+o.w+r+5,y:o.y+o.h+r+5}]).filter(p=>p.x>20+r&&p.x<700-r&&p.y>20+r&&p.y<500-r);
- const nodes=[start,...corners,end],n=nodes.length,dist=Array(n).fill(Infinity),prev=Array(n).fill(-1),seen=Array(n).fill(false);dist[0]=0;
- for(let k=0;k<n;k++){let at=-1;for(let i=0;i<n;i++)if(!seen[i]&&(at<0||dist[i]<dist[at]))at=i;if(at<0||!Number.isFinite(dist[at])||at===n-1)break;seen[at]=true;
-  for(let j=1;j<n;j++){if(seen[j]||!clearLine(nodes[at],nodes[j],arena,r))continue;const cost=dist[at]+distance(nodes[at],nodes[j])+(state&&unit?segmentActorCost(state,unit,nodes[at],nodes[j]):0);if(cost<dist[j]){dist[j]=cost;prev[j]=at}}
+// Visibility graph only models permanent terrain. Actors are handled by local steering.
+function navigationPath(start,end,arena,r,viaPenalty=0){
+ const margin=4;
+ const corners=arena.obstacles.flatMap(o=>[
+  {x:o.x-r-margin,y:o.y-r-margin},{x:o.x+o.w+r+margin,y:o.y-r-margin},
+  {x:o.x-r-margin,y:o.y+o.h+r+margin},{x:o.x+o.w+r+margin,y:o.y+o.h+r+margin}
+ ]).filter(p=>p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r
+   &&arena.obstacles.every(o=>!rectHit(p.x,p.y,r+1,o)));
+ const nodes=[start,...corners,end],n=nodes.length,dist=Array(n).fill(Infinity),prev=Array(n).fill(-1),seen=Array(n).fill(false);
+ const legal=(p,q)=>clearLine(p,q,arena,r);
+ if(legal(start,end))return [end];
+ dist[0]=0;
+ for(let k=0;k<n;k++){
+  let at=-1;for(let i=0;i<n;i++)if(!seen[i]&&(at===-1||dist[i]<dist[at]))at=i;
+  if(at<0||!Number.isFinite(dist[at])||at===n-1)break;
+  seen[at]=true;
+  for(let j=1;j<n;j++){
+   if(seen[j]||!legal(nodes[at],nodes[j]))continue;
+   const candidate=dist[at]+distance(nodes[at],nodes[j])+(at===0&&j!==n-1?viaPenalty:0);
+   if(candidate<dist[j]){dist[j]=candidate;prev[j]=at}
+  }
  }
- if(!Number.isFinite(dist[n-1]))return null;const path=[];let at=n-1;while(at>0){path.unshift(nodes[at]);at=prev[at];if(at<0)return null}return path;
+ if(!Number.isFinite(dist[n-1]))return null;
+ const route=[];let at=n-1;
+ while(at>0){route.unshift(nodes[at]);at=prev[at];if(at<0)return null}
+ return route;
 }
-// Moving actors are soft obstacles: their predicted positions add route cost,
-// rather than making a temporarily crowded corridor permanently impassable.
-function actorClearance(state,u,point,step=0){
- let penalty=0;
+function actorClearance(state,u,point,seconds=0){
+ let pressure=0;
  for(const other of state.units){
   if(other===u||other.hp<=0)continue;
-  const os=stats(other),intent=other.intent||{x:0,y:0};
-  const future={x:other.x+intent.x*os.speed*step,y:other.y+intent.y*os.speed*step};
-  const gap=distance(point,future)-(CHASSIS[u.type].radius+os.radius+7);
-  if(gap<22)penalty+=Math.max(0,22-gap)*(other.owner===u.owner?1.5:1);
+  const intent=other.intent||{x:0,y:0},speed=stats(other).speed;
+  const projected={x:other.x+intent.x*speed*seconds,y:other.y+intent.y*speed*seconds};
+  const gap=distance(point,projected)-CHASSIS[u.type].radius-CHASSIS[other.type].radius-5;
+  if(gap<25)pressure+=Math.max(0,25-gap)*(other.owner===u.owner?1.3:1);
  }
- return penalty;
-}
-function segmentActorCost(state,u,a,b){
- let cost=0;
- for(const fraction of [.25,.5,.75,1]){
-  const p={x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction};
-  cost+=actorClearance(state,u,p,distance(a,b)/Math.max(1,stats(u).speed)*fraction)*.35;
- }
- return cost;
+ return pressure;
 }
 function healthFraction(u){return clamp(u.hp/u.maxHp,0,1)}
 export function targetScoreDetails(state,u,e){
@@ -188,101 +196,126 @@ export function positionScore(state,u,target,point,st,enemies){
  return score;
 }
 export function chooseMovement(state,u,target,st,enemies,dt){
- const step=st.speed*dt,r=CHASSIS[u.type].radius+5;
- const terrainBlocked=!clearLine(u,target,state.arena,r);
- const actorBlocked=actorClearance(state,u,{x:u.x+(target.x-u.x)/Math.max(1,distance(u,target))*Math.min(35,distance(u,target)),y:u.y+(target.y-u.y)/Math.max(1,distance(u,target))*Math.min(35,distance(u,target))},.25)>25;
- const blocked=terrainBlocked||actorBlocked;u.navigationBlocked=blocked;
+ const arena=state.arena,step=st.speed*dt,r=CHASSIS[u.type].radius+3;
+ const terrainBlocked=!clearLine(u,target,arena,r);
+ const actorPressure=actorClearance(state,u,u,dt);
+ u.navigationBlocked=terrainBlocked;u.navigationActorPressure=actorPressure;
  let nav=u.navigation;
- // Detect lack of actual displacement over a rolling interval, not merely
- // repeated steering commands. Collision resolution can cancel valid moves.
- const progress=u.navProgress||(u.navProgress={x:u.x,y:u.y,time:state.time,stalls:0});
- if(state.time-progress.time>=.45){
-  const moved=distance(u,progress);
-  progress.stalls=moved<Math.max(3,st.speed*.045)?progress.stalls+1:0;
-  progress.x=u.x;progress.y=u.y;progress.time=state.time;
-  if(progress.stalls>=2){u.navigation=null;nav=null;u.recoveryCorner=null;u.navRecoverUntil=state.time+1.5;progress.stalls=0;u.navStuckCount=(u.navStuckCount||0)+1}
+ const hasGoal=distance(u,target)>Math.min(st.range*.85,st.range-5);
+ // A direct attack position needs no terrain route. Tactical movement is free to
+ // choose a preferred range, provided no terrain detour is being completed.
+ if(nav&&nav.path.length){
+  while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(7,step*1.5))nav.path.shift();
+  // Skip only if terrain visibility genuinely makes a later waypoint reachable.
+  for(let i=nav.path.length-1;i>0;i--){
+   if(clearLine(u,nav.path[i],arena,r)){nav.path.splice(0,i);break}
+  }
  }
- if(!blocked){nav=null;u.navigation=null;u.recoveryCorner=null}
- else if(!nav&&(u.navRecoverUntil>state.time||u.recoveryCorner)){/* Preserve wall-following recovery until line of sight clears. */}
- else if(!nav||nav.targetId!==target.id||distance(nav.targetPosition,target)>Math.max(35,st.range*.3)||!nav.path.length||!clearLine(u,nav.path[0],state.arena,r)){
-  // Choose a reachable firing position, not the enemy's occupied center.
-  // Prefer the weighted tactical score while charging a modest path-length cost.
-  const ideal=st.range*.85;
-  const candidates=[{x:target.x,y:target.y}];
+ // Progress is the remaining route length, not net displacement. Reversals,
+ // orbiting and repeated corner visits cannot masquerade as forward progress.
+ const remaining=route=>route.path.reduce((sum,p,i)=>sum+distance(i?route.path[i-1]:u,p),0);
+ if(nav){
+  const length=remaining(nav);
+  const tracker=u.navProgress||(u.navProgress={time:state.time,best:length,failures:0});
+  if(state.time-tracker.time>=.7){
+   if(length>tracker.best-Math.max(3,st.speed*.08))tracker.failures++;
+   else tracker.failures=0;
+   tracker.best=length;tracker.time=state.time;
+   if(tracker.failures>=2){
+    u.navStuckCount=(u.navStuckCount||0)+1;
+    u.navAlternate=(u.navAlternate||0)+1;
+    u.navigation=null;nav=null;u.navProgress=null;
+   }
+  }
+ }
+ const refresh=nav&&(nav.targetId!==target.id||distance(nav.targetPosition,target)>Math.max(65,st.range*.6));
+ if(refresh){nav=null;u.navigation=null;u.navProgress=null}
+ // An active detour is sticky: temporary actors and small target motion never
+ // change the side of the obstacle being traversed.
+ if(!nav&&terrainBlocked&&hasGoal){
+  const ideal=Math.max(st.radius+CHASSIS[target.type].radius+4,st.range*.78);
+  const points=[];
   for(let i=0;i<16;i++){
-   const a=i*Math.PI/8;
-   for(const scale of [1, .7])candidates.push({x:target.x+Math.cos(a)*ideal*scale,y:target.y+Math.sin(a)*ideal*scale});
+   const angle=i*Math.PI/8;
+   for(const scale of [1, .75])points.push({x:target.x+Math.cos(angle)*ideal*scale,y:target.y+Math.sin(angle)*ideal*scale});
   }
-  let destination=candidates[0],bestRoute=-Infinity;
-  for(const p of candidates){
+  // Include an approach close to the target for melee against obstacles.
+  points.push({x:target.x,y:target.y});
+  let chosen=null,best=-Infinity;
+  for(const p of points){
    if(p.x<20+r||p.x>700-r||p.y<20+r||p.y>500-r)continue;
-   if(state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o)))continue;
-   if(!clearLine(p,target,state.arena))continue;
-   const route=navigationPath(u,p,state.arena,r,state,u);
+   if(arena.obstacles.some(o=>rectHit(p.x,p.y,r+1,o)))continue;
+   if(!clearLine(p,target,arena,0))continue;
+   const route=navigationPath(u,p,arena,r);
    if(!route)continue;
-   const length=route.reduce((acc,node,i)=>acc+distance(i?route[i-1]:u,node),0);
-   const value=positionScore(state,u,target,p,st,enemies)-length*.002-segmentActorCost(state,u,u,route[0])*.012;
-   if(value>bestRoute){bestRoute=value;destination=p}
+   const length=route.reduce((sum,node,i)=>sum+distance(i?route[i-1]:u,node),0);
+   // Distance is meaningful to avoid massive detours; a clear firing line
+   // and tactical positioning still determine the final destination.
+   const score=positionScore(state,u,target,p,st,enemies)-length*.008;
+   if(score>best){best=score;chosen={targetId:target.id,targetPosition:{x:target.x,y:target.y},destination:p,path:route}}
   }
-  // Fighters may stand closer to walls than another chassis can fit.
-  // Route to the nearest accessible point, not the enemy's occupied center.
-  for(const o of state.arena.obstacles){
-   const left=o.x-r-2,right=o.x+o.w+r+2,top=o.y-r-2,bottom=o.y+o.h+r+2;
-   if(destination.x>left&&destination.x<right&&destination.y>top&&destination.y<bottom){
-    const choices=[{x:left,y:destination.y,d:destination.x-left},{x:right,y:destination.y,d:right-destination.x},{x:destination.x,y:top,d:destination.y-top},{x:destination.x,y:bottom,d:bottom-destination.y}];
-    const nearest=choices.sort((a,b)=>a.d-b.d)[0];destination={x:nearest.x,y:nearest.y};
-   }
+  if(chosen){nav=chosen;u.navigation=nav;u.navProgress={time:state.time,best:remaining(nav),failures:0}}
+ }
+ const valid=(dir)=>{
+  const p={x:u.x+dir.x*step,y:u.y+dir.y*step};
+  return p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r
+   &&clearLine(u,p,arena,0)&&arena.obstacles.every(o=>!rectHit(p.x,p.y,r,o));
+ };
+ const steer=(goal,committed=false)=>{
+  const angle=Math.atan2(goal.y-u.y,goal.x-u.x);
+  const offsets=[0,.22,-.22,.45,-.45,.8,-.8,1.2,-1.2,1.57,-1.57,2.35,-2.35,Math.PI];
+  let selected=null,best=-Infinity;
+  for(const offset of offsets){
+   const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
+   if(!valid(dir))continue;
+   const p={x:u.x+dir.x*step,y:u.y+dir.y*step};
+   const forward=(distance(u,goal)-distance(p,goal))/Math.max(step,.001);
+   const pressure=actorClearance(state,u,p,dt*.8);
+   // Keep forward movement dominant except when immediately colliding.
+   const score=forward*3-pressure*.07+(committed?0:positionScore(state,u,target,p,st,enemies)*.02);
+   if(score>best){best=score;selected={...dir,score}}
   }
-  const path=bestRoute>-Infinity?navigationPath(u,destination,state.arena,r,state,u):null;
-  nav=path?{targetId:target.id,destination,targetPosition:{x:target.x,y:target.y},path}:null;u.navigation=nav;
-  if(nav)u.recoveryCorner=null;
- }
- if(blocked&&nav){
-  while(nav.path.length>1&&distance(u,nav.path[0])<Math.max(6,step*2))nav.path.shift();
-  for(let i=nav.path.length-1;i>0;i--)if(clearLine(u,nav.path[i],state.arena,r)&&segmentActorCost(state,u,u,nav.path[i])<25){nav.path.splice(0,i);break}
- }
- const valid=dir=>{const p={x:u.x+dir.x*step,y:u.y+dir.y*step};return p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&clearLine(u,p,state.arena,0)&&!state.arena.obstacles.some(o=>rectHit(p.x,p.y,CHASSIS[u.type].radius+3,o))};
- if(blocked&&nav){
-  const wp=nav.path[0],d=distance(u,wp);
-  if(d>.01){
-   // Commit to the waypoint until it is reached. Tactical scoring at each
-   // individual step can otherwise reject the necessary move away from target,
-   // leaving a fighter oscillating against an obstacle corner.
-   const angle=Math.atan2(wp.y-u.y,wp.x-u.x);
-   const offsets=[0,.18,-.18,.4,-.4,.75,-.75,1.15,-1.15];
-   for(const offset of offsets){
-    const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
-    if(valid(dir)&&actorClearance(state,u,{x:u.x+dir.x*step,y:u.y+dir.y*step},dt)<actorClearance(state,u,u,dt)+4)return {...dir,score:positionScore(state,u,target,{x:u.x+dir.x*step,y:u.y+dir.y*step},st,enemies)};
-   }
-   // A blocked waypoint may have become unreachable after collision
-   // resolution. Invalidate it and use wall-following recovery this tick.
-   u.navigation=null;nav=null;
-  }
- }
- if(blocked&&!nav){
-  // Recovery at an inflated-wall boundary: slide along its face toward
-  // the nearest corner until the visibility graph becomes traversable.
-  const obstructing=state.arena.obstacles.filter(o=>!clearLine(u,target,{obstacles:[o]},r));
-  for(const o of obstructing){
-   const corners=[{x:o.x-r-12,y:o.y-r-12},{x:o.x-r-12,y:o.y+o.h+r+12},{x:o.x+o.w+r+12,y:o.y-r-12},{x:o.x+o.w+r+12,y:o.y+o.h+r+12}]
-    .sort((a,b)=>distance(u,a)+distance(a,target)-distance(u,b)-distance(b,target));
-   const recoveryIndex=(u.navStuckCount||0)%Math.max(1,corners.length);
-   if(u.navRecoverUntil>state.time)corners.push(...corners.splice(0,recoveryIndex));
-   if(u.recoveryCorner&&distance(u,u.recoveryCorner)>Math.max(8,step*3))corners.unshift(u.recoveryCorner);
-   for(const corner of corners){const angle=Math.atan2(corner.y-u.y,corner.x-u.x);
-    for(const offset of [0,.3,-.3,.7,-.7,1.2,-1.2]){
-     const dir={x:Math.cos(angle+offset),y:Math.sin(angle+offset)};
-     if(valid(dir)){u.recoveryCorner=corner;return {...dir,score:0}}
-    }
-   }
+  return selected;
+ };
+ if(nav&&nav.path.length){
+  const waypoint=nav.path[0];
+  if(distance(u,waypoint)<Math.max(7,step*1.5)&&nav.path.length===1){
+   u.navigation=null;u.navProgress=null;nav=null;
+  }else{
+   const direction=steer(waypoint,true);
+   if(direction)return direction;
+   // Terrain graph may be obsolete after forced collision displacement.
+   u.navigation=null;u.navProgress=null;nav=null;
   }
  }
- const angle=Math.atan2(target.y-u.y,target.x-u.x),dirs=[{x:0,y:0}];
- for(let i=0;i<8;i++){const theta=angle+i*Math.PI/4;dirs.push({x:Math.cos(theta),y:Math.sin(theta)})}
+ // If pathfinding cannot start, try reachable corners, committing to one.
+ if(terrainBlocked&&hasGoal&&!nav){
+  const corners=arena.obstacles.flatMap(o=>[
+   {x:o.x-r-6,y:o.y-r-6},{x:o.x+o.w+r+6,y:o.y-r-6},
+   {x:o.x-r-6,y:o.y+o.h+r+6},{x:o.x+o.w+r+6,y:o.y+o.h+r+6}
+  ]).filter(p=>p.x>20+r&&p.x<700-r&&p.y>20+r&&p.y<500-r);
+  const options=corners.map(p=>({p,route:navigationPath(u,p,arena,r)})).filter(x=>x.route);
+  options.sort((a,b)=>distance(a.p,target)+distance(u,a.p)-distance(b.p,target)-distance(u,b.p));
+  if(options.length){
+   const choice=options[(u.navAlternate||0)%Math.min(2,options.length)];
+   u.navigation={targetId:target.id,targetPosition:{x:target.x,y:target.y},destination:choice.p,path:choice.route};
+   u.navProgress={time:state.time,best:remaining(u.navigation),failures:0};
+   const dir=steer(choice.route[0],true);if(dir)return dir;
+  }
+ }
+ // Free movement: tactical scores choose positions; local actors only penalize
+ // immediate overlaps and do not trigger expensive global replanning.
+ const angle=Math.atan2(target.y-u.y,target.x-u.x);
+ const candidates=[{x:0,y:0}];
+ for(let i=0;i<16;i++){const a=angle+i*Math.PI/8;candidates.push({x:Math.cos(a),y:Math.sin(a)})}
  let best={x:0,y:0,score:-Infinity};
- for(const dir of dirs){if((dir.x||dir.y)&&!valid(dir))continue;
-  const point={x:u.x+dir.x*step,y:u.y+dir.y*step};
-  const score=positionScore(state,u,target,point,st,enemies)-actorClearance(state,u,point,dt)*.08+(!blocked&&distance(u,target)>st.range?(distance(u,target)-distance(point,target))*.035:0);
+ for(const dir of candidates){
+  if((dir.x||dir.y)&&!valid(dir))continue;
+  const p={x:u.x+dir.x*step,y:u.y+dir.y*step};
+  const pressure=actorClearance(state,u,p,dt*.8);
+  const progress=distance(u,target)-distance(p,target);
+  const score=positionScore(state,u,target,p,st,enemies)-pressure*.09
+   +(hasGoal?progress*.09:0);
   if(score>best.score+1e-8)best={...dir,score};
  }
  return best;
