@@ -37,7 +37,20 @@ function endCombat(){
    (u.haste?' · '+u.haste+' haste':'')+
    (u.focus?' · '+u.focus+' focus':'')+
    (u.bulwark?' · '+u.bulwark+' bulwark':'');
-  row.append(heading,values);summary.append(row);
+  row.append(heading,values);
+  const bonus=Object.entries(u.moduleDamage||{}).filter(([,damage])=>damage>0.05).sort((a,b)=>b[1]-a[1]);
+  if(bonus.length){
+   const detail=document.createElement('small');detail.className='muted';
+   detail.textContent='Module damage: '+bonus.map(([name,value])=>name+' '+fmt(value)).join(' · ');
+   row.append(detail);
+  }
+  const delivery=Object.entries(u.moduleHits||{}).filter(([,damage])=>damage>0.05).sort((a,b)=>b[1]-a[1]);
+  if(delivery.length){
+   const detail=document.createElement('small');detail.className='muted';
+   detail.textContent='Delivery-enabled hits (overlapping): '+delivery.map(([name,value])=>name+' '+fmt(value)).join(' · ');
+   row.append(detail);
+  }
+  summary.append(row);
  }
  const totals=document.createElement('div');totals.className='round-team-totals';
  totals.textContent='Team damage · '+match.players.map((player,index)=>{
