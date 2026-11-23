@@ -754,7 +754,7 @@ export function disengageDirection(state,u,enemies){
  const most=nearby[0],away=Math.atan2(u.y-most.y,u.x-most.x);
  for(const offset of [0,.35,-.35,.7,-.7,1.1,-1.1,1.5,-1.5,Math.PI]){
   const dir={x:Math.cos(away+offset),y:Math.sin(away+offset)};
-  const step=stats(u).speed*STEP;
+  const step=stats(u).speed*STEP*(1+Math.min(.35,Math.max(0,u.chassis.mods.disengage-1)*.1));
   const end={x:u.x+dir.x*step,y:u.y+dir.y*step};
   const r=CHASSIS[u.type].radius+3;
   if(end.x<20+r||end.x>700-r||end.y<20+r||end.y>500-r)continue;
@@ -783,7 +783,8 @@ export function applyFollowthrough(state,hit){
  const d=distance(u,target);
  if(d<.001)return false;
  const dx=(target.x-u.x)/d,dy=(target.y-u.y)/d;
- const clearance=CHASSIS[u.type].radius+CHASSIS[target.type].radius+8;
+ const clearance=CHASSIS[u.type].radius+CHASSIS[target.type].radius+8+
+  Math.min(3,Math.max(0,u.chassis.mods.followthrough-1))*8;
  const end={x:target.x+dx*clearance,y:target.y+dy*clearance};
  const r=CHASSIS[u.type].radius+3;
  if(end.x<20+r||end.x>700-r||end.y<20+r||end.y>500-r)return false;
@@ -932,7 +933,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if(inRange)record.attackOpportunities++;
  record.before={x:u.x,y:u.y,step:activeStats.speed*dt*attackMovementMultiplier(u),seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
  }
- if(direction.x||direction.y){const step=activeStats.speed*dt*(retreating?1:attackMovementMultiplier(u));u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
+ if(direction.x||direction.y){const step=activeStats.speed*dt*(retreating?1+Math.min(.35,Math.max(0,u.chassis.mods.disengage-1)*.1):attackMovementMultiplier(u));u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
  if(u.attack){if(state.diagnostics&&u.attack.phase==='windup'&&u.attack.elapsed+dt>=ATTACK_TIMING[u.type].windup)state.diagnostics.units[u.id].shots++;advanceAttack(state,u,t,activeStats,dt,attacks)}}
  resolveCollision(state);
  for(const u of state.units){
