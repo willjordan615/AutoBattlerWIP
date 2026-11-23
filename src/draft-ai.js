@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=defensive-telemetry-2122';
-import {legal,canEquip,TARGET_MODULES} from './headless.js?v=defensive-telemetry-2122';
+import {CHASSIS} from './simulation.js?v=cooperative-engagement-2123';
+import {legal,canEquip,TARGET_MODULES} from './headless.js?v=cooperative-engagement-2123';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];
