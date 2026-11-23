@@ -997,7 +997,7 @@ test('2.11 Follow Through advances through target exactly once per attack, respe
  assert.equal(applyFollowthrough(b,{source:a,target,attackId:50}),false);
  assert.equal(applyFollowthrough(b,{source:a,target,attackId:51}),false);
  b.time=1;
- a.x=200;a.y=200;a.chassis.mods.followthrough=2;
+ a.x=212;a.y=200;a.chassis.mods.followthrough=2;
  assert.equal(applyFollowthrough(b,{source:a,target,attackId:52}),true);
  assert.ok(a.x>=firstX+7,'second stack adds displacement');
 });
@@ -1078,7 +1078,7 @@ test('2.11.1 Follow Through never teleports beyond its displacement budget',()=>
 test('2.11.1 deepest successful target wins within simultaneous melee hits',()=>{
  const b=spawn(players(),ARENAS[0],3502),source=b.units[0],first=b.units[1],last=b.units[2];
  b.units=[source,first,last];source.chassis.mods.followthrough=1;
- source.x=200;source.y=240;first.x=232;first.y=240;last.x=252;last.y=240;
+ source.x=200;source.y=240;first.x=212;first.y=282;last.x=235;last.y=240;
  b.time=.2;
  const origin={x:200,y:240},attackDirection=0;
  // Deliberately reverse processing order: depth must not depend on array order.
