@@ -190,8 +190,8 @@ export function resolveCollision(state){
   // Ordinary navigation remains mostly cooperative. The directional
   // commitment claims space, but high stability and bracing still resist it.
   const weightA=sa*(1+ca*1.25),weightB=sb*(1+cb*1.25);
-  const shareA=.5*.7+.3*weightB/(weightA+weightB)+
-   .7*(ca||cb)*weightB/(weightA+weightB)-.35*(ca||cb);
+  const proportional=weightB/(weightA+weightB);
+  const shareA=ca||cb?proportional:.35+.3*proportional;
   const portionA=Math.max(.1,Math.min(.9,shareA));
   const ax0=a.x,ay0=a.y,bx0=b.x,by0=b.y;
   a.x-=ax*overlap*portionA;a.y-=ay*overlap*portionA;
@@ -857,6 +857,7 @@ export function advanceFollowthrough(state,u,dt){
  if(active<=0)return false;
  const st=stats(u),step=st.speed*commit.speedFactor*active;
  const before={x:u.x,y:u.y};
+ u.followthroughStepStart=before;
  u.x+=commit.x*step;u.y+=commit.y*step;
  bound(u,state.arena);
  if(state.diagnostics){
@@ -1037,6 +1038,14 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if(u.attack){if(state.diagnostics&&u.attack.phase==='windup'&&u.attack.elapsed+dt>=ATTACK_TIMING[u.type].windup)state.diagnostics.units[u.id].shots++;advanceAttack(state,u,t,activeStats,dt,attacks)}}
  resolveCollision(state);
  for(const u of state.units){
+  if(u.followthroughStepStart){
+   const commit=u.followthroughCommit;
+   const before=u.followthroughStepStart;
+   const progress=(u.x-before.x)*commit.x+(u.y-before.y)*commit.y;
+   if(u.combatStats)u.combatStats.followthroughDistance=(u.combatStats.followthroughDistance||0)+Math.max(0,progress);
+   delete u.followthroughStepStart;
+  }
+
   const path=u.motion||(u.motion=[]);
   path.push({time:state.time,x:u.x,y:u.y});
   while(path.length>2&&path[1].time<state.time-2)path.shift();
