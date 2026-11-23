@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=collision-physics-212';
-import {legal,canEquip,TARGET_MODULES} from './headless.js?v=collision-physics-212';
+import {CHASSIS} from './simulation.js?v=tactical-holding-2121';
+import {legal,canEquip,TARGET_MODULES} from './headless.js?v=tactical-holding-2121';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];
