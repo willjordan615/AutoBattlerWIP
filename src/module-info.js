@@ -1,13 +1,13 @@
 // Profile 2: player-facing, source-of-truth card descriptions.
 // Values match the current prototype's simulation formulas.
 export const DETAILS={
- 'utility:dash':'Uses one of two shared passive/utility slots. Offers a speed-scaled approach burst when weighted positioning favors it. Cooldown 5 seconds; repeat drafts strengthen the equipped utility.',
- 'utility:dodge':'Uses one of two shared passive/utility slots. Offers a sideways evasive roll when the weighted movement policy favors it. Cooldown 5 seconds; stacks extend movement and evasion.',
- 'utility:backstep':'Uses one of two shared passive/utility slots. Offers a backward burst when weighted positioning favors distance. Cooldown 4.5 seconds.',
- 'utility:flank':'Uses one of two shared passive/utility slots. Offers an angled approach when the position evaluator favors it. Cooldown 4 seconds; stacks extend movement.',
- 'utility:disengage':'Uses one of two shared passive/utility slots. Offers an escape burst when enemies crowd the chassis and weights favor retreat. Cooldown 6 seconds; stacks extend retreat.',
- 'utility:intercept':'Uses one of two shared passive/utility slots. Offers a burst toward an enemy targeting or threatening an ally, evaluated using the existing ten weights. Cooldown 5 seconds.',
- 'utility:followthrough':'Uses one of two shared passive/utility slots. Offers a burst past the selected enemy when weighted positioning favors it, ignoring only that enemy’s body block. Terrain and other units still block. Cooldown 6 seconds; stacks extend travel.',
+ 'utility:dash':'Approach burst when positioning favors it. Base cooldown 5s; a second copy halves cooldown instead of increasing travel.',
+ 'utility:dodge':'Sideways evasive roll when positioning favors it. Base cooldown 5s; a second copy halves cooldown.',
+ 'utility:backstep':'Backward burst when seeking distance. Base cooldown 4.5s; a second copy halves cooldown.',
+ 'utility:flank':'Angled approach toward a desirable firing or striking position. Base cooldown 4s; a second copy halves cooldown.',
+ 'utility:disengage':'Escape burst when crowded by enemies. Base cooldown 6s; a second copy halves cooldown.',
+ 'utility:intercept':'Burst toward an enemy threatening an ally. Base cooldown 5s; a second copy halves cooldown.',
+ 'utility:followthrough':'Burst past the selected enemy if positioning favors it, ignoring only that enemy’s body block. Base cooldown 6s; a second copy halves cooldown.',
  'unit:bruiser':'Recruit a durable melee fighter. Adds one Bruiser chassis to your squad (maximum 3).',
  'unit:rogue':'Recruit a fast melee fighter. Adds one Rogue chassis to your squad (maximum 3).',
  'unit:ranged':'Recruit a long-range fighter. Adds one Ranged chassis to your squad (maximum 3).',
@@ -24,8 +24,8 @@ export const DETAILS={
  'target:hunter':'Targeting: Target Distance weight +1. Prefer nearer enemies.',
  'target:aggressor':'Targeting: Damage Opportunity weight +1. Prefer targets vulnerable to damage.',
  'passive:regen':'Passive slot: regenerate 2 chassis HP per second. Unique per chassis; shares two slots with utilities.',
- 'passive:bulwark':'Passive slot: +3 defense. Unique per chassis; shares two slots with utilities.', reducing damage taken from each attack. Maximum two passives.',
- 'passive:haste':'Passive slot: +25% movement speed. Unique per chassis; shares two slots with utilities.', this scales with existing movement upgrades.',
+ 'passive:bulwark':'Passive slot: +3 defense. Unique per chassis; shares two slots with utilities.',
+ 'passive:haste':'Passive slot: +25% movement speed. Unique per chassis; shares two slots with utilities.',
  'passive:focus':'Passive slot: attack cooldown divided by 1.15 (about 15% more attacks). Unique per chassis; occupies one of two passive/utility slots.'
 };
 export function cardDetail(card){const detail=DETAILS[card.kind+':'+card.key]||card.name;return card.kind==='utility'?detail+' A second copy on the same chassis halves its cooldown (maximum two copies); it does not consume another slot.':detail}
