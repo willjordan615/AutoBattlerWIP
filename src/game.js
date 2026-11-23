@@ -1,7 +1,7 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=attack-reclass-211';
-import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=attack-reclass-211';
-import {cardDetail,cardSummary} from './module-info.js?v=attack-reclass-211';
-import {chooseCpuDraft} from './draft-ai.js?v=attack-reclass-211';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=followthrough-budget-2111';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=followthrough-budget-2111';
+import {cardDetail,cardSummary} from './module-info.js?v=followthrough-budget-2111';
+import {chooseCpuDraft} from './draft-ai.js?v=followthrough-budget-2111';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
