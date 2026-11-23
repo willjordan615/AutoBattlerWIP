@@ -521,7 +521,7 @@ export function holdingOpportunity(state,u,target,st,enemies){
  const exposedPenalty=exposed?.2:0;
  const inRangeBonus=striking?.23:0;
  const incomingBonus=approach*.5;
- const stableBonus=(u.holdingPosition? .12:0);
+ const stableBonus=(u.previouslyHolding? .12:0);
  // Standing in the wrong range isn't a good defensive position.
  const tooNear=striking&&d<Math.min(desired*.55,CHASSIS[u.type].radius+targetRadius+5);
  // Holding must not override deliberately extreme targeting weights: a
@@ -532,6 +532,7 @@ export function holdingOpportunity(state,u,target,st,enemies){
  return Math.max(0,inRangeBonus+incomingBonus+stableBonus-exposedPenalty-(tooNear?.17:0))/preferenceScale;
 }
 export function chooseMovement(state,u,target,st,enemies,dt){
+ u.previouslyHolding=!!u.holdingPosition;u.holdingPosition=false;
  const arena=state.arena,step=st.speed*dt,r=CHASSIS[u.type].radius+3;
  const terrainBlocked=!clearLine(u,target,arena,0);
  const routeBlocked=terrainBlocked||(distance(u,target)>st.range&&!clearLine(u,target,arena,r));
