@@ -1291,3 +1291,18 @@ test('2.12.3 cooperative screen holds do not create false navigation stalls',()=
  for(let i=0;i<5;i++){b.time+=.7;chooseMovement(b,u,enemy,stats(u),[enemy],STEP)}
  assert.equal(u.navStuckCount||0,0);
 });
+
+test('2.12.3 live multi-fighter combat has independent screens and useful support',()=>{
+ const p=[{name:'Team',hp:100,squad:[makeChassis('bruiser'),makeChassis('ranged'),makeChassis('rogue')]},
+          {name:'Opponents',hp:100,squad:[makeChassis('bruiser'),makeChassis('ranged')]}];
+ const b=spawn(p,ARENAS[0],8261);
+ for(const u of b.units){u.x=u.owner?490:150+(u.id%100)*32;u.y=210+(u.id%100)*37;u.cd=0}
+ b.diagnostics={units:{}};
+ for(let i=0;i<240;i++)if(tick(b,STEP)!==null)break;
+ const t=b.diagnostics.tactical;
+ assert.ok(t.supportUnitFrames>0,'support must occur in live combat');
+ assert.ok(t.screenUnitFrames>0,'durable fighter should screen for ally');
+ assert.ok(t.attackReleases>0,'support must not replace fighting');
+ assert.ok(t.maxMutualPassiveFrames<90,'cooperation must not create passive standoff');
+ assert.ok(Object.values(b.diagnostics.units).some(u=>u.screenFrames>0),'per-unit screen trace exists');
+});
