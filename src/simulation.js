@@ -599,7 +599,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  // Independent collision-deadlock detector: route progress alone cannot
  // diagnose characters pushed back by teammates or enemies in open sightlines.
  const activeApproach=(distance(u,target)>st.range||terrainBlocked)&&
-  !u.holdingPosition&&holdingOpportunity(state,u,target,st,enemies)===0;
+  holdingOpportunity(state,u,target,st,enemies)===0;
  const motion=u.navMotion||(u.navMotion={x:u.x,y:u.y,time:state.time,stalls:0});
  if(state.time-motion.time>=.65){
   const displaced=distance(u,motion);
@@ -1055,7 +1055,7 @@ export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.t
   unit.focus=target?.id??null;
   const prior=unit.moveDecision||{x:0,y:0};
   const norm=Math.hypot(prior.x,prior.y);
-  unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
+  unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:unit.holdingPosition?{x:0,y:0}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
  }
 const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);
  reactToThreat(state,u,t,st,awareness);
@@ -1080,7 +1080,8 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if(committing||retreating)u.holdingPosition=false;
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
- record.frames++;if(!direction.x&&!direction.y)record.idle++;if(u.navigationBlocked)record.blocked++;
+ record.frames++;if(!direction.x&&!direction.y)record.idle++;
+ if(u.holdingPosition)record.deliberateHolds=(record.deliberateHolds||0)+1;if(u.navigationBlocked)record.blocked++;
  const route=u.navigation,waypoint=route?.path?.[0];const key=waypoint?Math.round(waypoint.x)+','+Math.round(waypoint.y):'none';
  if(record.lastWaypoint!==undefined&&record.lastWaypoint!==key)record.waypointChanges++;record.lastWaypoint=key;
  if(record.lastRoute&&route!==record.lastRoute){record.replans++;const reason=record.lastTarget!==t.id?'target-changed':u.navRecoverUntil>state.time?'stuck-recovery':'route-invalid-or-destination';record.reasonCounts[reason]=(record.reasonCounts[reason]||0)+1}record.lastRoute=route;record.lastTarget=t.id;
