@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=module-telemetry-291';
-import {legal,canEquip,TARGET_MODULES} from './headless.js?v=module-telemetry-291';
+import {CHASSIS} from './simulation.js?v=attack-pipeline-210';
+import {legal,canEquip,TARGET_MODULES} from './headless.js?v=attack-pipeline-210';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];
