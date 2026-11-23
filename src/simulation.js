@@ -684,7 +684,6 @@ function utilityMove(state,u,target,st,dt,enemies,context){
  return true;
 }
 // Attack effects act on actual impacts, never on visual commitment events.
-function modifier(u,key){return u?.chassis?.mods?.[key]||0}
 function traveledRecently(u,now){
  const path=u.motion||[];let total=0;
  for(let i=1;i<path.length;i++)if(path[i].time>=now-2)total+=distance(path[i-1],path[i]);
@@ -700,12 +699,13 @@ export function resolveAttackModules(state,attacks){
   if(mods.precision&&target.hp/target.maxHp>.75)raw+=mods.precision*2;
   if(mods.momentum)raw+=mods.momentum*2*traveledRecently(source,state.time)/100;
   if(source.retaliationReady>state.time){raw+=4;source.retaliationReady=0}
-  if(effects.sunderUntil>state.time)raw+=Math.min(3,effects.sunder||0);
   if(effects.expose&&effects.expose.until>state.time&&
      effects.expose.owner===source.owner&&effects.expose.sourceId!==source.id){
    raw+=2*effects.expose.stacks;effects.expose=null;
   }
-  hit.rawDamage=raw;hit.damage=Math.max(1,raw-stats(target).defense);
+  const defense=Math.max(0,stats(target).defense-
+   (effects.sunderUntil>state.time?Math.min(3,effects.sunder||0):0));
+  hit.rawDamage=raw;hit.damage=Math.max(1,raw-defense);
   const chained=mods.chain?state.units.filter(u=>u!==target&&u.hp>0&&u.owner!==source.owner&&
    distance(u,target)<=95&&clearLine(target,u,state.arena)).sort((a,b)=>distance(a,target)-distance(b,target)||a.id-b.id)[0]:null;
   const split=mods.chain?Math.min(.6,.2*mods.chain):0;
@@ -726,6 +726,12 @@ export function resolveAttackModules(state,attacks){
    effects.burn={source,dps:Math.min(12,2*mods.burning),until:state.time+2};
   }
   if(mods.hazardous){
+   // At most two active patches per fighter prevent rapid attacks from flooding the arena.
+   const own=state.zones.filter(z=>z.source.id===source.id);
+   if(own.length>=2){
+    const oldest=own.sort((a,b)=>a.until-b.until)[0];
+    state.zones.splice(state.zones.indexOf(oldest),1);
+   }
    state.zones.push({x:target.x,y:target.y,owner:source.owner,source,
     radius:18+Math.min(4,mods.hazardous)*3,dps:Math.min(10,2*mods.hazardous),until:state.time+2.5});
   }
