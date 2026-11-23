@@ -135,7 +135,7 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,squadSize:p.squad.length,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,motion:[],effects:{},lastAttacked:null,lastAttackAt:-100,retaliationReady:0,focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),zones:[],projectiles:[],nextProjectileId:1,random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,squadSize:p.squad.length,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,motion:[],effects:{},lastAttacked:null,lastAttackAt:-100,retaliationReady:0,focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,moduleDamage:{},moduleHits:{},attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),zones:[],projectiles:[],nextProjectileId:1,random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
 // Melee shape is locked during windup, then evaluated at the actual release.
@@ -188,10 +188,23 @@ export function advanceAttack(state,u,target,st,dt,attacks){
    const dx=Math.cos(attack.direction),dy=Math.sin(attack.direction);
    spawnProjectileVolley(state,u,{id:attack.targetId,x:u.x+dx*st.range,y:u.y+dy*st.range},st,attack.direction);
   }else{
-   for(const victim of meleeAttackTargets(state,u,attack.direction,st)){
+   const victims=meleeAttackTargets(state,u,attack.direction,st);
+   for(let i=0;i<victims.length;i++){
+    const victim=victims[i];
+    const bearing=Math.atan2(victim.y-u.y,victim.x-u.x);
+    const diff=Math.abs(Math.atan2(Math.sin(bearing-attack.direction),Math.cos(bearing-attack.direction)));
+    const radius=CHASSIS[victim.type].radius,dist=Math.max(1,distance(u,victim));
+    const baseArc=ATTACK_TIMING[u.type].arc*Math.PI/360+
+     Math.asin(Math.min(.98,radius/dist));
+    const baselineRange=st.range-st.area*0+radius;
+    const deliveredBy=[];
+    if(i>0&&st.piercing>0)deliveredBy.push('piercing');
+    // A spread lane can reach outside the original, unmodified attack cone.
+    if(st.projectiles>1&&diff>baseArc&&st.area===0)deliveredBy.push('projectiles');
+    if(st.area>0&&(diff>baseArc||dist>baselineRange))deliveredBy.push('area');
     attacks.push({source:u,target:victim,rawDamage:st.damage,
      damage:Math.max(1,st.damage-stats(victim).defense),
-     knockback:st.knockback,taunt:st.taunt});
+     knockback:st.knockback,taunt:st.taunt,deliveredBy});
    }
   }
   u.cd+=st.rate;
@@ -242,7 +255,7 @@ function spawnProjectileVolley(state,u,t,st,aimAngle=null){
   const heading=angle+offset;
   u.combatStats&&(u.combatStats.shots++);
   state.projectiles.push({
-   id:state.nextProjectileId++,owner:u.owner,source:u,aimedAtId:t.id,
+   id:state.nextProjectileId++,owner:u.owner,source:u,aimedAtId:t.id,lane:i,landedCount:0,
    x:u.x,y:u.y,vx:Math.cos(heading),vy:Math.sin(heading),
    speed:PROJECTILE_SPEED,remaining:st.range,radius:PROJECTILE_RADIUS+Math.max(0,st.area)*3,damage:st.damage,
    knockback:st.knockback,taunt:st.taunt,penetration:Math.max(0,st.piercing),
@@ -292,10 +305,14 @@ export function advanceProjectiles(state,dt,attacks=[]){
    shot.hitIds.add(victim.id);
    if(!shot.volley.hitIds.has(victim.id)){
     shot.volley.hitIds.add(victim.id);
+    const deliveredBy=[];
+    if(shot.lane>0)deliveredBy.push('projectiles');
+    if(shot.landedCount>0&&shot.source.chassis.mods.piercing>0)deliveredBy.push('piercing');
+    shot.landedCount++;
     if(shot.source.combatStats&&victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
     attacks.push({source:shot.source,target:victim,projectile:true,
      rawDamage:shot.damage,damage:Math.max(1,shot.damage-stats(victim).defense),
-     knockback:shot.knockback,taunt:shot.taunt});
+     knockback:shot.knockback,taunt:shot.taunt,deliveredBy});
    }
    state.visualEvents.push({kind:'impact',x:shot.x,y:shot.y,owner:shot.owner});
    if(shot.penetration<=0){active=false;break}
@@ -690,31 +707,46 @@ function traveledRecently(u,now){
  for(let i=1;i<path.length;i++)if(path[i].time>=now-2)total+=distance(path[i-1],path[i]);
  return Math.min(100,total);
 }
+// Credit directly measurable damage without pretending the engine can isolate the
+// counterfactual value of positioning, CC, attack range, target choice or mobility.
 export function resolveAttackModules(state,attacks){
  const output=[];
  for(const hit of attacks){
   if(hit.secondary||hit.indirect){output.push(hit);continue}
   const source=hit.source,target=hit.target,mods=source.chassis.mods;
-  const effects=target.effects|| (target.effects={});
-  let raw=hit.rawDamage??hit.damage;
-  if(mods.precision&&target.hp/target.maxHp>.75)raw+=mods.precision*2;
-  if(mods.momentum)raw+=mods.momentum*2*traveledRecently(source,state.time)/100;
-  if(source.retaliationReady>state.time){raw+=4;source.retaliationReady=0}
+  const effects=target.effects||(target.effects={}),contributions={};
+  const add=(key,damage)=>{if(damage>0)contributions[key]=(contributions[key]||0)+damage};
+  const initialRaw=hit.rawDamage??hit.damage,baseDefense=stats(target).defense;
+  let raw=initialRaw;
+  // Track marginal post-defense improvements in a fixed, reproducible order.
+  const gain=(key,extra)=>{
+   if(!extra)return;
+   const before=Math.max(1,raw-baseDefense);
+   raw+=extra;
+   add(key,Math.max(0,Math.max(1,raw-baseDefense)-before));
+  };
+  if(mods.precision&&target.hp/target.maxHp>.75)gain('precision',mods.precision*2);
+  if(mods.momentum)gain('momentum',mods.momentum*2*traveledRecently(source,state.time)/100);
+  if(source.retaliationReady>state.time){gain('retaliation',4);source.retaliationReady=0}
   if(effects.expose&&effects.expose.until>state.time&&
      effects.expose.owner===source.owner&&effects.expose.sourceId!==source.id){
-   raw+=2*effects.expose.stacks;effects.expose=null;
+   gain('expose',2*effects.expose.stacks);effects.expose=null;
   }
-  const defense=Math.max(0,stats(target).defense-
-   (effects.sunderUntil>state.time?Math.min(3,effects.sunder||0):0));
+  const sunderStrength=effects.sunderUntil>state.time?Math.min(3,effects.sunder||0):0;
+  const defense=Math.max(0,baseDefense-sunderStrength);
+  add('sunder',Math.max(0,Math.max(1,raw-defense)-Math.max(1,raw-baseDefense)));
   hit.rawDamage=raw;hit.damage=Math.max(1,raw-defense);
   const chained=mods.chain?state.units.filter(u=>u!==target&&u.hp>0&&u.owner!==source.owner&&
    distance(u,target)<=95&&clearLine(target,u,state.arena)).sort((a,b)=>distance(a,target)-distance(b,target)||a.id-b.id)[0]:null;
   const split=mods.chain?Math.min(.6,.2*mods.chain):0;
+  hit.chainRedirected=hit.damage*split;
   hit.damage*=1-split;
+  hit.moduleDamage=Object.fromEntries(Object.entries(contributions).map(([key,value])=>[key,value*(1-split)]));
   output.push(hit);
   if(chained){
+   const damage=Math.max(0,raw*split-stats(chained).defense);
    output.push({source,target:chained,rawDamage:raw*split,
-    damage:Math.max(0,raw*split-stats(chained).defense),secondary:true});
+    damage,secondary:true,moduleDamage:{chain:damage}});
    state.visualEvents.push({kind:'chain',x:target.x,y:target.y,toX:chained.x,toY:chained.y,owner:source.owner});
   }
   if(mods.sunder){effects.sunder=Math.min(3,mods.sunder);effects.sunderUntil=state.time+2}
@@ -723,11 +755,8 @@ export function resolveAttackModules(state,attacks){
    effects.slowStrength=Math.min(.45,.08*mods.disruption);
    effects.slowUntil=state.time+.6;
   }
-  if(mods.burning){
-   effects.burn={source,dps:Math.min(12,2*mods.burning),until:state.time+2};
-  }
+  if(mods.burning)effects.burn={source,dps:Math.min(12,2*mods.burning),until:state.time+2};
   if(mods.hazardous){
-   // At most two active patches per fighter prevent rapid attacks from flooding the arena.
    const own=state.zones.filter(z=>z.source.id===source.id);
    if(own.length>=2){
     const oldest=own.sort((a,b)=>a.until-b.until)[0];
@@ -748,13 +777,13 @@ function environmentalAttacks(state,dt){
   const burn=u.effects?.burn;
   if(burn&&burn.until>state.time&&burn.source){
    hits.push({source:burn.source,target:u,rawDamage:burn.dps*dt,
-    damage:burn.dps*dt,indirect:true});
+    damage:burn.dps*dt,indirect:true,moduleDamage:{burning:burn.dps*dt}});
   }
  }
  state.zones=state.zones.filter(z=>z.until>state.time);
  for(const z of state.zones)for(const u of state.units){
   if(u.hp>0&&u.owner!==z.owner&&distance(u,z)<z.radius+CHASSIS[u.type].radius){
-   hits.push({source:z.source,target:u,rawDamage:z.dps*dt,damage:z.dps*dt,indirect:true});
+   hits.push({source:z.source,target:u,rawDamage:z.dps*dt,damage:z.dps*dt,indirect:true,moduleDamage:{hazardous:z.dps*dt}});
   }
  }
  return hits;
@@ -830,6 +859,22 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   const prior=totals.get(a.target)||0;
   const dealt=Math.max(0,Math.min(a.damage,a.target.hp-prior));
   if(dealt>0){
+   const combat=a.source.combatStats;
+   if(combat){
+    combat.moduleDamage||={};
+    combat.moduleHits||={};
+    for(const [key,potential] of Object.entries(a.moduleDamage||{})){
+     const credit=Math.min(dealt,potential*dealt/Math.max(1e-9,a.damage));
+     if(credit>0)combat.moduleDamage[key]=(combat.moduleDamage[key]||0)+credit;
+    }
+    // Delivery-enabled impacts are tracked independently from damage bonuses:
+    // a hit can be both a spread-lane hit and a pierced hit.
+    for(const key of a.deliveredBy||[]){
+     combat.moduleHits[key]=(combat.moduleHits[key]||0)+dealt;
+    }
+    if(a.chainRedirected)combat.chainRedirected=(combat.chainRedirected||0)+
+     a.chainRedirected*dealt/Math.max(1e-9,a.damage);
+   }
    state.damageDealt[a.source.owner]+=dealt;
    a.source.combatStats&&(a.source.combatStats.damage+=dealt);
    if(state.diagnostics&&state.diagnostics.units[a.source.id])state.diagnostics.units[a.source.id].damage+=dealt;
