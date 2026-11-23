@@ -119,7 +119,7 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
   }
   if(card.kind==='utility'||card.kind==='passive'){
    const previous=slots.length>=2?slots[passiveSlot]:null;
-   if(previous&&previous!==card.key){
+   if(previous&&previous!==card.key&&!(card.kind==='utility'&&has(card.key))){
     // Replacement cost depends on the displaced ability, not merely slots being full.
     const oldKind=Object.hasOwn(BASE.utility,previous)?'utility':'passive';
     const oldValue=BASE[oldKind]?.[previous]||20;
