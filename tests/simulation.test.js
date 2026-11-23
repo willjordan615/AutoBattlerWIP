@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown} from '../src/simulation.js';
-import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from '../src/headless.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment} from '../src/simulation.js';
+import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
 test('chassis mutations are independent',()=>{const a=makeChassis('bruiser'),b=makeChassis('bruiser');a.mods.hp=2;assert.equal(stats({type:'bruiser',chassis:a}).hp,195);assert.equal(stats({type:'bruiser',chassis:b}).hp,155)});
 test('wall clamping for all archetypes',()=>{for(const type of Object.keys(CHASSIS)){const u={type,x:-100,y:900};bound(u);assert.ok(u.x>20&&u.y<500)}});
@@ -20,7 +20,7 @@ test('deterministic simulation for same seed',()=>{const run=()=>{const s=spawn(
 
 test('attack mutations stack linearly and compose',()=>{const c=makeChassis('ranged');c.mods.projectiles=2;c.mods.piercing=2;c.mods.damage=3;const st=stats({type:'ranged',chassis:c});assert.equal(st.projectiles,3);assert.equal(st.piercing,2);assert.equal(st.damage,20)});
 test('targeting mutation weights stack additively',()=>{const c=makeChassis('bruiser');const initial=c.weights.kill;c.weights.kill+=1;c.weights.kill+=1;assert.equal(c.weights.kill,initial+2)});
-test('defensive passive changes defense and regen preserves max HP',()=>{const c=makeChassis('bruiser');c.passives.push('bulwark','regen');const st=stats({type:'bruiser',chassis:c});assert.equal(st.defense,7);const p=players();p[0].squad[0]=c;const battle=spawn(p);const u=battle.units[0];u.hp=u.maxHp-10;u.cd=1000;tick(battle,STEP);assert.ok(u.hp>u.maxHp-10&&u.hp<=u.maxHp)});
+test('defensive passive changes defense and regen preserves max HP',()=>{const c=makeChassis('bruiser');c.passives.push('bulwark','regen');const st=stats({type:'bruiser',chassis:c});assert.equal(st.defense,4);const p=players();p[0].squad[0]=c;const battle=spawn(p);const u=battle.units[0];u.hp=u.maxHp-10;u.cd=1000;tick(battle,STEP);assert.ok(u.hp>u.maxHp-10&&u.hp<=u.maxHp)});
 test('eliminations on the same tick form a placement tie',()=>{const p=players(),s=spawn(p);s.units[1].hp=0;s.units[2].hp=0;s.eliminations=[{owner:1,tick:17},{owner:2,tick:17}];const groups=placementGroups(s);assert.deepEqual(groups.at(-1),[1,2])});
 
 test('all players receive unique randomized corners and move corners every round',()=>{const p=players();for(let seed=1;seed<=30;seed++){let previous=null;for(let round=1;round<=8;round++){const a=spawn(p,ARENAS[0],seed+round*991,round,previous),b=spawn(p,ARENAS[0],seed+round*991,round,previous);assert.deepEqual(a.spawnSlots,b.spawnSlots);assert.deepEqual([...a.spawnSlots].sort(),[0,1,2,3]);if(previous)for(let i=0;i<4;i++)assert.ok(a.spawnSlots[i]!==previous[i]);for(let i=0;i<4;i++){const unit=a.units.find(u=>u.owner===i);assert.ok(unit);const corner=a.spawnSlots[i];assert.ok((corner===0||corner===3?unit.x<200:unit.x>500));assert.ok((corner===0||corner===1?unit.y<200:unit.y>300))}previous=a.spawnSlots}}});
@@ -442,4 +442,58 @@ test('shared draft preserves identical offers for competing players',()=>{
  assert.equal(m.draft.originalPool.length,6);
  assert.ok(m.draft.originalPool.every(card=>card.key==='dash'&&card.kind==='utility'));
  assert.equal(new Set(m.draft.originalPool.map(card=>card.uid)).size,6);
+});
+
+test('reactive dodge avoids a threatening projectile but does not react to a miss',()=>{
+ const run=(y)=>{
+  const b=projectileFixture(ARENAS[0],['bruiser','ranged']);
+  const defender=b.units[0],shooter=b.units[1];
+  defender.chassis.passives.push('dodge');defender.chassis.mods.dodge=1;
+  defender.x=180;defender.y=210;shooter.x=95;shooter.y=350;
+  defender.cd=100;shooter.cd=100;
+  testShot(b,shooter,{vx:1,vy:0,remaining:200});
+  const shot=b.projectiles[0];shot.y=y;shot.x=135;shot.aimedAtId=defender.id;
+  tick(b,STEP);
+  return {b,defender};
+ };
+ const direct=run(210);
+ assert.equal(direct.defender.combatStats.dodges,1);
+ assert.ok(direct.b.visualEvents.some(e=>e.kind==='mobility'&&e.ability==='dodge'));
+ const miss=run(100);
+ assert.equal(miss.defender.combatStats.dodges,0);
+});
+test('haste reacts to pursuit and focus reacts to a finish opportunity',()=>{
+ const b=projectileFixture(ARENAS[0],['bruiser','bruiser']);
+ const [pursuer,target]=b.units;
+ pursuer.chassis.passives=['haste','focus'];pursuer.x=90;pursuer.y=220;
+ target.x=270;target.y=220;target.cd=1000;pursuer.cd=1000;
+ tick(b,STEP);assert.equal(pursuer.combatStats.haste,1);
+ assert.ok(pursuer.hasteUntil>b.time);
+ pursuer.x=240;target.hp=5;pursuer.cd=0;
+ tick(b,STEP);assert.equal(pursuer.combatStats.focus,1);
+ assert.ok(pursuer.focusUntil>b.time);
+});
+test('bulwark prepares before a dangerous attack rather than providing permanent defense',()=>{
+ const b=projectileFixture(ARENAS[0],['bruiser','bruiser']);
+ const [defender,attacker]=b.units;defender.chassis.passives=['bulwark'];
+ defender.x=180;defender.y=210;attacker.x=215;attacker.y=210;
+ attacker.cd=0;defender.cd=1000;
+ assert.equal(stats(defender).defense,4);
+ tick(b,STEP);
+ assert.equal(defender.combatStats.bulwark,1);
+ assert.ok(defender.bulwarkUntil>b.time);
+ assert.equal(stats(defender).defense,9);
+});
+test('fully unusable shared board gets one legal fallback without removing duplicates prematurely',()=>{
+ const m=createMatch(['bruiser','bruiser'],151);draftPool(m);
+ const p=m.players[0];p.squad=[makeChassis('bruiser'),makeChassis('rogue'),makeChassis('ranged')];
+ for(const u of p.squad){u.passives=['focus','regen'];u.mods.dash=2}
+ const dead={kind:'passive',key:'focus',name:'Passive: focus',uid:'x'};
+ m.draft.pool=[{...dead},{...dead,uid:'y'}];
+ m.draft.originalPool=m.draft.pool.map(x=>({...x}));
+ m.draft.order=[0,1];m.draft.turn=0;
+ ensureDraftChoice(m);
+ assert.equal(m.draft.pool.length,2);
+ assert.ok(m.draft.pool.some(c=>legal(p,c)));
+ assert.ok(m.draft.originalPool.some(c=>c.kind==='target'));
 });
