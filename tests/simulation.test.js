@@ -730,3 +730,16 @@ test('2.7 burn and hazard deal environmental damage without producing additional
  assert.ok(target.hp<before);
  assert.equal(b.zones.length,zones);
 });
+
+test('2.7 Retaliation primes only from direct melee and applies once',()=>{
+ const p=players(),b=spawn(p,ARENAS[0],916),source=b.units[0],defender=b.units[1];
+ b.units=[source,defender];source.x=200;source.y=220;defender.x=241;defender.y=220;
+ source.cd=0;defender.cd=1000;defender.chassis.passives.push('retaliation');
+ for(let i=0;i<15;i++)tick(b,STEP);
+ assert.ok(defender.hp<defender.maxHp,'a melee hit must land');
+ assert.ok(defender.retaliationReady>b.time,'direct melee primes Retaliation');
+ const first=resolveAttackModules(b,[{source:defender,target:source,rawDamage:18,damage:18}]);
+ assert.equal(first[0].rawDamage,22);
+ const second=resolveAttackModules(b,[{source:defender,target:source,rawDamage:18,damage:18}]);
+ assert.equal(second[0].rawDamage,18);
+});
