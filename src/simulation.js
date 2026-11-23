@@ -531,8 +531,62 @@ export function holdingOpportunity(state,u,target,st,enemies){
   Math.max(0,(w.safety||0)-1)*.75;
  return Math.max(0,inRangeBonus+incomingBonus+stableBonus-exposedPenalty-(tooNear?.17:0))/preferenceScale;
 }
+// Support a real ally engagement, not merely an ally having selected a target.
+// In particular, a distant team with reciprocal target focus must still pursue
+// normally instead of treating everyone else as already engaged.
+export function cooperativeEngagement(state,u,st,enemies){
+ const allies=state.units.filter(a=>a!==u&&a.hp>0&&a.owner===u.owner);
+ if(!allies.length||u.attack||u.followthroughCommit?.until>state.time||
+    u.disengageUntil>state.time)return null;
+ // No coordination override for a fighter already able to attack something.
+ if(enemies.some(e=>clearLine(u,e,state.arena)&&
+    distance(u,e)<=st.range+CHASSIS[e.type].radius))return null;
+ const wasIdle=u.holdingPosition||
+  (!u.moveDecision?.x&&!u.moveDecision?.y)||
+  recentMovement(u,state.time)<Math.max(2,st.speed*.08);
+ if(!wasIdle)return null;
+ const options=[];
+ for(const ally of allies){
+  const enemy=enemies.find(e=>e.id===ally.focus);
+  if(!enemy)continue;
+  const ast=stats(ally),d=distance(ally,enemy);
+  const visible=clearLine(ally,enemy,state.arena);
+  const attacking=!!ally.attack||(ally.lastAttackAt!=null&&state.time-ally.lastAttackAt<1.1);
+  const inReach=visible&&d<=ast.range+CHASSIS[enemy.type].radius+10;
+  const intent=ally.moveDecision||{x:0,y:0};
+  const pursuit=(enemy.x-ally.x)*intent.x+(enemy.y-ally.y)*intent.y;
+  const activelyClosing=visible&&d<290&&pursuit>Math.max(8,d*.2);
+  if(!attacking&&!inReach&&!activelyClosing)continue;
+  const dx=(enemy.x-ally.x)/Math.max(1,d),dy=(enemy.y-ally.y)/Math.max(1,d);
+  const side=(u.id+ally.id)%2?1:-1;
+  const screen=st.hp>=ast.hp*1.12&&st.range<ast.range*.9;
+  let point;
+  if(screen){
+   const forward=Math.min(85,Math.max(34,d*.45));
+   point={x:ally.x+dx*forward,y:ally.y+dy*forward};
+  }else{
+   const reach=Math.max(st.radius+CHASSIS[enemy.type].radius+7,st.range*.78);
+   const flank=Math.min(42,Math.max(23,st.radius+ast.radius+5));
+   point={x:enemy.x-dx*reach-dy*side*flank,
+    y:enemy.y-dy*reach+dx*side*flank};
+  }
+  const r=st.radius+3;
+  point.x=clamp(point.x,20+r,700-r);point.y=clamp(point.y,20+r,500-r);
+  if(state.arena.obstacles.some(o=>rectHit(point.x,point.y,r+2,o)))continue;
+  // Avoid forming a pile or abandoning an active personal engagement.
+  const crowded=allies.filter(a=>a!==ally&&a.supportingAlly===ally.id&&distance(a,point)<65).length;
+  const score=(attacking?3:inReach?2:1)+
+    (screen&&ally.type==='ranged'?1:0)-
+    distance(u,point)*.005-crowded*1.7;
+  options.push({allyId:ally.id,enemyId:enemy.id,point,
+   mode:screen?'screen':'support',score});
+ }
+ options.sort((a,b)=>b.score-a.score||a.allyId-b.allyId);
+ return options[0]||null;
+}
 export function chooseMovement(state,u,target,st,enemies,dt){
  u.previouslyHolding=!!u.holdingPosition;u.holdingPosition=false;
+ u.supportingAlly=null;u.supportMode=null;
  const arena=state.arena,step=st.speed*dt,r=CHASSIS[u.type].radius+3;
  const terrainBlocked=!clearLine(u,target,arena,0);
  const routeBlocked=terrainBlocked||(distance(u,target)>st.range&&!clearLine(u,target,arena,r));
@@ -646,6 +700,34 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   }
   return selected;
  };
+ // Idle teammates may position around a real ally engagement instead of
+ // waiting at an unrelated location. Reuse the same terrain graph and local
+ // collision-aware steering; do not teleport or force target selection.
+ const support=cooperativeEngagement(state,u,st,enemies);
+ if(support&&!u.localEscape){
+  const goal=support.point;
+  let route=u.supportNavigation;
+  if(!route||route.enemyId!==support.enemyId||route.allyId!==support.allyId||
+     state.time>route.until||distance(route.goal,goal)>24){
+   const path=navigationPath(u,goal,arena,r);
+   route=path?{allyId:support.allyId,enemyId:support.enemyId,goal,
+    path,until:state.time+.45}:null;
+   u.supportNavigation=route;
+  }
+  if(route){
+   const waypoint=route.path.find(p=>distance(u,p)>Math.max(7,step*1.5));
+   u.supportingAlly=support.allyId;u.supportMode=support.mode;
+   if(!waypoint||distance(u,goal)<Math.max(18,st.radius+10)){
+    u.holdingPosition=true;u.navigation=null;u.navProgress=null;
+    return {x:0,y:0};
+   }
+   const direction=steer(waypoint,true);
+   if(direction){
+    u.navigation=null;u.navProgress=null;u.navMotion=null;
+    return {x:direction.x,y:direction.y};
+   }
+  }
+ }else u.supportNavigation=null;
  if(u.localEscape){
   if(state.time>u.localEscape.until||distance(u,u.localEscape.point)<Math.max(7,step*2)){u.localEscape=null}
   else{
@@ -1081,6 +1163,11 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
  record.frames++;if(!direction.x&&!direction.y)record.idle++;
+ if(u.supportingAlly!=null){
+  record.supportFrames=(record.supportFrames||0)+1;
+  if(u.supportMode==='screen')record.screenFrames=(record.screenFrames||0)+1;
+  if(u.holdingPosition)record.supportHoldFrames=(record.supportHoldFrames||0)+1;
+ }
  if(u.holdingPosition){
   record.deliberateHolds=(record.deliberateHolds||0)+1;
   if(inRange)record.holdWithAttackAccess=(record.holdWithAttackAccess||0)+1;
@@ -1139,6 +1226,8 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   // Attack releases are fighter events, NOT the number of hit records.
   // This includes projectile launches and counts multi-target releases once.
   t.attackReleases=state.units.reduce((sum,u)=>sum+(u.combatStats?.attacks||0),0);
+  t.supportUnitFrames=(t.supportUnitFrames||0)+active.filter(u=>u.supportingAlly!=null).length;
+  t.screenUnitFrames=(t.screenUnitFrames||0)+active.filter(u=>u.supportMode==='screen').length;
   if(opportunity||committed)t.productiveCombatFrames++;
   if(passive){t.mutualPassiveFrames++;t.mutualPassiveStreak++}
   else t.mutualPassiveStreak=0;
