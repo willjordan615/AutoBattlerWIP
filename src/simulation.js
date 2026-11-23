@@ -196,12 +196,13 @@ export function advanceAttack(state,u,target,st,dt,attacks){
     const radius=CHASSIS[victim.type].radius,dist=Math.max(1,distance(u,victim));
     const baseArc=ATTACK_TIMING[u.type].arc*Math.PI/360+
      Math.asin(Math.min(.98,radius/dist));
-    const baselineRange=st.range-st.area*0+radius;
+    const baselineRange=CHASSIS[u.type].range+radius;
     const deliveredBy=[];
     if(i>0&&st.piercing>0)deliveredBy.push('piercing');
     // A spread lane can reach outside the original, unmodified attack cone.
     if(st.projectiles>1&&diff>baseArc&&st.area===0)deliveredBy.push('projectiles');
-    if(st.area>0&&(diff>baseArc||dist>baselineRange))deliveredBy.push('area');
+    if(st.area>0&&(diff>baseArc||dist>st.range+radius))deliveredBy.push('area');
+    if(st.range>CHASSIS[u.type].range&&dist>CHASSIS[u.type].range+st.area*9+radius)deliveredBy.push('range');
     attacks.push({source:u,target:victim,rawDamage:st.damage,
      damage:Math.max(1,st.damage-stats(victim).defense),
      knockback:st.knockback,taunt:st.taunt,deliveredBy});
@@ -306,6 +307,8 @@ export function advanceProjectiles(state,dt,attacks=[]){
    if(!shot.volley.hitIds.has(victim.id)){
     shot.volley.hitIds.add(victim.id);
     const deliveredBy=[];
+    if(shot.source.chassis.mods.range>0&&
+       distance(shot.source,shot)>CHASSIS[shot.source.type].range)deliveredBy.push('range');
     if(shot.lane>0)deliveredBy.push('projectiles');
     if(shot.landedCount>0&&shot.source.chassis.mods.piercing>0)deliveredBy.push('piercing');
     shot.landedCount++;
