@@ -562,7 +562,7 @@ test('Prototype 2.6 attack profile preserves one hit without Piercing',()=>{
 test('Bruiser narrowed arc excludes a lateral opponent',()=>{
  const p=players(),b=spawn(p,ARENAS[0],895),u=b.units[0],front=b.units[1],flank=b.units[2];
  b.units=[u,front,flank];u.x=200;u.y=220;front.x=248;front.y=220;
- flank.x=234;flank.y=267;
+ flank.x=220;flank.y=270;
  u.chassis.mods.piercing=1;
  assert.deepEqual(meleeAttackTargets(b,u,0,stats(u)).map(e=>e.id),[front.id]);
 });
