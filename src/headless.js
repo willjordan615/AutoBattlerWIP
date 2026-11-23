@@ -9,10 +9,10 @@ export const TARGET_MODULES={
 export const PASSIVE_MODULES=['regen','bulwark','haste','focus'];
 export const catalog=[
  ...Object.keys(CHASSIS).map(type=>({kind:'unit',key:type,name:'Recruit '+CHASSIS[type].name})),
- ...UTILITY_MODULES.map(key=>({kind:'utility',key,name:'Utility: '+key})),
- ...ATTACK_MODULES.map(key=>({kind:'attack',key,name:'Attack: '+key})),
- ...Object.keys(TARGET_MODULES).map(key=>({kind:'target',key,name:'Targeting: '+key})),
- ...PASSIVE_MODULES.map(key=>({kind:'passive',key,name:'Passive: '+key}))
+ ...UTILITY_MODULES.map(key=>({kind:'utility',key,name:'Utility: '+key[0].toUpperCase()+key.slice(1)})),
+ ...ATTACK_MODULES.map(key=>({kind:'attack',key,name:'Attack: '+key[0].toUpperCase()+key.slice(1)})),
+ ...Object.keys(TARGET_MODULES).map(key=>({kind:'target',key,name:'Targeting: '+key[0].toUpperCase()+key.slice(1)})),
+ ...PASSIVE_MODULES.map(key=>({kind:'passive',key,name:'Utility: '+key[0].toUpperCase()+key.slice(1)}))
 ];
 export function createMatch(types=['bruiser','rogue','ranged','bruiser'],seed=12345){
  const random=rng(seed);
@@ -37,7 +37,7 @@ export function ensureDraftChoice(match){
  const index=d.pool.findIndex(card=>card.kind==='unit'&&player.squad.length>=3)===-1?0:
   d.pool.findIndex(card=>!legal(player,card));
  if(index<0)return;
- const fallback={kind:'target',key:'hunter',name:'Targeting: hunter',uid:d.pool[index].uid};
+ const fallback={kind:'target',key:'hunter',name:'Targeting: Hunter',uid:d.pool[index].uid};
  d.pool[index]=fallback;
  const original=d.originalPool.findIndex(card=>card.uid===fallback.uid);
  if(original>=0)d.originalPool[original]={...fallback};
