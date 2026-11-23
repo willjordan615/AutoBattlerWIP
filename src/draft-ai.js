@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=draft-reasoning-29';
-import {legal,canEquip,TARGET_MODULES} from './headless.js?v=draft-reasoning-29';
+import {CHASSIS} from './simulation.js?v=module-telemetry-291';
+import {legal,canEquip,TARGET_MODULES} from './headless.js?v=module-telemetry-291';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];
