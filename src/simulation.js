@@ -541,7 +541,7 @@ export function cooperativeEngagement(state,u,st,enemies){
  // No coordination override for a fighter already able to attack something.
  if(enemies.some(e=>clearLine(u,e,state.arena)&&
     distance(u,e)<=st.range))return null;
- const wasIdle=u.previouslyHolding||u.holdingPosition||
+ const wasIdle=u.supportNavigation!=null||u.previouslyHolding||u.holdingPosition||
   (!u.moveDecision?.x&&!u.moveDecision?.y)||
   recentMovement(u,state.time)<Math.max(2,st.speed*.08);
  if(!wasIdle)return null;
