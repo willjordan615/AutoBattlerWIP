@@ -29,9 +29,15 @@ function endCombat(){
   const heading=document.createElement('strong');heading.textContent=CHASSIS[u.type].name+' #'+(u.id%100+1);
   const values=document.createElement('span');
   values.textContent=fmt(u.damage)+' dealt · '+fmt(u.damageTaken)+' taken'+
-   (u.shots?' · '+u.hits+'/'+u.shots+' projectile hits':' · '+u.attacks+' attacks')+
+   (u.shots?' · '+u.hits+' hits / '+u.shots+' shots':' · '+u.attacks+' attacks')+
    (u.wallHits?' · '+u.wallHits+' wall impacts':'')+
-   (u.interceptions?' · '+u.interceptions+' interceptions':'');
+   (u.interceptions?' · '+u.interceptions+' interceptions':'')+
+   (u.dodges?' · '+u.dodges+' dodge rolls':'')+
+   (u.evaded?' · '+u.evaded+' attacks evaded':'')+
+   (u.prevented?' · '+fmt(u.prevented)+' blocked':'')+
+   (u.haste?' · '+u.haste+' haste':'')+
+   (u.focus?' · '+u.focus+' focus':'')+
+   (u.bulwark?' · '+u.bulwark+' bulwark':'');
   row.append(heading,values);summary.append(row);
  }
  const totals=document.createElement('div');totals.className='round-team-totals';
