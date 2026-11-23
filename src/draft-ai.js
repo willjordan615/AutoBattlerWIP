@@ -101,7 +101,7 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
    if(card.key==='chain'&&count===1)add(parts,'Spreads pressure across enemies',1.5);
    if(card.key==='hazardous'&&w.safety>1)add(parts,'Control while staying distant',2);
    if(card.key==='disengage')add(parts,'Safer after-attack retreat',clamp(w.safety-.4,0,3)*2+(type==='ranged'?2:0));
-   if(card.key==='followthrough')add(parts,'Melee impact repositioning',type==='rogue'?5:type==='bruiser'?2:-9);
+   if(card.key==='followthrough')add(parts,'Hit-triggered repositioning',type==='rogue'?5:type==='bruiser'?2:2);
    if(card.key==='projectiles'&&type==='ranged')add(parts,'Projectile spread',2);
    if(card.key==='area'&&type==='bruiser')add(parts,'Melee sweep reach',2);
    // Multiple stacks still work; their marginal value should be earned.
