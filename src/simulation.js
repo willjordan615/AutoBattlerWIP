@@ -833,9 +833,15 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   }
   totals.set(a.target,prior+a.damage);
  }
+ // Retaliation answers a landed direct melee hit, not projectiles, chain or hazards.
+ for(const hit of resolved){
+  if(!hit.projectile&&!hit.secondary&&!hit.indirect&&hit.damage>0&&
+     hit.target.hp>0&&hit.target.chassis.passives.includes('retaliation')){
+   hit.target.retaliationReady=state.time+4;
+  }
+ }
  for(const [target,damage] of totals){
-  const applied=Math.min(target.hp,damage);
-  if(applied>0&&target.chassis.passives.includes('retaliation'))target.retaliationReady=state.time+4;target.hp=Math.max(0,target.hp-damage);
+  const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);
   target.combatStats&&(target.combatStats.damageTaken+=applied);
   if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner});
  }// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
