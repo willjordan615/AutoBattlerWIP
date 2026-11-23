@@ -19,7 +19,6 @@ export function createMatch(types=['bruiser','rogue','ranged','bruiser'],seed=12
  return {seed,random,round:1,phase:'draft',players:types.map((type,i)=>({name:i===0?'You':'Bot '+i,hp:100,streak:0,squad:[makeChassis(type)]})),lastRanking:[],lastSpawnSlots:null,draft:null,history:[]}
 }
 export function canEquip(unit,card){
- if(card.kind==='attack'&&card.key==='followthrough'&&unit.type==='ranged')return false;
  if(card.kind==='utility')return (unit.mods[card.key]||0)<2;
  if(card.kind==='passive')return !unit.passives.includes(card.key);
  return true;
