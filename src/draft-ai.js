@@ -7,7 +7,8 @@ export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  const unit=player.squad[chassisIndex],type=unit?.type||'bruiser';
  if(card.kind==='unit'){
  const count=player.squad.length,existing=player.squad.filter(u=>u.type===card.key).length;
- return 24+(count===1?24:count===2?9:0)+(existing===0?8:0)+(card.key==='bruiser'&&player.squad.every(u=>u.type!=='bruiser')?5:0);
+ // Extra bodies now reduce the entire squad's base HP/damage. Recruiting is a tactical option, not an automatic first-round pick.
+ return (count===1?27:count===2?21:0)+(existing===0?4:0)+(card.key==='bruiser'&&player.squad.every(u=>u.type!=='bruiser')?2:0);
  }
  if(!unit)return -Infinity;
  const st=CHASSIS[type],m=unit.mods;
