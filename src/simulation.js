@@ -842,6 +842,10 @@ export function applyFollowthrough(state,hit){
  u.followthroughCommit={x:Math.cos(heading),y:Math.sin(heading),
   until:state.time+duration,started:state.time,attackId:hit.attackId,
   speedFactor:1+stacks*.12};
+ // If both attack effects are equipped, complete the space-claim first,
+ // then give Disengage its full independent retreat window.
+ if(u.chassis.mods.disengage&&u.disengageUntil>state.time)
+  u.disengageUntil=state.time+duration+.5;
  u.followthroughAt=state.time+.75;
  u.lastFollowthroughAttackId=hit.attackId;
  u.navigation=null;u.navProgress=null;
