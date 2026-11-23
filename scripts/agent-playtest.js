@@ -20,8 +20,8 @@ export function runAgentPlaytest({matches=12,seed=1,maxRounds=250}={}){
    while(match.phase==='draft'){
     const player=match.draft.order[match.draft.turn];
     const choice=chooseCpuDraft(match,player);
-    if(player===0)agentPicks.push({round:match.round,card:choice.card.kind+':'+choice.card.key,chassis:choice.chassisIndex,slot:choice.passiveSlot});
-    assign(match,player,choice.card.uid,choice.chassisIndex,choice.passiveSlot);
+    if(player===0)agentPicks.push({round:match.round,card:choice.card.kind+':'+choice.card.key,chassis:choice.chassisIndex,slot:choice.passiveSlot,baseScore:choice.baseScore,reasons:choice.reasons});
+    assign(match,player,choice.card.uid,choice.chassisIndex,choice.passiveSlot,choice);
    }
    const battle=beginCombat(match);
    let ended=false;
