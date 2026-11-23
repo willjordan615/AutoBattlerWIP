@@ -26,6 +26,7 @@ export function runBuildAudit({matches=12,seed=2101,maxRounds=100}={}){
  const results={config:{matches,seed,maxRounds},completed:0,combats:0,timeouts:0,
   rounds:[],draftPicks:{},pickCategories:{},sizeAtFinish:{},startingWins:{},
   pairOccurrences:{},chassis:{},standouts:[],matchWinners:[],
+  moduleDamage:{},moduleHits:{},chainRedirected:0,
   personalityWinners:{},personalityPlayers:{}};
  for(let trial=0;trial<matches;trial++){
   const matchSeed=(seed+trial)>>>0,types=Object.keys(CHASSIS);
@@ -50,13 +51,20 @@ export function runBuildAudit({matches=12,seed=2101,maxRounds=100}={}){
     if(!record){
      record={seat:unit.owner,slot:unit.id%100,type:unit.type,
       damage:0,damageTaken:0,seconds:0,battles:0,survived:0,
-      peakDps:0,peakRound:0,peakBuild:null};
+      peakDps:0,peakRound:0,peakBuild:null,moduleDamage:{},moduleHits:{}};
      fighters.set(unit.id,record);
     }
     const damage=unit.combatStats?.damage||0;
     record.damage+=damage;record.damageTaken+=unit.combatStats?.damageTaken||0;
     record.seconds+=battle.time;record.battles++;
     record.survived+=Number(unit.hp>0);
+    for(const [key,damage] of Object.entries(unit.combatStats?.moduleDamage||{})){
+     bump(record.moduleDamage,key,damage);bump(results.moduleDamage,key,damage);
+    }
+    for(const [key,damage] of Object.entries(unit.combatStats?.moduleHits||{})){
+     bump(record.moduleHits,key,damage);bump(results.moduleHits,key,damage);
+    }
+    results.chainRedirected+=unit.combatStats?.chainRedirected||0;
     const dps=damage/Math.max(.001,battle.time);
     if(dps>record.peakDps){
      record.peakDps=dps;record.peakRound=match.round;
@@ -94,7 +102,9 @@ export function runBuildAudit({matches=12,seed=2101,maxRounds=100}={}){
     cumulativeDamage:round(fighter.damage),dps:round(dps),
     survivalPct:round(fighter.survived/fighter.battles*100),
     peakRound:fighter.peakRound,peakDps:round(fighter.peakDps),
-    peakBuild:fighter.peakBuild};
+    peakBuild:fighter.peakBuild,
+    moduleDamage:Object.fromEntries(Object.entries(fighter.moduleDamage).map(([k,v])=>[k,round(v)])),
+    enabledHitDamage:Object.fromEntries(Object.entries(fighter.moduleHits).map(([k,v])=>[k,round(v)]))};
    results.standouts.push(result);
    const totals=results.chassis[fighter.type]||(results.chassis[fighter.type]={fighters:0,damage:0,seconds:0});
    totals.fighters++;totals.damage+=fighter.damage;totals.seconds+=fighter.seconds;
@@ -106,6 +116,11 @@ export function runBuildAudit({matches=12,seed=2101,maxRounds=100}={}){
   value.damage=round(value.damage);value.dps=round(value.damage/value.seconds);
   value.seconds=round(value.seconds);
  }
+ results.moduleDamage=Object.fromEntries(Object.entries(results.moduleDamage)
+  .sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,round(v)]));
+ results.moduleHits=Object.fromEntries(Object.entries(results.moduleHits)
+  .sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,round(v)]));
+ results.chainRedirected=round(results.chainRedirected);
  results.averageRounds=round(results.rounds.reduce((a,b)=>a+b,0)/Math.max(1,results.rounds.length));
  return results;
 }
@@ -116,11 +131,15 @@ export function formatBuildAudit(r){
   'Pick categories: '+JSON.stringify(r.pickCategories),
   'Final squad counts: '+JSON.stringify(r.sizeAtFinish),
   'Per-chassis average combat DPS: '+JSON.stringify(Object.fromEntries(Object.entries(r.chassis).map(([k,v])=>[k,v.dps]))),
+  'Attributable damage by module: '+JSON.stringify(r.moduleDamage),
+  'Damage from delivery-enabled hits (overlapping): '+JSON.stringify(r.moduleHits),
+  'Primary damage redirected by Chain (not a bonus): '+r.chainRedirected,
   'Top cumulative-performance fighters (min 3 combat rounds):'];
  for(const f of r.standouts.slice(0,10)){
   lines.push('  seed '+f.seed+' seat '+f.seat+' '+f.type+' · '+f.dps+' damage/sec over '+f.combatRounds+
    ' rounds · '+f.cumulativeDamage+' total · '+(f.won?'winner':'not winner')+
-   ' · peak-round build '+JSON.stringify(f.peakBuild));
+   ' · peak-round build '+JSON.stringify(f.peakBuild)+
+   ' · module damage '+JSON.stringify(f.moduleDamage));
  }
  lines.push('Notable interactions: '+JSON.stringify(r.pairOccurrences));
  return lines.join('\n');
