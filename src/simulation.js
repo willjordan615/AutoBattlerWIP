@@ -1132,11 +1132,13 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
    maxMutualPassiveFrames:0,mutualPassiveStreak:0,productiveCombatFrames:0,
    attackReleases:0,holdWithAttackAccess:0,holdAwaitingApproach:0};
   const t=d.tactical;t.frames++;t.holdingUnitFrames+=holding.length;
-  t.holdWithAttackAccess+=holding.filter(u=>state.units.some(e=>e.hp>0&&e.owner!==u.owner&&
+  const holdingWithAccess=holding.filter(u=>state.units.some(e=>e.hp>0&&e.owner!==u.owner&&
    clearLine(u,e,state.arena)&&distance(u,e)<=stats(u).range)).length;
-  t.holdAwaitingApproach+=holding.length-holding.filter(u=>state.units.some(e=>e.hp>0&&e.owner!==u.owner&&
-   clearLine(u,e,state.arena)&&distance(u,e)<=stats(u).range)).length;
-  t.attackReleases+=attacks.length;
+  t.holdWithAttackAccess+=holdingWithAccess;
+  t.holdAwaitingApproach+=holding.length-holdingWithAccess;
+  // Attack releases are fighter events, NOT the number of hit records.
+  // This includes projectile launches and counts multi-target releases once.
+  t.attackReleases=state.units.reduce((sum,u)=>sum+(u.combatStats?.attacks||0),0);
   if(opportunity||committed)t.productiveCombatFrames++;
   if(passive){t.mutualPassiveFrames++;t.mutualPassiveStreak++}
   else t.mutualPassiveStreak=0;
