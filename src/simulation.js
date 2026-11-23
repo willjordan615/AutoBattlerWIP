@@ -491,7 +491,10 @@ export function holdingOpportunity(state,u,target,st,enemies){
  const d=distance(u,target),visible=clearLine(u,target,state.arena);
  if(!visible)return 0;
  const targetRadius=CHASSIS[target.type].radius;
- const striking=d<=st.range+targetRadius;
+ // An enemy's collision radius is not attack access: attack initiation in
+ // tick() requires center distance <= st.range. Otherwise two melee fighters
+ // can both 'hold' a position where neither is actually able to attack.
+ const striking=d<=st.range;
  const desired=st.range*.82;
  // Standing in melee range is useful; ranged fighters threatened at point
  // blank range must remain free to seek a safer firing position.
