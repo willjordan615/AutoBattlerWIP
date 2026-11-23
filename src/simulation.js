@@ -487,7 +487,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
 // One small deterministic threat/opportunity assessment per fighter per tick.
 // Projectile risk uses projected swept motion; melee risk uses attack readiness.
 export function tacticalAssessment(state,u,target,st,enemies){
- const now=state.time,lookahead=.42,radius=CHASSIS[u.type].radius+PROJECTILE_RADIUS+2;
+ const now=state.time,lookahead=.26,radius=CHASSIS[u.type].radius+PROJECTILE_RADIUS+2;
  const shots=[];
  for(const shot of state.projectiles||[]){
   if(shot.owner===u.owner)continue;
@@ -503,15 +503,21 @@ export function tacticalAssessment(state,u,target,st,enemies){
   shots.push({shot,when,damage:Math.max(1,shot.damage-st.defense)});
  }
  shots.sort((a,b)=>a.when-b.when||a.shot.id-b.shot.id);
- const melee=enemies.filter(e=>distance(e,u)<stats(e).range+CHASSIS[u.type].radius+8&&
-  clearLine(e,u,state.arena)&&e.cd<=lookahead);
+ const melee=enemies.filter(e=>e.type!=='ranged'&&
+  distance(e,u)<stats(e).range+CHASSIS[u.type].radius+8&&
+  clearLine(e,u,state.arena)&&e.cd<=.16&&e.focus===u.id);
  const incoming=shots.reduce((sum,x)=>sum+x.damage,0)+melee.reduce((sum,e)=>sum+Math.max(1,stats(e).damage-st.defense),0);
  const close=enemies.filter(e=>distance(e,u)<Math.max(75,stats(e).range+30));
  const d=distance(u,target),clear=clearLine(u,target,state.arena);
  const engaging=d>st.range+20&&clear,retreating=close.length>0&&
   (u.chassis.weights.safety||0)>(u.chassis.weights.distance||0)+.2;
- const finish=clear&&d<=st.range+20&&
-  target.hp<=Math.max(1,st.damage-stats(target).defense)*Math.max(1,1.35/st.rate)*1.35;
+ // A finishing burst needs attacks available soon enough to exploit its window.
+ // Requiring more than one ordinary hit prevents using Focus on trivial cleanup.
+ const estimatedHit=Math.max(1,st.damage-stats(target).defense);
+ const attacksDuringBurst=Math.max(1,Math.floor((1.5-Math.max(0,u.cd))/
+  Math.max(.2,st.rate/1.35))+1);
+ const finish=clear&&d<=st.range&&u.cd<=st.rate*.85&&
+  target.hp>estimatedHit&&target.hp<=estimatedHit*attacksDuringBurst;
  const endangeredAllies=state.units.filter(a=>a!==u&&a.owner===u.owner&&a.hp>0&&
   enemies.some(e=>e.focus===a.id&&distance(e,a)<=stats(e).range+35));
  return {shots,melee,incoming,close,engaging,retreating,finish,endangeredAllies,now};
@@ -527,30 +533,42 @@ function reactToThreat(state,u,target,st,context){
  // Emergency defense has priority. Dodge is displacement away from the actual
  // incoming projectile direction, not a generic target-relative sidestep.
  if(u.chassis.passives.includes('dodge')&&ready('dodge')&&(context.shots.length||context.melee.length)){
-  const threat=context.shots[0]?.shot||context.melee[0];
-  const heading=context.shots.length?{x:threat.vx,y:threat.vy}:
-   {x:(u.x-threat.x)/Math.max(1,distance(u,threat)),y:(u.y-threat.y)/Math.max(1,distance(u,threat))};
-  const travel=st.speed*.4*.85,r=CHASSIS[u.type].radius+3;
-  const options=[1,-1].map(sign=>{
-   const p={x:u.x-heading.y*sign*travel,y:u.y+heading.x*sign*travel};
-   const valid=p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&
-    clearLine(u,p,state.arena,r)&&!state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o));
-   const safety=valid?context.shots.reduce((sum,x)=>{
-    const shot=x.shot,end={x:shot.x+shot.vx*shot.speed*.42,y:shot.y+shot.vy*shot.speed*.42};
-    return sum+(segmentCircleHit(shot,end,p,CHASSIS[u.type].radius+(shot.radius||3))===null?1:0);
-   },0): -Infinity;
-   return {p,safety,valid};
-  }).sort((a,b)=>b.safety-a.safety);
-  if(options[0]?.valid){
-   const old={x:u.x,y:u.y};u.x=options[0].p.x;u.y=options[0].p.y;bound(u,state.arena);
-   u.evadingUntil=now+.18;
-   cds.dodge=now+utilityCooldown(5,st.dodge);
-   u.combatStats&&(u.combatStats.dodges++);
-   state.visualEvents.push({kind:'mobility',ability:'dodge',owner:u.owner,x:old.x,y:old.y,toX:u.x,toY:u.y});
+  const imminent=context.shots.filter(x=>x.when<=.20);
+  const threat=imminent[0]?.shot||(!context.shots.length?context.melee[0]:null);
+  if(threat){
+   const heading=imminent.length?{x:threat.vx,y:threat.vy}:
+    {x:(u.x-threat.x)/Math.max(1,distance(u,threat)),y:(u.y-threat.y)/Math.max(1,distance(u,threat))};
+   const travel=st.speed*.4*.85,r=CHASSIS[u.type].radius+3;
+   const candidates=[1,-1].map(sign=>{
+    const p={x:u.x-heading.y*sign*travel,y:u.y+heading.x*sign*travel};
+    const valid=p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&
+     clearLine(u,p,state.arena,r)&&!state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o));
+    if(!valid)return {valid:false,score:-Infinity};
+    const projectileRisk=context.shots.filter(({shot})=>{
+     const horizon=Math.min(.26,shot.remaining/Math.max(1,shot.speed));
+     const end={x:shot.x+shot.vx*shot.speed*horizon,y:shot.y+shot.vy*shot.speed*horizon};
+     return segmentCircleHit(shot,end,p,CHASSIS[u.type].radius+(shot.radius||3))!==null;
+    }).length;
+    const meleeRisk=context.melee.filter(e=>distance(e,p)<stats(e).range+CHASSIS[u.type].radius+2).length;
+    // Prefer a genuine escape from the path; don't roll sideways into another attacker.
+    return {p,valid:true,score:-projectileRisk*10-meleeRisk*3+
+     (context.melee.length?Math.min(...context.melee.map(e=>distance(e,p)))*.008:0)};
+   }).sort((a,b)=>b.score-a.score);
+   const safest=candidates[0];
+   const pathImproved=imminent.length?safest?.score>=-3:
+    safest?.score> -context.melee.length*3+.1;
+   if(safest?.valid&&pathImproved){
+    const old={x:u.x,y:u.y};u.x=safest.p.x;u.y=safest.p.y;bound(u,state.arena);
+    // Covers the roll frame but cannot substitute for an unsafe landing point.
+    u.evadingUntil=now+.13;
+    cds.dodge=now+utilityCooldown(5,st.dodge);
+    u.combatStats&&(u.combatStats.dodges++);
+    state.visualEvents.push({kind:'mobility',ability:'dodge',owner:u.owner,x:old.x,y:old.y,toX:u.x,toY:u.y});
+   }
   }
  }
  if(u.chassis.passives.includes('bulwark')&&ready('bulwark')&&
-  (context.incoming>=Math.max(6,u.hp*.045)||context.close.length>=2)){
+  (context.incoming>=Math.max(8,u.hp*.065)||context.close.length>=2)){
   activate('bulwark',2,6);
  }
  if(u.chassis.passives.includes('haste')&&ready('haste')&&(context.engaging||context.retreating)){
