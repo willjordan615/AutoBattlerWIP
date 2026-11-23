@@ -673,7 +673,7 @@ test('2.7 chain splits rather than duplicating damage, and cannot recurse',()=>{
  u.chassis.mods.chain=1;
  const attacks=resolveAttackModules(b,[{source:u,target:a,rawDamage:20,damage:20}]);
  assert.equal(attacks.length,2);
- assert.ok(Math.abs(attacks[0].damage-16)<1e-6);
+ assert.ok(Math.abs(attacks[0].damage-(20-stats(a).defense)*.8)<1e-6);
  assert.equal(attacks[1].secondary,true);
  assert.equal(attacks[1].target,other);
  assert.ok(attacks[1].damage<=4);
@@ -681,7 +681,7 @@ test('2.7 chain splits rather than duplicating damage, and cannot recurse',()=>{
  noOther.units=noOther.units.slice(0,2);noOther.units[0].chassis.mods.chain=1;
  const lone=resolveAttackModules(noOther,[{source:noOther.units[0],target:noOther.units[1],rawDamage:20,damage:20}]);
  assert.equal(lone.length,1);
- assert.ok(Math.abs(lone[0].damage-16)<1e-6);
+ assert.ok(Math.abs(lone[0].damage-(20-stats(noOther.units[1]).defense)*.8)<1e-6);
 });
 test('2.7 marks, burning, hazards and slow have bounded lifetimes',()=>{
  const b=spawn(players(),ARENAS[0],912),source=b.units[0],target=b.units[1];
