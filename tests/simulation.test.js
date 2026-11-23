@@ -1323,3 +1323,17 @@ test('2.12.3 supporting ally remains a valid commitment after beginning to move'
  const direction=chooseMovement(b,u,enemy,stats(u),[enemy],STEP);
  assert.ok(direction.x>0);assert.equal(u.supportingAlly,ally.id);
 });
+
+test('2.12.3 fighters cannot mutually brace just outside actual attack reach',()=>{
+ const p=[{hp:100,squad:[makeChassis('bruiser')]},
+          {hp:100,squad:[makeChassis('bruiser')]}];
+ const b=spawn(p,ARENAS[0],8303),a=b.units[0],enemy=b.units[1];
+ b.time=2;a.x=200;a.y=200;enemy.x=262;enemy.y=200;
+ a.moveDecision={x:0,y:0};enemy.moveDecision={x:0,y:0};
+ a.previouslyHolding=true;enemy.previouslyHolding=true;
+ assert.ok(62>stats(a).range,'fixture starts outside attack initiation range');
+ assert.equal(holdingOpportunity(b,a,enemy,stats(a),[enemy]),0);
+ assert.equal(holdingOpportunity(b,enemy,a,stats(enemy),[a]),0);
+ const dir=chooseMovement(b,a,enemy,stats(a),[enemy],STEP);
+ assert.ok(dir.x>0,'must advance into actual attack access rather than hold in radius padding');
+});
