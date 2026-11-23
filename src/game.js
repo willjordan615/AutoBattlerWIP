@@ -1,13 +1,19 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=balance-26';
-import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=balance-26';
-import {cardDetail} from './module-info.js?v=balance-26';
-import {chooseCpuDraft} from './draft-ai.js?v=balance-26';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=draft-labels-261';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=draft-labels-261';
+import {cardDetail} from './module-info.js?v=draft-labels-261';
+import {chooseCpuDraft} from './draft-ai.js?v=draft-labels-261';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let effects=[],match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
 function log(s){const d=document.createElement('div');d.textContent=s;$('log').prepend(d);while($('log').children.length>60)$('log').lastChild.remove()}
 function button(text,detail,fn){const b=document.createElement('button');b.className='choice';const title=document.createElement('strong');title.textContent=text;const desc=document.createElement('span');desc.textContent=detail;b.append(title,desc);b.onclick=fn;return b}
-function shortCard(card){if(card.kind==='utility')return 'Passive slot · second copy doubles use frequency · '+({dash:'Burst toward target',dodge:'Evasive roll',backstep:'Retreat from danger',flank:'Approach from the side',disengage:'Escape crowds',intercept:'Dash toward enemy threatening ally',followthrough:'Pass through targeted enemy'})[card.key]||'Mobility utility';if(card.kind==='unit')return 'New chassis · '+CHASSIS[card.key].hp+' HP';if(card.kind==='passive')return 'Passive · unique per chassis · 1 of 2 slots';if(card.kind==='target')return 'Targeting priority +1';return ({damage:'+2 attack damage',rate:'Faster attacks',range:'+20 attack reach',projectiles:'+1 spread lane · no repeat hits',piercing:'+1 extra target',area:'Wider attack',knockback:'Stronger knockback',taunt:'Force target to self · 0.25s per stack',speed:'+18 movement speed',hp:'+20 chassis combat HP'})[card.key]||'Attack upgrade'}
+function shortCard(card){
+ if(card.kind==='unit')return 'New chassis · '+CHASSIS[card.key].hp+' HP';
+ if(card.kind==='utility')return 'Utility · slot 1 of 2 · second copy halves cooldown · '+(({dash:'Burst toward target',dodge:'Evasive roll',backstep:'Retreat from danger',flank:'Approach from the side',disengage:'Escape crowds',intercept:'Dash toward enemy threatening ally',followthrough:'Pass through targeted enemy'})[card.key]||'Mobility utility');
+ if(card.kind==='passive')return 'Utility · occupies 1 of 2 slots · unique per chassis';
+ if(card.kind==='target')return 'Targeting · priority +1';
+ return 'Attack · '+(({projectiles:'+1 spread lane · no repeat hits',piercing:'+1 extra target',area:'Wider attack footprint',knockback:'Stronger knockback',taunt:'Force target to self · 0.25s per stack'})[card.key]||'Attack modifier');
+}
 function reset(){$('roundSummary').replaceChildren();effects=[];cancelAnimationFrame(frame);match=null;battle=null;chosen=null;lastResult=null;completedDraft=null;inspected=null;view='start';paused=false;acc=0;$('log').replaceChildren();$('results').textContent='Choose a starting chassis.';$('pause').disabled=true;$('step').disabled=true;$('pause').textContent='Pause';$('timer').textContent='0.0s';render();draw()}
 function freshSeed(){if(globalThis.crypto?.getRandomValues){const values=new Uint32Array(1);globalThis.crypto.getRandomValues(values);return values[0]}return (Date.now()^Math.floor(Math.random()*0x100000000))>>>0}
 function create(type){$('roundSummary').replaceChildren();const seed=freshSeed(),random=rng(seed),bots=['bruiser','rogue','ranged'];for(let i=bots.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[bots[i],bots[j]]=[bots[j],bots[i]]}match=createMatch([type,...bots],seed);draftPool(match);view='draft';chosen=null;log('Match seed: '+seed+' · Bot chassis: '+bots.join(', '));log('Match created. First draft precedes combat.');processBots();render()}
@@ -91,7 +97,7 @@ const card=match.draft.pool.find(c=>c.uid===chosen);if(card){const detail=docume
   const passive=document.createElement('select');passive.id='passiveSlot';
   for(let i=0;i<2;i++){
    const opt=document.createElement('option');opt.value=i;
-   opt.textContent='Replace passive slot '+(i+1)+' if full';passive.append(opt);
+   opt.textContent='Replace utility slot '+(i+1)+' if full';passive.append(opt);
   }
   root.append(passive);
  }
@@ -129,10 +135,10 @@ function renderInspector(){
  line('Area / knockback / taunt',st.area+' / '+st.knockback+' / '+st.taunt);
  section('AI weights · exact values');
  for(const key of METRICS)line(LABELS[key]||key,format(ch.weights[key]||0));
- section('Upgrades & passives');
+ section('Draft upgrades');
  const mods=Object.entries(ch.mods).filter(([,v])=>v>0).map(([k,v])=>k+' ×'+v);
  line('Modules',mods.join(', ')||'None');
- line('Passive / utility slots',ch.passives.join(', ')||'None');
+ line('Utility slots',ch.passives.join(', ')||'None');
  if(live&&battle){
   section('Combat decision · '+format(battle.time)+'s');
   const enemies=battle.units.filter(u=>u.hp>0&&u.owner!==live.owner);
