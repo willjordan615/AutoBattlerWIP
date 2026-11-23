@@ -833,3 +833,59 @@ test('2.8.1 descriptions capture key effects and module-slot stacking rules',()=
  assert.match(cardDetail(by('utility','dash')),/halves the cooldown/);
  assert.match(cardSummary(by('utility','dash')),/second copy halves cooldown/);
 });
+
+test('2.9.1 direct bonus telemetry separately credits damage and respects HP cap',()=>{
+ const p=players(),b=spawn(p,ARENAS[0],2010),source=b.units[0],target=b.units[1];
+ b.units=[source,target];source.cd=target.cd=1e4;
+ source.chassis.mods.precision=1;source.chassis.mods.momentum=1;
+ source.motion=[{time:0,x:source.x-50,y:source.y},{time:0,x:source.x,y:source.y}];
+ b.time=.01;
+ const hit=resolveAttackModules(b,[{source,target,rawDamage:16,damage:16}])[0];
+ assert.ok(hit.moduleDamage.precision>0);
+ assert.ok(hit.moduleDamage.momentum>0);
+ assert.equal(hit.moduleDamage.precision,2);
+ assert.ok(Math.abs(hit.moduleDamage.momentum-1)<1e-9);
+});
+test('2.9.1 Sunder, Expose, Chain and Retaliation capture measurable contributions',()=>{
+ const p=players(),b=spawn(p,ARENAS[0],2011),source=b.units[0],ally=b.units[1],enemy=b.units[2],extra=b.units[3];
+ source.owner=ally.owner=0;enemy.owner=extra.owner=1;
+ source.x=ally.x=180;source.y=ally.y=200;
+ enemy.x=240;enemy.y=200;extra.x=260;extra.y=200;
+ b.units=[source,ally,enemy,extra];
+ source.chassis.mods.expose=2;source.chassis.mods.sunder=2;
+ resolveAttackModules(b,[{source,target:enemy,rawDamage:20,damage:20}]);
+ const follow=resolveAttackModules(b,[{source:ally,target:enemy,rawDamage:20,damage:20}])[0];
+ assert.equal(follow.moduleDamage.expose,4);
+ assert.equal(follow.moduleDamage.sunder,Math.min(2,stats(enemy).defense));
+ ally.retaliationReady=b.time+4;
+ const answer=resolveAttackModules(b,[{source:ally,target:enemy,rawDamage:20,damage:20}])[0];
+ assert.equal(answer.moduleDamage.retaliation,4);
+ ally.chassis.mods.chain=1;
+ const chained=resolveAttackModules(b,[{source:ally,target:enemy,rawDamage:20,damage:20}]);
+ assert.equal(chained.length,2);
+ assert.equal(chained[1].moduleDamage.chain,chained[1].damage);
+});
+test('2.9.1 burn and hazard ticks retain source module identification',()=>{
+ const p=players(),b=spawn(p,ARENAS[0],2012),source=b.units[0],target=b.units[1];
+ b.units=[source,target];source.x=200;source.y=200;target.x=240;target.y=200;
+ source.cd=target.cd=1e4;source.chassis.mods.burning=1;source.chassis.mods.hazardous=1;
+ resolveAttackModules(b,[{source,target,rawDamage:16,damage:16}]);
+ tick(b,STEP);
+ assert.ok(source.combatStats.moduleDamage.burning>0);
+ assert.ok(source.combatStats.moduleDamage.hazardous>0);
+ assert.ok(Math.abs(source.combatStats.moduleDamage.burning-2*STEP)<1e-6);
+ assert.ok(Math.abs(source.combatStats.moduleDamage.hazardous-2*STEP)<1e-6);
+});
+test('2.9.1 round combat report preserves module damage and delivered-impact fields',()=>{
+ const match=createMatch(),battle=spawn(match.players,ARENAS[0],2013);
+ const u=battle.units[0];u.combatStats.damage=12;
+ u.combatStats.moduleDamage={burning:1.2567,precision:2};
+ u.combatStats.moduleHits={piercing:4.321};
+ u.combatStats.chainRedirected=3.135;
+ // Completion accepts a finished battle and preserves its unit-level measurements.
+ match.phase='combat';battle.time=30;const report=completeCombat(match,battle).combatReport[0];
+ assert.equal(report.moduleDamage.burning,1.26);
+ assert.equal(report.moduleDamage.precision,2);
+ assert.equal(report.moduleHits.piercing,4.32);
+ assert.equal(report.chainRedirected,3.14);
+});
