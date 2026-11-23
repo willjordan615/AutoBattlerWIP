@@ -85,3 +85,10 @@ button.choice.draft-card.squad-full .draft-owner{background:#494153}
 .inspector-line span{color:#b3c5d9;min-width:0}
 .inspector-line strong{text-align:right;font-size:12px;overflow-wrap:anywhere;max-width:65%}
 #arena{touch-action:manipulation;cursor:crosshair}
+
+/* Lightweight round evaluation: engine-backed numbers, not a graphics layer. */
+.round-summary{font-size:12px;line-height:1.4;margin:5px 0 15px}
+.round-summary>strong{display:block;color:#9ce1d0;margin-bottom:5px}
+.round-stat{border-top:1px solid #2b3b54;padding:7px 0;display:flex;flex-direction:column;gap:2px}
+.round-stat strong{color:#e8eef9;font-size:12px}
+.round-stat span{color:#b3c5d9;overflow-wrap:anywhere}
