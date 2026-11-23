@@ -131,7 +131,7 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,mobilityCd:{},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),projectiles:[],nextProjectileId:1,random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,mobilityCd:{},combatStats:{damage:0,damageTaken:0,attacks:0,shots:0,hits:0,wallHits:0,interceptions:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),projectiles:[],nextProjectileId:1,random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
 function targetsForAttack(state,u,target,st){
@@ -192,8 +192,9 @@ function spawnProjectileVolley(state,u,t,st){
  for(let i=0;i<count;i++){
   const offset=i===0?0:(i%2?1:-1)*Math.ceil(i/2)*spacing;
   const heading=angle+offset;
+  u.combatStats&&(u.combatStats.shots++);
   state.projectiles.push({
-   id:state.nextProjectileId++,owner:u.owner,source:u,
+   id:state.nextProjectileId++,owner:u.owner,source:u,aimedAtId:t.id,
    x:u.x,y:u.y,vx:Math.cos(heading),vy:Math.sin(heading),
    speed:PROJECTILE_SPEED,remaining:st.range,radius:PROJECTILE_RADIUS+Math.max(0,st.area)*3,damage:st.damage,
    knockback:st.knockback,taunt:st.taunt,penetration:Math.max(0,st.piercing),
@@ -234,11 +235,19 @@ export function advanceProjectiles(state,dt,attacks=[]){
    shot.x=from.x+shot.vx*moved;shot.y=from.y+shot.vy*moved;
    shot.remaining-=moved;travel-=moved;
    if(!collision){active=shot.remaining>1e-7;break}
-   if(collision.kind==='wall'){active=false;break}
+   if(collision.kind==='wall'){
+    shot.source.combatStats&&(shot.source.combatStats.wallHits++);
+    state.visualEvents.push({kind:'wallImpact',x:shot.x,y:shot.y,owner:shot.owner});
+    active=false;break;
+   }
    const victim=collision.unit;
    shot.hitIds.add(victim.id);
    if(!shot.volley.hitIds.has(victim.id)){
     shot.volley.hitIds.add(victim.id);
+    if(shot.source.combatStats){
+     shot.source.combatStats.hits++;
+     if(victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
+    }
     attacks.push({source:shot.source,target:victim,
      damage:Math.max(1,shot.damage-stats(victim).defense),
      knockback:shot.knockback,taunt:shot.taunt});
@@ -480,6 +489,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
 }
 function utilityMove(state,u,target,st,dt,enemies){
  const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time,burst=st.speed*.4;
+ // A second copy provides twice the use frequency without longer teleports.
  const ready=key=>(cds[key]||0)<=now;
  const base=positionScore(state,u,target,u,st,enemies);
  const d=distance(u,target),dx=(target.x-u.x)/Math.max(1,d),dy=(target.y-u.y)/Math.max(1,d);
@@ -519,7 +529,7 @@ function utilityMove(state,u,target,st,dt,enemies){
  const best=proposals.sort((a,b)=>b.score-a.score)[0];
  if(!best||best.score<=threshold)return false;
  const ox=u.x,oy=u.y;u.x=best.p.x;u.y=best.p.y;bound(u,state.arena);
- cds[best.key]=now+best.cooldown;
+ cds[best.key]=now+best.cooldown/Math.min(2,Math.max(1,st[best.key]||1));
  if(best.options.evade)u.evadingUntil=now+best.options.evade;
  if(best.options.phase){u.phasingUntil=now+dt+.01;u.phaseTarget=target.id}
  state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:best.key});
@@ -549,12 +559,27 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  record.before={x:u.x,y:u.y,step:st.speed*dt,seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
  }
  if(direction.x||direction.y){const step=st.speed*dt;u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
- if(inRange&&u.cd<=0){if(state.diagnostics)state.diagnostics.units[u.id].shots++;if(st.delivery==='projectile')spawnProjectileVolley(state,u,t,st);else {const volley=targetsForAttack(state,u,t,st);for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}}u.cd+=st.rate}}
+ if(inRange&&u.cd<=0){u.combatStats&&(u.combatStats.attacks++);if(state.diagnostics)state.diagnostics.units[u.id].shots++;if(st.delivery==='projectile')spawnProjectileVolley(state,u,t,st);else {const volley=targetsForAttack(state,u,t,st);for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}}u.cd+=st.rate}}
  resolveCollision(state);
  if(state.diagnostics){for(const u of state.units){const record=state.diagnostics.units[u.id];if(!record?.before)continue;const before=record.before,actual=distance(before,u);record.actual+=actual;record.intended+=before.step*(record.lastDirection.x||record.lastDirection.y?1:0);if(before.step>0&&actual<before.step*.2&&(record.lastDirection.x||record.lastDirection.y))record.collisionLoss++;if(before.seeking&&before.step>0&&(record.lastDirection.x||record.lastDirection.y)&&actual<before.step*.2)record.pursuitStallFrames=(record.pursuitStallFrames||0)+1;else record.pursuitStallFrames=0;record.maxPursuitStallFrames=Math.max(record.maxPursuitStallFrames||0,record.pursuitStallFrames);if(before.waypointDistance!==null&&u.navigation?.path?.[0])record.routeProgress+=before.waypointDistance-distance(u,u.navigation.path[0]);delete record.before;
  if(state.tick%30===0&&record.samples.length<35)record.samples.push({t:Math.round(state.time),x:Math.round(u.x),y:Math.round(u.y),idle:record.idle,blocked:record.blocked,stuck:record.stuck});}}
  advanceProjectiles(state,dt,attacks);
- const totals=new Map();for(const a of attacks)if(!(a.target.evadingUntil>state.time)){const dealt=Math.min(a.damage,Math.max(0,a.target.hp));state.damageDealt[a.source.owner]+=dealt;if(state.diagnostics&&state.diagnostics.units[a.source.id])state.diagnostics.units[a.source.id].damage+=dealt;totals.set(a.target,(totals.get(a.target)||0)+a.damage)}for(const [target,damage] of totals){const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner})}// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
+ const totals=new Map();
+ for(const a of attacks)if(!(a.target.evadingUntil>state.time)){
+  const prior=totals.get(a.target)||0;
+  const dealt=Math.max(0,Math.min(a.damage,a.target.hp-prior));
+  if(dealt>0){
+   state.damageDealt[a.source.owner]+=dealt;
+   a.source.combatStats&&(a.source.combatStats.damage+=dealt);
+   if(state.diagnostics&&state.diagnostics.units[a.source.id])state.diagnostics.units[a.source.id].damage+=dealt;
+  }
+  totals.set(a.target,prior+a.damage);
+ }
+ for(const [target,damage] of totals){
+  const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);
+  target.combatStats&&(target.combatStats.damageTaken+=applied);
+  if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner});
+ }// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
  // Multiple simultaneous taunts resolve deterministically in attack processing order.
  for(const a of attacks){if(a.taunt>0&&a.source.hp>0&&a.target.hp>0){a.target.tauntedBy=a.source.id;a.target.tauntedUntil=state.time+.25*a.taunt}}
  for(const a of attacks){if(a.knockback&&a.target.hp>0){const d=Math.max(1,distance(a.source,a.target));a.target.x+=(a.target.x-a.source.x)/d*a.knockback*4;a.target.y+=(a.target.y-a.source.y)/d*a.knockback*4;bound(a.target,state.arena)}}
