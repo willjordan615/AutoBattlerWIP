@@ -433,3 +433,13 @@ test('per-unit round report balances applied damage and damage received',()=>{
  const taken=report.reduce((sum,u)=>sum+u.damageTaken,0);
  assert.ok(Math.abs(dealt-taken)<.2,'actual applied outgoing and incoming damage should match');
 });
+
+test('shared draft preserves identical offers for competing players',()=>{
+ const m=createMatch(['bruiser','bruiser','rogue','ranged'],7);
+ const index=catalog.findIndex(c=>c.kind==='utility'&&c.key==='dash');
+ m.random=()=>((index+.25)/catalog.length);
+ draftPool(m);
+ assert.equal(m.draft.originalPool.length,6);
+ assert.ok(m.draft.originalPool.every(card=>card.key==='dash'&&card.kind==='utility'));
+ assert.equal(new Set(m.draft.originalPool.map(card=>card.uid)).size,6);
+});
