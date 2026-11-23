@@ -1,8 +1,9 @@
 import {CHASSIS} from './simulation.js?v=projectiles-20';
-import {legal} from './headless.js?v=projectiles-20';
+import {legal,canEquip} from './headless.js?v=projectiles-20';
 // Profile 3: deterministic, explainable module scoring. Higher scores win.
 export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  if(!legal(player,card))return -Infinity;
+ if(card.kind!=='unit'&&!canEquip(player.squad[chassisIndex],card))return -Infinity;
  const unit=player.squad[chassisIndex],type=unit?.type||'bruiser';
  if(card.kind==='unit'){
  const count=player.squad.length,existing=player.squad.filter(u=>u.type===card.key).length;
@@ -12,8 +13,8 @@ export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  const st=CHASSIS[type],m=unit.mods;
  if(card.kind==='utility'){
  const scores={dash:type==='ranged'?12:28,dodge:24,backstep:type==='ranged'?31:15,flank:type==='rogue'?27:19,disengage:type==='ranged'?27:19,intercept:type==='bruiser'?28:14,followthrough:type==='rogue'?30:23};
- let score=(scores[card.key]||18)-Math.max(0,(m[card.key]||0)-1)*4;
- if(unit.passives.includes(card.key))return score-9;
+ let score=(scores[card.key]||18);
+ if(unit.passives.includes(card.key))score-=5;
  if(unit.passives.length===2)score-=8;
  return score;
  }
@@ -34,7 +35,7 @@ export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  if(card.kind==='passive'){
  const scores={regen:type==='bruiser'?29:23,bulwark:type==='bruiser'?32:24,haste:type==='rogue'?29:25,focus:type==='ranged'?31:27};
  let score=scores[card.key]||20;
- if(unit.passives.includes(card.key))score-=13;
+ if(unit.passives.includes(card.key))return -Infinity;
  if(unit.passives.length===2){const replaced=unit.passives[passiveSlot];if(replaced===card.key)return -20;score-=8}
  return score;
  }
@@ -45,6 +46,7 @@ export function chooseCpuDraft(match,index){
  for(const card of match.draft.pool){if(!legal(player,card))continue;
  const slots=card.kind==='unit'?1:player.squad.length;
  for(let chassisIndex=0;chassisIndex<slots;chassisIndex++){
+ if(card.kind!=='unit'&&!canEquip(player.squad[chassisIndex],card))continue;
  const passiveSlots=(card.kind==='passive'||card.kind==='utility')&&player.squad[chassisIndex].passives.length>=2?2:1;
  for(let passiveSlot=0;passiveSlot<passiveSlots;passiveSlot++){
  const score=scoreDraft(player,card,chassisIndex,passiveSlot);
