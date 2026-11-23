@@ -553,7 +553,7 @@ function reactToThreat(state,u,target,st,context){
   }
  }
  if(u.chassis.passives.includes('bulwark')&&ready('bulwark')&&
-  (context.incoming>=Math.max(6,u.hp*.09)||context.close.length>=2)){
+  (context.incoming>=Math.max(6,u.hp*.045)||context.close.length>=2)){
   activate('bulwark',2,6);
  }
  if(u.chassis.passives.includes('haste')&&ready('haste')&&(context.engaging||context.retreating)){
