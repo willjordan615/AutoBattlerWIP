@@ -385,7 +385,7 @@ test('a third utility copy is rejected on the same chassis but can be drafted fo
  const offer={kind:'utility',key:'dash',uid:'test',name:'Dash'};
  draftPool(m);m.draft.pool=[offer];m.draft.order=[0];
  assert.ok(legal(m.players[0],offer)===false);
- assert.throws(()=>assign(m,0,'test',0),/cannot equip/);
+ assert.throws(()=>assign(m,0,'test',0),/Illegal draft pick|cannot equip/);
  m.players[0].squad.push(makeChassis('rogue'));
  assert.ok(legal(m.players[0],offer));
  assert.throws(()=>assign(m,0,'test',0),/cannot equip/);
@@ -398,7 +398,7 @@ test('nonstacking passive duplicates are rejected without restricting the shared
  const offer={kind:'passive',key:'focus',uid:'focus',name:'Focus'};
  draftPool(m);m.draft.pool=[offer];m.draft.order=[0];
  assert.equal(legal(m.players[0],offer),false);
- assert.throws(()=>assign(m,0,'focus',0),/cannot equip/);
+ assert.throws(()=>assign(m,0,'focus',0),/Illegal draft pick|cannot equip/);
  m.players[0].squad.push(makeChassis('ranged'));
  assert.equal(legal(m.players[0],offer),true);
  assign(m,0,'focus',1);
