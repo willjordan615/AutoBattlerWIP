@@ -121,14 +121,15 @@ function renderInspector(){
  if(!inspected)return;
  const player=match.players[inspected.owner],ch=player?.squad[inspected.slot];if(!ch)return;
  const live=battle?.units.find(u=>u.owner===inspected.owner&&u.id%100===inspected.slot);
- const st=stats({type:ch.type,chassis:ch});
+ const st=stats({type:ch.type,chassis:ch,squadSize:player.squad.length});
  const line=(title,value)=>{const row=document.createElement('div');row.className='inspector-line';const k=document.createElement('span');k.textContent=title;const v=document.createElement('strong');v.textContent=String(value);row.append(k,v);root.append(row)};
  const section=title=>{const h=document.createElement('h3');h.textContent=title;root.append(h)};
  const format=n=>Number(n).toFixed(2).replace(/\\.00$/,'');
  section(player.name+' · '+CHASSIS[ch.type].name+' #'+(inspected.slot+1));
  line('State',live?(live.hp>0?'Active':'Defeated'):'Between rounds / not deployed');
- line('Combat HP',live?format(live.hp)+' / '+format(live.maxHp):st.hp+' maximum');
- line('Damage / Defense',st.damage+' / '+st.defense);
+ line('Squad strength',Math.round((1-.15*(player.squad.length-1))*100)+'% base HP and damage ('+player.squad.length+' chassis)');
+ line('Combat HP',live?format(live.hp)+' / '+format(live.maxHp):format(st.hp)+' maximum');
+ line('Damage / Defense',format(st.damage)+' / '+st.defense);
  line('Attack range / interval',st.range+' / '+format(st.rate)+'s');
  line('Movement speed',format(st.speed));
  line('Attack lanes / pierce',st.projectiles+' / '+st.piercing);
