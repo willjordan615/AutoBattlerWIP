@@ -894,7 +894,7 @@ test('2.9.1 round combat report preserves module damage and delivered-impact fie
 test('2.9.1 effective damage attribution cannot exceed real damage dealt to low-HP targets',()=>{
  const p=players(),b=spawn(p,ARENAS[0],2020),source=b.units[0],target=b.units[1];
  b.units=[source,target];source.x=200;source.y=220;target.x=248;target.y=220;
- source.cd=0;target.cd=1e4;target.hp=2;
+ source.cd=0;target.cd=1e4;target.maxHp=target.hp=2;
  source.chassis.mods.precision=2;
  // Low target HP should limit actual attributed damage and eliminate overkill credit.
  source.chassis.mods.momentum=4;
@@ -903,7 +903,7 @@ test('2.9.1 effective damage attribution cannot exceed real damage dealt to low-
  // Force this resolved hit through standard accounting via a deterministic melee exchange.
  const tagged=spawn(p,ARENAS[0],2021),a=tagged.units[0],v=tagged.units[1];
  tagged.units=[a,v];a.x=200;a.y=220;v.x=249;v.y=220;
- a.cd=0;v.cd=1e4;v.hp=2;a.chassis.mods.precision=2;
+ a.cd=0;v.cd=1e4;v.maxHp=v.hp=2;a.chassis.mods.precision=2;
  for(let i=0;i<16;i++)tick(tagged,STEP);
  const total=Object.values(a.combatStats.moduleDamage).reduce((x,y)=>x+y,0);
  assert.ok(total<=2+1e-6,'no more damage can be credited than actually dealt');
