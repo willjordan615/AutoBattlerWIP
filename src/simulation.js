@@ -196,7 +196,6 @@ export function advanceAttack(state,u,target,st,dt,attacks){
     const radius=CHASSIS[victim.type].radius,dist=Math.max(1,distance(u,victim));
     const baseArc=ATTACK_TIMING[u.type].arc*Math.PI/360+
      Math.asin(Math.min(.98,radius/dist));
-    const baselineRange=CHASSIS[u.type].range+radius;
     const deliveredBy=[];
     if(i>0&&st.piercing>0)deliveredBy.push('piercing');
     // A spread lane can reach outside the original, unmodified attack cone.
@@ -258,7 +257,7 @@ function spawnProjectileVolley(state,u,t,st,aimAngle=null){
   state.projectiles.push({
    id:state.nextProjectileId++,owner:u.owner,source:u,aimedAtId:t.id,lane:i,landedCount:0,
    x:u.x,y:u.y,vx:Math.cos(heading),vy:Math.sin(heading),
-   speed:PROJECTILE_SPEED,remaining:st.range,radius:PROJECTILE_RADIUS+Math.max(0,st.area)*3,damage:st.damage,
+   speed:PROJECTILE_SPEED,remaining:st.range,distanceTraveled:0,radius:PROJECTILE_RADIUS+Math.max(0,st.area)*3,damage:st.damage,
    knockback:st.knockback,taunt:st.taunt,penetration:Math.max(0,st.piercing),
    hitIds:new Set(),volley
   });
@@ -295,7 +294,7 @@ export function advanceProjectiles(state,dt,attacks=[]){
    const fraction=collision?collision.time:1;
    const moved=travel*fraction;
    shot.x=from.x+shot.vx*moved;shot.y=from.y+shot.vy*moved;
-   shot.remaining-=moved;travel-=moved;
+   shot.remaining-=moved;shot.distanceTraveled=(shot.distanceTraveled||0)+moved;travel-=moved;
    if(!collision){active=shot.remaining>1e-7;break}
    if(collision.kind==='wall'){
     shot.source.combatStats&&(shot.source.combatStats.wallHits++);
@@ -308,7 +307,9 @@ export function advanceProjectiles(state,dt,attacks=[]){
     shot.volley.hitIds.add(victim.id);
     const deliveredBy=[];
     if(shot.source.chassis.mods.range>0&&
-       distance(shot.source,shot)>CHASSIS[shot.source.type].range)deliveredBy.push('range');
+       shot.distanceTraveled>CHASSIS[shot.source.type].range)deliveredBy.push('range');
+    if(shot.source.chassis.mods.area>0&&
+       distance(shot,victim)>CHASSIS[victim.type].radius+PROJECTILE_RADIUS+1e-6)deliveredBy.push('area');
     if(shot.lane>0)deliveredBy.push('projectiles');
     if(shot.landedCount>0&&shot.source.chassis.mods.piercing>0)deliveredBy.push('piercing');
     shot.landedCount++;
