@@ -2,7 +2,7 @@
 // Values match the current prototype's simulation formulas.
 export const DETAILS={
  'utility:dash':'Approach burst when positioning favors it. Base cooldown 5s; a second copy halves cooldown instead of increasing travel.',
- 'utility:dodge':'Sideways evasive roll when positioning favors it. Base cooldown 5s; a second copy halves cooldown.',
+ 'utility:dodge':"Reactive dodge roll: detects projectiles predicted to hit or imminent melee attacks and moves perpendicular to danger, with brief evasion. Cooldown 5s, halved by a second copy.",
  'utility:backstep':'Backward burst when seeking distance. Base cooldown 4.5s; a second copy halves cooldown.',
  'utility:flank':'Angled approach toward a desirable firing or striking position. Base cooldown 4s; a second copy halves cooldown.',
  'utility:disengage':'Escape burst when crowded by enemies. Base cooldown 6s; a second copy halves cooldown.',
@@ -24,8 +24,8 @@ export const DETAILS={
  'target:hunter':'Targeting: Target Distance weight +1. Prefer nearer enemies.',
  'target:aggressor':'Targeting: Damage Opportunity weight +1. Prefer targets vulnerable to damage.',
  'passive:regen':'Passive slot: regenerate 2 chassis HP per second. Unique per chassis; shares two slots with utilities.',
- 'passive:bulwark':'Passive slot: +3 defense. Unique per chassis; shares two slots with utilities.',
- 'passive:haste':'Passive slot: +25% movement speed. Unique per chassis; shares two slots with utilities.',
- 'passive:focus':'Passive slot: attack cooldown divided by 1.15 (about 15% more attacks). Unique per chassis; occupies one of two passive/utility slots.'
+ 'passive:bulwark':"Reactive brace: +5 defense for 2 seconds when significant damage is imminent or enemies surround this chassis. Cooldown 6s; unique per chassis.",
+ 'passive:haste':"Reactive pursuit or escape burst: +40% movement speed for 1.5 seconds when closing distance or withdrawing. Cooldown 5s; unique per chassis.",
+ 'passive:focus':"Reactive finishing burst: attacks 35% faster for 1.5 seconds when a nearby target looks finishable. Cooldown 6s; unique per chassis.",
 };
 export function cardDetail(card){const detail=DETAILS[card.kind+':'+card.key]||card.name;return card.kind==='utility'?detail+' A second copy on the same chassis halves its cooldown (maximum two copies); it does not consume another slot.':detail}
