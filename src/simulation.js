@@ -239,7 +239,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
     if(st.projectiles>1&&diff>baseArc&&st.area===0)deliveredBy.push('projectiles');
     if(st.area>0&&(diff>baseArc||dist>st.range+radius))deliveredBy.push('area');
     if(st.range>CHASSIS[u.type].range&&dist>CHASSIS[u.type].range+st.area*9+radius)deliveredBy.push('range');
-    attacks.push({source:u,target:victim,attackId,rawDamage:st.damage,
+    attacks.push({source:u,target:victim,attackId,attackOrigin:{x:u.x,y:u.y},attackDirection:attack.direction,rawDamage:st.damage,
      damage:Math.max(1,st.damage-stats(victim).defense),
      knockback:st.knockback,taunt:st.taunt,deliveredBy});
    }
@@ -290,7 +290,7 @@ function segmentBoxHit(a,b,o,pad=0){
 function spawnProjectileVolley(state,u,t,st,aimAngle=null,attackId=null){
  const count=Math.min(st.projectiles,9),spacing=.22;
  const angle=aimAngle??Math.atan2(t.y-u.y,t.x-u.x);
- const volley={hitIds:new Set(),attackId:attackId??state.nextAttackId++};
+ const volley={hitIds:new Set(),attackId:attackId??state.nextAttackId++,origin:{x:u.x,y:u.y},direction:angle};
  state.projectiles ||= [];
  for(let i=0;i<count;i++){
   const offset=i===0?0:(i%2?1:-1)*Math.ceil(i/2)*spacing;
@@ -357,6 +357,7 @@ export function advanceProjectiles(state,dt,attacks=[]){
     shot.landedCount++;
     if(shot.source.combatStats&&victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
     attacks.push({source:shot.source,target:victim,projectile:true,attackId:shot.volley.attackId,
+     attackOrigin:shot.volley.origin,attackDirection:shot.volley.direction,
      rawDamage:shot.damage,damage:Math.max(1,shot.damage-stats(victim).defense),
      knockback:shot.knockback,taunt:shot.taunt,deliveredBy});
    }
@@ -778,32 +779,35 @@ export function applyFollowthrough(state,hit){
  const u=hit.source,target=hit.target;
  if(!u?.chassis?.mods?.followthrough||!target||u.hp<=0)return false;
  if(u.followthroughAt>state.time+1e-8)return false;
- const already=hit.attackId!=null&&u.lastFollowthroughAttackId===hit.attackId;
- if(already)return false;
+ if(hit.attackId!=null&&u.lastFollowthroughAttackId===hit.attackId)return false;
+ // The target may be far away, but a displacement never exceeds its budget.
  const d=distance(u,target);
  if(d<.001)return false;
  const dx=(target.x-u.x)/d,dy=(target.y-u.y)/d;
  const stacks=Math.min(3,Math.max(0,u.chassis.mods.followthrough-1));
- // Melee vaults past the victim. Ranged attacks deliberately approach but
- // never teleport through a distant target: one modest lunge per landed hit.
  const melee=u.type!=='ranged';
- const clearance=CHASSIS[u.type].radius+CHASSIS[target.type].radius+8+stacks*8;
- const travel=Math.min(18+stacks*8,Math.max(0,d-CHASSIS[u.type].radius-CHASSIS[target.type].radius-5));
- const end=melee?{x:target.x+dx*clearance,y:target.y+dy*clearance}:
-  {x:u.x+dx*travel,y:u.y+dy*travel};
- if(!melee&&travel<.5)return false;
+ const budget=(melee?72:18)+8*stacks;
  const r=CHASSIS[u.type].radius+3;
+ const collisionGap=CHASSIS[u.type].radius+CHASSIS[target.type].radius+5;
+ const crossingDistance=d+collisionGap;
+ const passes=melee&&crossingDistance<=budget+1e-8;
+ const travel=passes?crossingDistance:Math.min(budget,Math.max(0,d-collisionGap));
+ if(travel<.5)return false;
+ const end={x:u.x+dx*travel,y:u.y+dy*travel};
  if(end.x<20+r||end.x>700-r||end.y<20+r||end.y>500-r)return false;
- if(!clearLine(u,end,state.arena,melee?0:r)||state.arena.obstacles.some(o=>rectHit(end.x,end.y,r,o)))return false;
- // Do not pass through unrelated fighters or land inside one.
+ if(!clearLine(u,end,state.arena,passes?0:r)||
+    state.arena.obstacles.some(o=>rectHit(end.x,end.y,r,o)))return false;
+ // Check the full swept path against every OTHER unit. Only melee can
+ // ignore the particular target it crosses.
  for(const other of state.units){
-  if(other===u||other===target||other.hp<=0)continue;
+  if(other===u||other.hp<=0||(passes&&other===target))continue;
+  if(other===target)continue; // near-side end already accounts for target clearance
   const radius=r+CHASSIS[other.type].radius+2;
   if(segmentCircleHit(u,end,other,radius)!==null)return false;
  }
  const old={x:u.x,y:u.y};
  u.x=end.x;u.y=end.y;
- if(melee){u.phasingUntil=state.time+.16;u.phaseTarget=target.id;}
+ if(passes){u.phasingUntil=state.time+.16;u.phaseTarget=target.id;}
  u.followthroughAt=state.time+.75;
  u.lastFollowthroughAttackId=hit.attackId;
  u.combatStats&&(u.combatStats.followthrough=(u.combatStats.followthrough||0)+1);
@@ -811,6 +815,37 @@ export function applyFollowthrough(state,hit){
   x:old.x,y:old.y,toX:u.x,toY:u.y});
  return true;
 }
+// One destination per committed attack. Depth is projected along the attack's
+// original direction; tie-breaking is stable and independent of processing order.
+export function followthroughDepth(hit){
+ const origin=hit.attackOrigin||{x:hit.source.x,y:hit.source.y};
+ const direction=hit.attackDirection??Math.atan2(hit.target.y-origin.y,hit.target.x-origin.x);
+ return (hit.target.x-origin.x)*Math.cos(direction)+(hit.target.y-origin.y)*Math.sin(direction);
+}
+export function resolveFollowthroughImpacts(state,attacks){
+ const pending=state.followthroughPending||(state.followthroughPending=new Map());
+ const immediate=new Map();
+ for(const hit of attacks){
+  if(hit.secondary||hit.indirect||hit.damage<=0||!hit.source?.chassis?.mods?.followthrough)continue;
+  const key=hit.attackId??-1-hit.source.id;
+  const store=hit.projectile?pending:immediate;
+  const existing=store.get(key);
+  const depth=followthroughDepth(hit);
+  if(!existing||depth>existing.depth+1e-8||
+     (Math.abs(depth-existing.depth)<1e-8&&hit.target.id<existing.hit.target.id))
+   store.set(key,{hit,depth});
+ }
+ for(const {hit} of immediate.values())applyFollowthrough(state,hit);
+ // Projectiles may hit targets over several frames, so wait until a volley
+ // finishes before deciding which successful hit is deepest.
+ const active=new Set((state.projectiles||[]).map(p=>p.volley.attackId));
+ for(const [key,entry] of pending){
+  if(active.has(key))continue;
+  applyFollowthrough(state,entry.hit);
+  pending.delete(key);
+ }
+}
+
 // Attack effects act on actual impacts, never on visual commitment events.
 function traveledRecently(u,now){
  const path=u.motion||[];let total=0;
@@ -1005,8 +1040,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  }
  // Impact displacement occurs only after evasion filtering and direct-hit resolution.
  // One melee release can hit many enemies but can trigger Follow Through once.
- for(const hit of resolved)if(!hit.secondary&&!hit.indirect&&hit.damage>0)
-  applyFollowthrough(state,hit);
+ resolveFollowthroughImpacts(state,resolved);
  for(const [target,damage] of totals){
   const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);
   target.combatStats&&(target.combatStats.damageTaken+=applied);
