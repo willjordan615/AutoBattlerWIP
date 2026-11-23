@@ -28,6 +28,20 @@ export function legal(player,card){
  if(card.kind==='unit')return player.squad.length<3;
  return player.squad.some(unit=>canEquip(unit,card));
 }
+// A shared offer can be unusable by an advanced squad. Preserve contested
+// duplicates; replace only an entirely dead remaining board at that player's turn.
+export function ensureDraftChoice(match){
+ const d=match.draft;if(!d||match.phase!=='draft')return;
+ const playerIndex=d.order[d.turn],player=match.players[playerIndex];
+ if(!player||d.pool.some(card=>legal(player,card)))return;
+ const index=d.pool.findIndex(card=>card.kind==='unit'&&player.squad.length>=3)===-1?0:
+  d.pool.findIndex(card=>!legal(player,card));
+ if(index<0)return;
+ const fallback={kind:'target',key:'hunter',name:'Targeting: hunter',uid:d.pool[index].uid};
+ d.pool[index]=fallback;
+ const original=d.originalPool.findIndex(card=>card.uid===fallback.uid);
+ if(original>=0)d.originalPool[original]={...fallback};
+}
 export function draftPool(match){
  const active=match.players.map((p,i)=>p.hp>0?i:-1).filter(i=>i>=0);
  const pool=Array.from({length:active.length+2},(_,i)=>({...catalog[Math.floor(match.random()*catalog.length)],uid:match.round+'-'+i}));
@@ -35,7 +49,7 @@ export function draftPool(match){
  let available=pool.filter(x=>x.kind!=='unit').length;
  for(let i=pool.length-1;i>=0&&available<full;i--)if(pool[i].kind==='unit'){pool[i]={...catalog.filter(x=>x.kind!=='unit')[Math.floor(match.random()*(catalog.length-3))],uid:pool[i].uid};available++}
  const order=match.lastRanking.length?match.lastRanking.filter(i=>match.players[i].hp>0).reverse():active;
- match.draft={pool,originalPool:pool.map(card=>({...card})),order,turn:0,picks:[]};match.phase='draft';return match.draft
+ match.draft={pool,originalPool:pool.map(card=>({...card})),order,turn:0,picks:[]};match.phase='draft';ensureDraftChoice(match);return match.draft
 }
 export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  const d=match.draft;if(match.phase!=='draft'||!d||d.order[d.turn]!==playerIndex)throw Error('Not this player\'s draft turn');
@@ -74,9 +88,9 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
   }
  }else unit.modules.push({kind:card.kind,name:card.name});
  }
- d.pool.splice(index,1);d.picks.push({player:playerIndex,uid:card.uid,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';return card
+ d.pool.splice(index,1);d.picks.push({player:playerIndex,uid:card.uid,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';else ensureDraftChoice(match);return card
 }
-export function autoDraft(match){if(!match.draft)draftPool(match);while(match.phase==='draft'){const d=match.draft,i=d.order[d.turn],p=match.players[i];const legalCards=d.pool.filter(c=>legal(p,c));const card=legalCards[Math.floor(match.random()*legalCards.length)];
+export function autoDraft(match){if(!match.draft)draftPool(match);while(match.phase==='draft'){ensureDraftChoice(match);const d=match.draft,i=d.order[d.turn],p=match.players[i];const legalCards=d.pool.filter(c=>legal(p,c));const card=legalCards[Math.floor(match.random()*legalCards.length)];
  const slots=card.kind==='unit'?[0]:p.squad.map((unit,index)=>canEquip(unit,card)?index:-1).filter(index=>index>=0);
  assign(match,i,card.uid,slots[Math.floor(match.random()*slots.length)],Math.floor(match.random()*2))}return match.draft.picks}
 function duel(match,a,b){const players=match.players.map((p,i)=>({...p,hp:i===a||i===b?100:0}));const battle=spawn(players,ARENAS[(match.round-1)%ARENAS.length],match.seed+match.round*101+a*13+b*7,match.round);for(let t=0;t<900;t++)if(tick(battle,STEP)!==null)break;const x=teamPercent(battle,a),y=teamPercent(battle,b);return x!==y?x>y?a:b:Math.min(a,b)}
@@ -97,6 +111,9 @@ export function completeCombat(match,battle){if(match.phase!=='combat')throw Err
  combatReport:battle.units.map(u=>({id:u.id,owner:u.owner,type:u.type,
   damage:Math.round((u.combatStats?.damage||0)*10)/10,
   damageTaken:Math.round((u.combatStats?.damageTaken||0)*10)/10,
+  prevented:Math.round((u.combatStats?.prevented||0)*10)/10,
+  dodges:u.combatStats?.dodges||0,evaded:u.combatStats?.evaded||0,
+  haste:u.combatStats?.haste||0,focus:u.combatStats?.focus||0,bulwark:u.combatStats?.bulwark||0,
   attacks:u.combatStats?.attacks||0,shots:u.combatStats?.shots||0,
   hits:u.combatStats?.hits||0,wallHits:u.combatStats?.wallHits||0,
   interceptions:u.combatStats?.interceptions||0,
