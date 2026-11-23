@@ -704,3 +704,29 @@ test('2.7 restless attack favors a different target after hitting',()=>{
  assert.ok(targetScoreDetails(b,source,a).total<beforeA);
  assert.ok(targetScoreDetails(b,source,other).total>targetScoreDetails(b,source,a).total);
 });
+
+test('2.7 Sunder reduces armor only to zero and hazards cap at two per fighter',()=>{
+ const b=spawn(players(),ARENAS[0],914),source=b.units[0],target=b.units[1];
+ b.units=[source,target];
+ source.chassis.mods.sunder=2;source.chassis.mods.hazardous=1;
+ const hit=()=>resolveAttackModules(b,[{source,target,rawDamage:10,damage:10}])[0];
+ const first=hit();
+ assert.equal(first.damage,10-stats(target).defense);
+ const second=hit();
+ assert.equal(second.damage,10-(stats(target).defense-2));
+ for(let i=0;i<5;i++)hit();
+ assert.equal(b.zones.filter(z=>z.source.id===source.id).length,2);
+ target.effects.sunder=99;target.effects.sunderUntil=b.time+2;
+ assert.equal(hit().damage,10-Math.max(0,stats(target).defense-3));
+});
+test('2.7 burn and hazard deal environmental damage without producing additional patches',()=>{
+ const b=spawn(players(),ARENAS[0],915),source=b.units[0],target=b.units[1];
+ b.units=[source,target];source.x=200;source.y=220;target.x=240;target.y=220;
+ source.cd=target.cd=1000;
+ source.chassis.mods.burning=1;source.chassis.mods.hazardous=1;
+ resolveAttackModules(b,[{source,target,rawDamage:10,damage:10}]);
+ const before=target.hp,zones=b.zones.length;
+ tick(b,STEP);
+ assert.ok(target.hp<before);
+ assert.equal(b.zones.length,zones);
+});
