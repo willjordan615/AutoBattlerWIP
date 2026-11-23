@@ -1,3 +1,4 @@
+import {ATTACK_STAGES} from './simulation.js?v=attack-pipeline-210';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
@@ -23,8 +24,8 @@ export const DETAILS={
  'attack:disruption':'A landed hit slows the target\'s movement speed for 0.6 seconds: 8% per stack, up to 45%. Further hits refresh the slow. Attack speed is unaffected.',
  'attack:momentum':'Each attack gains up to 2 raw damage per stack, based on distance actually traveled over the previous 2 seconds (up to 100 units). Sideways movement and retreat count; no specific target or consecutive hits are required.',
  'attack:chain':'Redistribute 20% of the primary hit\'s damage per stack (up to 60%) toward the nearest additional enemy within 95 units and clear of obstacles. The primary hit loses that share even if no secondary target exists. The second target applies its own defense; the secondary hit cannot chain again or apply other on-hit effects.',
- 'attack:burning':'A landed hit applies a 2-second burn dealing 2 damage per second per stack (maximum 12 DPS), ignoring defense. Additional hits refresh the burn rather than adding separate burns. Burn ticks do not trigger on-hit effects.',
- 'attack:hazardous':'A landed hit leaves a damaging patch at the struck enemy\'s position for 2.5 seconds. Enemies standing in it take 2 damage per second per stack (maximum 10 DPS), ignoring defense. Each fighter can maintain up to two patches; overlapping patches can both deal damage. Patches do not trigger on-hit effects.',
+ 'attack:burning':'On a qualifying landed attack, apply a 2-second burn dealing 2 damage per second per stack (maximum 12 DPS), ignoring defense. Each fighter can activate Burning once per second; all eligible targets struck by that attack receive it, including later impacts from the same volley. Hits while the activation is on cooldown do not refresh the burn. Burn ticks cannot trigger on-hit effects.',
+ 'attack:hazardous':'On a qualifying landed attack, leave a damaging patch at each struck enemy\'s position for 2.5 seconds. Each fighter can activate Hazardous once per second; all eligible targets of the same attack can create a patch, including later impacts from that volley. Enemies standing in patches take 2 damage per second per stack (maximum 10 DPS), ignoring defense. Each fighter maintains at most two patches, and overlapping patches can both deal damage. Patch damage cannot trigger on-hit effects.',
  'attack:restless':'For 3 seconds after landing a hit, lower the priority of targeting that same enemy again. Stacks strengthen this preference for switching; other targeting weights can counteract it.',
  'target:executioner':'Increase Kill Opportunity targeting weight by 1. Prefer enemies with a smaller percentage of HP remaining.',
  'target:guardian':'Increase Ally Protection targeting weight by 1. Prefer enemies currently targeting your teammates.',
@@ -62,8 +63,8 @@ export const SUMMARIES={
  'attack:disruption':'Slow target movement by 8% per stack · max 45%',
  'attack:momentum':'More distance traveled in last 2s → bonus attack damage',
  'attack:chain':'Redirect 20% damage per stack to another nearby enemy',
- 'attack:burning':'Apply 2-second damage-over-time burn',
- 'attack:hazardous':'Create damaging ground at impact · max 2 patches',
+ 'attack:burning':'Apply 2-second burn · 1s activation cooldown per fighter',
+ 'attack:hazardous':'Create damaging ground · 1s activation cooldown · max 2 patches',
  'attack:restless':'Recently hit enemies become lower-priority targets',
  'target:executioner':'Kill Opportunity +1 · favor weakened enemies',
  'target:guardian':'Ally Protection +1 · favor threats to teammates',
@@ -81,7 +82,8 @@ export const SUMMARIES={
 export function cardDetail(card){
  const key=card.kind+':'+card.key;
  const detail=DETAILS[key]||card.name;
- return card.kind==='utility'?detail+' A second copy on the same fighter halves the cooldown without using another slot (maximum two copies).':detail;
+ return card.kind==='utility'?detail+' A second copy on the same fighter halves the cooldown without using another slot (maximum two copies).':
+  card.kind==='attack'&&ATTACK_STAGES[card.key]?detail+' Category: '+ATTACK_STAGES[card.key].stage+'.':detail;
 }
 export function cardSummary(card){
  const key=card.kind+':'+card.key;
@@ -89,5 +91,5 @@ export function cardSummary(card){
  return card.kind==='utility'?'Utility · one of 2 slots · '+summary+(summary.includes('cooldown')?' · second copy halves cooldown':''):
   card.kind==='passive'?'Utility · '+summary.replace(/^Utility slot · /,''):
   card.kind==='target'?'Targeting · '+summary:
-  card.kind==='attack'?'Attack · '+summary:summary;
+  card.kind==='attack'?'Attack · '+(ATTACK_STAGES[card.key]?.stage||'effect')+' · '+summary:summary;
 }
