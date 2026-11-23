@@ -555,7 +555,9 @@ function reactToThreat(state,u,target,st,context){
      (context.melee.length?Math.min(...context.melee.map(e=>distance(e,p)))*.008:0)};
    }).sort((a,b)=>b.score-a.score);
    const safest=candidates[0];
-   const pathImproved=imminent.length?safest?.score>=-3:
+   // Even a partial lateral roll is worthwhile when its brief invulnerability
+   // covers a shot arriving before the fighter can clear the whole collision radius.
+   const pathImproved=imminent.length?safest?.score>=-imminent.length*10:
     safest?.score> -context.melee.length*3+.1;
    if(safest?.valid&&pathImproved){
     const old={x:u.x,y:u.y};u.x=safest.p.x;u.y=safest.p.y;bound(u,state.arena);
@@ -568,7 +570,7 @@ function reactToThreat(state,u,target,st,context){
   }
  }
  if(u.chassis.passives.includes('bulwark')&&ready('bulwark')&&
-  (context.incoming>=Math.max(8,u.hp*.065)||context.close.length>=2)){
+  (context.incoming>=Math.max(8,u.hp*.055)||context.close.length>=2)){
   activate('bulwark',2,6);
  }
  if(u.chassis.passives.includes('haste')&&ready('haste')&&(context.engaging||context.retreating)){
