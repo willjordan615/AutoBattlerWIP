@@ -487,6 +487,8 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  }
  return best;
 }
+// Utility upgrades add a second use window, not a stronger teleport.
+export function utilityCooldown(base,copies){return base/Math.min(2,Math.max(1,copies||1))}
 function utilityMove(state,u,target,st,dt,enemies){
  const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time,burst=st.speed*.4;
  // A second copy provides twice the use frequency without longer teleports.
@@ -530,7 +532,7 @@ function utilityMove(state,u,target,st,dt,enemies){
  const best=proposals.sort((a,b)=>b.score-a.score)[0];
  if(!best||best.score<=threshold)return false;
  const ox=u.x,oy=u.y;u.x=best.p.x;u.y=best.p.y;bound(u,state.arena);
- cds[best.key]=now+best.cooldown/Math.min(2,Math.max(1,st[best.key]||1));
+ cds[best.key]=now+utilityCooldown(best.cooldown,st[best.key]);
  if(best.options.evade)u.evadingUntil=now+best.options.evade;
  if(best.options.phase){u.phasingUntil=now+dt+.01;u.phaseTarget=target.id}
  state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:best.key});
