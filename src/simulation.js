@@ -1081,7 +1081,12 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
  record.frames++;if(!direction.x&&!direction.y)record.idle++;
- if(u.holdingPosition)record.deliberateHolds=(record.deliberateHolds||0)+1;if(u.navigationBlocked)record.blocked++;
+ if(u.holdingPosition){
+  record.deliberateHolds=(record.deliberateHolds||0)+1;
+  if(inRange)record.holdWithAttackAccess=(record.holdWithAttackAccess||0)+1;
+  else record.holdAwaitingApproach=(record.holdAwaitingApproach||0)+1;
+ }
+ if(u.navigationBlocked)record.blocked++;
  const route=u.navigation,waypoint=route?.path?.[0];const key=waypoint?Math.round(waypoint.x)+','+Math.round(waypoint.y):'none';
  if(record.lastWaypoint!==undefined&&record.lastWaypoint!==key)record.waypointChanges++;record.lastWaypoint=key;
  if(record.lastRoute&&route!==record.lastRoute){record.replans++;const reason=record.lastTarget!==t.id?'target-changed':u.navRecoverUntil>state.time?'stuck-recovery':'route-invalid-or-destination';record.reasonCounts[reason]=(record.reasonCounts[reason]||0)+1}record.lastRoute=route;record.lastTarget=t.id;
@@ -1112,6 +1117,31 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  }
  if(state.diagnostics){for(const u of state.units){const record=state.diagnostics.units[u.id];if(!record?.before)continue;const before=record.before,actual=distance(before,u);record.actual+=actual;record.intended+=before.step*(record.lastDirection.x||record.lastDirection.y?1:0);if(before.step>0&&actual<before.step*.2&&(record.lastDirection.x||record.lastDirection.y))record.collisionLoss++;if(before.seeking&&before.step>0&&(record.lastDirection.x||record.lastDirection.y)&&actual<before.step*.2)record.pursuitStallFrames=(record.pursuitStallFrames||0)+1;else record.pursuitStallFrames=0;record.maxPursuitStallFrames=Math.max(record.maxPursuitStallFrames||0,record.pursuitStallFrames);if(before.waypointDistance!==null&&u.navigation?.path?.[0])record.routeProgress+=before.waypointDistance-distance(u,u.navigation.path[0]);delete record.before;
  if(state.tick%30===0&&record.samples.length<35)record.samples.push({t:Math.round(state.time),x:Math.round(u.x),y:Math.round(u.y),idle:record.idle,blocked:record.blocked,stuck:record.stuck});}}
+ // This telemetry is opt-in and does not change AI decisions or reward kills.
+ // Mutual passivity requires ALL active fighters to be holding outside an attack
+ // opportunity, with no attack committed and no projectile in flight.
+ if(state.diagnostics){
+  const d=state.diagnostics,units=state.units.filter(u=>u.hp>0);
+  const active=units.filter(u=>state.units.some(e=>e.hp>0&&e.owner!==u.owner));
+  const holding=active.filter(u=>u.holdingPosition);
+  const opportunity=active.some(u=>state.units.some(e=>e.hp>0&&e.owner!==u.owner&&
+   clearLine(u,e,state.arena)&&distance(u,e)<=stats(u).range));
+  const committed=active.some(u=>u.attack)||(state.projectiles||[]).length>0||attacks.length>0;
+  const passive=active.length>=2&&holding.length===active.length&&!opportunity&&!committed;
+  d.tactical||={frames:0,holdingUnitFrames:0,mutualPassiveFrames:0,
+   maxMutualPassiveFrames:0,mutualPassiveStreak:0,productiveCombatFrames:0,
+   attackReleases:0,holdWithAttackAccess:0,holdAwaitingApproach:0};
+  const t=d.tactical;t.frames++;t.holdingUnitFrames+=holding.length;
+  t.holdWithAttackAccess+=holding.filter(u=>state.units.some(e=>e.hp>0&&e.owner!==u.owner&&
+   clearLine(u,e,state.arena)&&distance(u,e)<=stats(u).range)).length;
+  t.holdAwaitingApproach+=holding.length-holding.filter(u=>state.units.some(e=>e.hp>0&&e.owner!==u.owner&&
+   clearLine(u,e,state.arena)&&distance(u,e)<=stats(u).range)).length;
+  t.attackReleases+=attacks.length;
+  if(opportunity||committed)t.productiveCombatFrames++;
+  if(passive){t.mutualPassiveFrames++;t.mutualPassiveStreak++}
+  else t.mutualPassiveStreak=0;
+  t.maxMutualPassiveFrames=Math.max(t.maxMutualPassiveFrames,t.mutualPassiveStreak);
+ }
  advanceProjectiles(state,dt,attacks);
  // Evasion blocks impacts and their on-hit effects before any status is applied.
  const landed=attacks.filter(a=>{
