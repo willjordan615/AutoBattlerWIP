@@ -1,12 +1,12 @@
 import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=geometry-24';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt'];
+export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless'];
 export const UTILITY_MODULES=['dash','dodge','backstep','flank','disengage','intercept','followthrough'];
 export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
  coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1}
 };
-export const PASSIVE_MODULES=['regen','bulwark','haste','focus'];
+export const PASSIVE_MODULES=['regen','bulwark','haste','focus','retaliation'];
 export const catalog=[
  ...Object.keys(CHASSIS).map(type=>({kind:'unit',key:type,name:'Recruit '+CHASSIS[type].name})),
  ...UTILITY_MODULES.map(key=>({kind:'utility',key,name:'Utility: '+key[0].toUpperCase()+key.slice(1)})),
