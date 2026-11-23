@@ -36,7 +36,7 @@ export function runBalance({matches=100,seed=1,mode='strategic',maxRounds=250}={
    if(mode==='random')autoDraft(match);
    else while(match.phase==='draft'){
     const player=draft.order[draft.turn],choice=chooseCpuDraft(match,player);
-    assign(match,player,choice.card.uid,choice.chassisIndex,choice.passiveSlot);
+    assign(match,player,choice.card.uid,choice.chassisIndex,choice.passiveSlot,choice);
    }
    for(const pick of draft.picks){
     const card=draft.originalPool.find(c=>c.uid===pick.uid);
