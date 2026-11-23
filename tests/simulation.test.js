@@ -497,3 +497,47 @@ test('fully unusable shared board gets one legal fallback without removing dupli
  assert.ok(m.draft.pool.some(c=>legal(p,c)));
  assert.ok(m.draft.originalPool.some(c=>c.kind==='target'));
 });
+
+test('Dodge does not consume cooldown on a projectile still outside reaction horizon',()=>{
+ const b=projectileFixture(ARENAS[0],['bruiser','ranged']);
+ const [defender,shooter]=b.units;
+ defender.chassis.passives=['dodge'];defender.chassis.mods.dodge=1;
+ defender.x=290;defender.y=210;defender.cd=1000;
+ shooter.x=70;shooter.y=210;shooter.cd=1000;
+ const shot=testShot(b,shooter,{remaining:300});
+ shot.x=90;shot.y=210;shot.aimedAtId=defender.id;
+ tick(b,STEP);
+ assert.equal(defender.combatStats.dodges,0);
+ assert.equal(defender.reactionCd.dodge||0,0);
+});
+test('Focus saves its burst for a multi-hit finish and not an automatic one-shot',()=>{
+ const b=projectileFixture(ARENAS[0],['bruiser','bruiser']);
+ const [attacker,target]=b.units;
+ attacker.chassis.passives=['focus'];attacker.x=200;attacker.y=210;
+ target.x=237;target.y=210;target.cd=1000;
+ attacker.cd=0;target.hp=3;tick(b,STEP);
+ assert.equal(attacker.combatStats.focus,0);
+ const another=projectileFixture(ARENAS[0],['bruiser','bruiser']);
+ const [a,t]=another.units;a.chassis.passives=['focus'];a.x=200;a.y=210;
+ t.x=237;t.y=210;a.cd=0;t.cd=1000;t.hp=16;
+ tick(another,STEP);
+ assert.equal(a.combatStats.focus,1);
+});
+test('Dodge ignores distant projectile paths even when nearby enemy is ranged',()=>{
+ const b=projectileFixture(ARENAS[0],['bruiser','ranged']);
+ const [d,r]=b.units;
+ d.chassis.passives=['dodge'];d.chassis.mods.dodge=1;
+ d.x=200;d.y=200;r.x=215;r.y=200;d.cd=1000;r.cd=1000;
+ tick(b,STEP);
+ assert.equal(d.combatStats.dodges,0);
+});
+test('Haste does not repeatedly activate while already active',()=>{
+ const b=projectileFixture(ARENAS[0],['bruiser','bruiser']);
+ const [a,t]=b.units;
+ a.chassis.passives=['haste'];a.x=80;a.y=210;t.x=320;t.y=210;
+ t.cd=1000;
+ tick(b,STEP);
+ assert.equal(a.combatStats.haste,1);
+ for(let i=0;i<30;i++)tick(b,STEP);
+ assert.equal(a.combatStats.haste,1);
+});
