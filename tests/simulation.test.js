@@ -52,7 +52,7 @@ test('ranged damage and floating numbers occur at physical impact, not firing',(
  assert.ok(impacted,'a clear, stationary target should be struck after travel time');
 });
 
-test('Bruiser base damage is 13',()=>{assert.equal(CHASSIS.bruiser.damage,13)});
+test('Bruiser base damage is 16',()=>{assert.equal(CHASSIS.bruiser.damage,16)});
 test('taunt forces the struck enemy to target its attacker and expires',()=>{
  const p=players(),state=spawn(p,ARENAS[0],47);
  const taunter=state.units[0],victim=state.units[1],alternative=state.units[2];
@@ -546,6 +546,26 @@ test('Haste does not repeatedly activate while already active',()=>{
  assert.equal(a.combatStats.haste,1);
 });
 
+test('Prototype 2.6 attack profile preserves one hit without Piercing',()=>{
+ assert.equal(CHASSIS.bruiser.damage,16);
+ assert.equal(ATTACK_TIMING.bruiser.arc,95);
+ assert.equal(ATTACK_TIMING.rogue.windup,.18);
+ assert.equal(ATTACK_TIMING.rogue.recovery,.12);
+ const p=players(),b=spawn(p,ARENAS[0],894),u=b.units[0],front=b.units[1],side=b.units[2];
+ b.units=[u,front,side];
+ u.x=200;u.y=220;front.x=245;front.y=220;
+ side.x=242;side.y=243; // Both within the narrowed sweep.
+ assert.deepEqual(meleeAttackTargets(b,u,0,stats(u)).map(e=>e.id),[front.id]);
+ u.chassis.mods.piercing=1;
+ assert.deepEqual(meleeAttackTargets(b,u,0,stats(u)).map(e=>e.id),[front.id,side.id]);
+});
+test('Bruiser narrowed arc excludes a lateral opponent',()=>{
+ const p=players(),b=spawn(p,ARENAS[0],895),u=b.units[0],front=b.units[1],flank=b.units[2];
+ b.units=[u,front,flank];u.x=200;u.y=220;front.x=248;front.y=220;
+ flank.x=234;flank.y=267;
+ u.chassis.mods.piercing=1;
+ assert.deepEqual(meleeAttackTargets(b,u,0,stats(u)).map(e=>e.id),[front.id]);
+});
 test('melee sweep hits a front target and cannot hit a rear target',()=>{
  const p=players();const b=spawn(p,ARENAS[0],889),u=b.units[0],front=b.units[1],behind=b.units[2];
  b.units=[u,front,behind];u.x=200;u.y=220;front.x=247;front.y=220;behind.x=160;behind.y=220;
