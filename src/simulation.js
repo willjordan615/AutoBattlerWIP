@@ -160,7 +160,6 @@ export function startAttack(state,u,target){
  const profile=ATTACK_TIMING[u.type];
  u.facing=angle;
  u.attack={phase:'windup',elapsed:0,direction:angle,locked:false,targetId:target.id};
- u.combatStats&&(u.combatStats.attacks++);
  return true;
 }
 export function advanceAttack(state,u,target,st,dt,attacks){
@@ -180,6 +179,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
   }
   if(attack.elapsed+1e-8<profile.windup)return;
   attack.phase='recovery';attack.elapsed=0;
+  u.combatStats&&(u.combatStats.attacks++);
   // Only enemies inside the locked attack shape at release can be hit.
   if(st.delivery==='projectile'){
    const dx=Math.cos(attack.direction),dy=Math.sin(attack.direction);
