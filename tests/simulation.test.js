@@ -760,3 +760,45 @@ test('2.7.1 burning subtracts fractional HP and emits tagged DoT damage',()=>{
  for(let i=0;i<9;i++)tick(b,STEP);
  assert.ok(Math.abs(before-target.hp-expected*10)<1e-5);
 });
+
+test('2.8 progressive squad penalty scales base HP and damage for every chassis',()=>{
+ const types=['bruiser','rogue','ranged'];
+ for(const type of types){
+  const base=makeChassis(type);
+  for(const [count,mult] of [[1,1],[2,.85],[3,.7]]){
+   const s=stats({type,chassis:base,squadSize:count});
+   assert.ok(Math.abs(s.hp-CHASSIS[type].hp*mult)<1e-8);
+   assert.ok(Math.abs(s.damage-CHASSIS[type].damage*mult)<1e-8);
+   assert.equal(s.speed,CHASSIS[type].speed);
+   assert.equal(s.defense,CHASSIS[type].defense);
+   assert.equal(s.rate,CHASSIS[type].rate);
+   assert.equal(s.range,CHASSIS[type].range);
+  }
+ }
+});
+test('2.8 recruited chassis scales old and new team members equally',()=>{
+ const p=players();
+ for(const count of [1,2,3]){
+  p[0].squad=Array.from({length:count},()=>makeChassis('bruiser'));
+  const b=spawn(p,ARENAS[0],940+count);
+  const allies=b.units.filter(u=>u.owner===0);
+  assert.equal(allies.length,count);
+  for(const u of allies){
+   const mult=1-.15*(count-1);
+   assert.equal(u.squadSize,count);
+   assert.ok(Math.abs(u.maxHp-CHASSIS.bruiser.hp*mult)<1e-8);
+   assert.equal(u.hp,u.maxHp);
+   assert.ok(Math.abs(stats(u).damage-CHASSIS.bruiser.damage*mult)<1e-8);
+  }
+  assert.equal(teamPercent(b,0),1);
+ }
+});
+test('2.8 module bonuses are not diminished by squad-size penalties',()=>{
+ const chassis=makeChassis('bruiser');
+ chassis.mods.hp=2;chassis.mods.damage=2;
+ const one=stats({type:'bruiser',chassis,squadSize:1});
+ const three=stats({type:'bruiser',chassis,squadSize:3});
+ assert.ok(Math.abs(one.hp-(CHASSIS.bruiser.hp+40))<1e-8);
+ assert.ok(Math.abs(three.hp-(CHASSIS.bruiser.hp*.7+40))<1e-8);
+ assert.ok(Math.abs(three.damage-(CHASSIS.bruiser.damage*.7+4))<1e-8);
+});
