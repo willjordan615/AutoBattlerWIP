@@ -78,6 +78,26 @@ export function runDefensiveStandoffDiagnostics({seed=7701}={}){
  }
  return fixtures;
 }
+// Live coordination fixture: idle fighters can support a real engagement,
+// but screening must not replace attack initiation or obstruct normal combat.
+export function runCooperativeSupportDiagnostics({seed=8261}={}){
+ const players=[{name:'Team',hp:100,squad:[makeChassis('bruiser'),makeChassis('ranged'),makeChassis('rogue')]},
+  {name:'Opponents',hp:100,squad:[makeChassis('bruiser'),makeChassis('ranged')]}];
+ const battle=spawn(players,ARENAS[0],seed);
+ for(const u of battle.units){u.x=u.owner?490:150+(u.id%100)*32;u.y=210+(u.id%100)*37;u.cd=0}
+ battle.diagnostics={units:{}};
+ for(let frame=0;frame<240;frame++)if(tick(battle,STEP)!==null)break;
+ const t=battle.diagnostics.tactical||{};
+ return {seed,elapsed:+battle.time.toFixed(2),
+  supportUnitFrames:t.supportUnitFrames||0,screenUnitFrames:t.screenUnitFrames||0,
+  holdingUnitFrames:t.holdingUnitFrames||0,attackReleases:t.attackReleases||0,
+  maxMutualPassiveSeconds:+((t.maxMutualPassiveFrames||0)*STEP).toFixed(2),
+  units:Object.values(battle.diagnostics.units).map(u=>({owner:u.owner,type:u.type,
+   supportFrames:u.supportFrames||0,screenFrames:u.screenFrames||0,
+   stalls:u.maxPursuitStallFrames||0,attacks:u.shots||0})),
+  passed:(t.supportUnitFrames||0)>0&&(t.screenUnitFrames||0)>0&&
+   (t.attackReleases||0)>0&&(t.maxMutualPassiveFrames||0)<90};
+}
 export function runNavigationDiagnostics({matches=8,seed=1}={}){
  if(!Number.isInteger(matches)||matches<1||matches>100)throw Error('matches must be 1..100');
  if(!Number.isInteger(seed))throw Error('seed must be an integer');
@@ -117,7 +137,7 @@ export function runNavigationDiagnostics({matches=8,seed=1}={}){
   .map(([id,u])=>({scenario:b.scenario,id,owner:u.owner,type:u.type,stalledSeconds:+(u.maxPursuitStallFrames*STEP).toFixed(2),shots:u.shots,blockedFrames:u.blocked})));
  const timeouts=battles.filter(b=>b.timeout);
  const causes={};for(const b of timeouts)causes[b.summary.cause]=(causes[b.summary.cause]||0)+1;
- return {config:{matches,seed},battles:battles.length,timeouts:timeouts.length,causes,navigationFlags,timeoutDetails:timeouts,fixtures,defensiveStandoffs:runDefensiveStandoffDiagnostics({seed:seed+7700})};
+ return {config:{matches,seed},battles:battles.length,timeouts:timeouts.length,causes,navigationFlags,timeoutDetails:timeouts,fixtures,defensiveStandoffs:runDefensiveStandoffDiagnostics({seed:seed+7700}),cooperativeSupport:runCooperativeSupportDiagnostics()};
 }
 if(process.argv[1]&&import.meta.url===new URL('file://'+process.argv[1]).href){
  const report=runNavigationDiagnostics({matches:Number(process.argv[2]||8),seed:Number(process.argv[3]||1)});
@@ -130,9 +150,10 @@ if(process.argv[1]&&import.meta.url===new URL('file://'+process.argv[1]).href){
   for(const b of report.timeoutDetails)console.log(b.scenario+': '+b.summary.cause+'; blocked '+b.summary.blockedRatio+', idle '+b.summary.idleRatio+', replans '+b.summary.replans+', collision loss '+b.summary.collisions);
   for(const b of report.fixtures)console.log(b.scenario+': '+(b.everClear?'route regained':'NO CLEAR ROUTE')+'; stuck '+b.summary.stuck+', replans '+b.summary.replans);
   for(const b of report.defensiveStandoffs)console.log('DEFENSIVE '+b.arena+': '+b.releases+' attacks, '+b.damage+' damage, first attack '+b.firstAttack+'s, longest mutual inactivity '+b.maxMutualPassiveSeconds+'s');
+  console.log('COOPERATIVE: '+report.cooperativeSupport.supportUnitFrames+' supporting frames, '+report.cooperativeSupport.screenUnitFrames+' screening frames, '+report.cooperativeSupport.attackReleases+' attack releases');
   console.log('Use --json for detailed per-unit traces.');
  }
- if(report.navigationFlags.length||report.fixtures.some(f=>!f.everClear)||report.defensiveStandoffs.some(f=>f.prolongedMutualPassivity||f.firstAttack===null)){
+ if(report.navigationFlags.length||report.fixtures.some(f=>!f.everClear)||report.defensiveStandoffs.some(f=>f.prolongedMutualPassivity||f.firstAttack===null)||!report.cooperativeSupport.passed){
   console.error('Navigation regression: prolonged immobilization, reciprocal inactivity or failed fixed-terrain approach');
   process.exitCode=1;
  }
