@@ -1191,3 +1191,36 @@ test('2.12.1 previously holding no longer claims an advancing intention',()=>{
  tick(b,STEP);
  assert.deepEqual(u.intent,{x:0,y:0});
 });
+
+test('2.12.2 symmetric defensive teams initiate engagement without mutual waiting',()=>{
+ for(const arena of ARENAS){
+  const sides=[0,1].map(i=>({name:'Defensive '+i,hp:100,streak:0,
+   squad:[makeChassis('bruiser'),makeChassis('ranged')]}));
+  for(const p of sides)for(const unit of p.squad){
+   unit.weights.safety=2.4;unit.weights.distance=.2;
+   unit.weights.damage=.8;unit.weights.protection=1.5;
+  }
+  const battle=spawn(sides,arena,7701);
+  for(const u of battle.units){u.x=u.owner?525:195;u.y=210+(u.id%100)*55;u.cd=0}
+  battle.diagnostics={units:{}};
+  for(let i=0;i<180;i++)tick(battle,STEP);
+  const totalAttacks=battle.units.reduce((n,u)=>n+u.combatStats.attacks,0);
+  const totalDamage=battle.units.reduce((n,u)=>n+u.combatStats.damage,0);
+  const telemetry=battle.diagnostics.tactical;
+  assert.ok(totalAttacks>0,arena.name+' must initiate attacks');
+  assert.ok(totalDamage>0,arena.name+' must deliver damage');
+  assert.ok(telemetry.maxMutualPassiveFrames<90,arena.name+' must avoid three-second reciprocal inactivity');
+  assert.ok(telemetry.holdingUnitFrames>0,arena.name+' still allows useful tactical holding');
+  assert.ok(telemetry.productiveCombatFrames>0);
+ }
+});
+test('2.12.2 tactical telemetry distinguishes holding with attack access from waiting for approach',()=>{
+ const p=players(),battle=spawn(p,ARENAS[0],7702),u=battle.units[0],enemy=battle.units[1];
+ battle.units=[u,enemy];u.x=200;u.y=200;enemy.x=240;enemy.y=200;
+ battle.diagnostics={units:{}};enemy.cd=1000;
+ for(let i=0;i<8;i++)tick(battle,STEP);
+ assert.ok(battle.diagnostics.tactical.holdingUnitFrames>0);
+ assert.ok(battle.diagnostics.tactical.holdWithAttackAccess>0);
+ assert.ok(battle.diagnostics.units[u.id].holdWithAttackAccess>0);
+ assert.equal(battle.diagnostics.tactical.mutualPassiveFrames,0);
+});
