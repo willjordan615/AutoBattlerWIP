@@ -244,11 +244,8 @@ export function advanceProjectiles(state,dt,attacks=[]){
    shot.hitIds.add(victim.id);
    if(!shot.volley.hitIds.has(victim.id)){
     shot.volley.hitIds.add(victim.id);
-    if(shot.source.combatStats){
-     shot.source.combatStats.hits++;
-     if(victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
-    }
-    attacks.push({source:shot.source,target:victim,
+    if(shot.source.combatStats&&victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
+    attacks.push({source:shot.source,target:victim,projectile:true,
      rawDamage:shot.damage,damage:Math.max(1,shot.damage-stats(victim).defense),
      knockback:shot.knockback,taunt:shot.taunt});
    }
@@ -652,9 +649,13 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   // Estimate the defense prevented by a timed Bulwark rather than counting
   // hypothetical dodged damage as prevention.
   if(a.target.bulwarkUntil>state.time&&a.target.combatStats){
-   const prevented=Math.max(0,Math.min(5,(a.rawDamage??a.damage)-a.damage));
+   const base=CHASSIS[a.target.type].defense+(a.target.chassis.passives.includes('bulwark')?0:0);
+   const legacy=a.target.chassis.mods||{};
+   const raw=a.rawDamage??a.damage;
+   const prevented=Math.max(0,Math.max(1,raw-base)-a.damage);
    a.target.combatStats.prevented+=prevented;
   }
+  if(a.projectile&&a.source.combatStats)a.source.combatStats.hits++;
   const prior=totals.get(a.target)||0;
   const dealt=Math.max(0,Math.min(a.damage,a.target.hp-prior));
   if(dealt>0){
