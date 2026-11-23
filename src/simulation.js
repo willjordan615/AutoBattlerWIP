@@ -524,7 +524,12 @@ export function holdingOpportunity(state,u,target,st,enemies){
  const stableBonus=(u.holdingPosition? .12:0);
  // Standing in the wrong range isn't a good defensive position.
  const tooNear=striking&&d<Math.min(desired*.55,CHASSIS[u.type].radius+targetRadius+5);
- return Math.max(0,inRangeBonus+incomingBonus+stableBonus-exposedPenalty-(tooNear?.17:0));
+ // Holding must not override deliberately extreme targeting weights: a
+ // distance-focused fighter can press forward, a safety-focused one retreat.
+ const w=u.chassis.weights;
+ const preferenceScale=1+Math.max(0,(w.distance||0)-1)*.75+
+  Math.max(0,(w.safety||0)-1)*.75;
+ return Math.max(0,inRangeBonus+incomingBonus+stableBonus-exposedPenalty-(tooNear?.17:0))/preferenceScale;
 }
 export function chooseMovement(state,u,target,st,enemies,dt){
  const arena=state.arena,step=st.speed*dt,r=CHASSIS[u.type].radius+3;
