@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=attack-reclass-211';
-import {legal,canEquip,TARGET_MODULES} from './headless.js?v=attack-reclass-211';
+import {CHASSIS} from './simulation.js?v=followthrough-budget-2111';
+import {legal,canEquip,TARGET_MODULES} from './headless.js?v=followthrough-budget-2111';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];
