@@ -776,19 +776,25 @@ export function disengageDirection(state,u,enemies){
 // release. Phasing bypasses only that target's body blocking, never terrain.
 export function applyFollowthrough(state,hit){
  const u=hit.source,target=hit.target;
- if(!u?.chassis?.mods?.followthrough||!target||u.hp<=0||u.type==='ranged')return false;
+ if(!u?.chassis?.mods?.followthrough||!target||u.hp<=0)return false;
  if(u.followthroughAt>state.time+1e-8)return false;
  const already=hit.attackId!=null&&u.lastFollowthroughAttackId===hit.attackId;
  if(already)return false;
  const d=distance(u,target);
  if(d<.001)return false;
  const dx=(target.x-u.x)/d,dy=(target.y-u.y)/d;
- const clearance=CHASSIS[u.type].radius+CHASSIS[target.type].radius+8+
-  Math.min(3,Math.max(0,u.chassis.mods.followthrough-1))*8;
- const end={x:target.x+dx*clearance,y:target.y+dy*clearance};
+ const stacks=Math.min(3,Math.max(0,u.chassis.mods.followthrough-1));
+ // Melee vaults past the victim. Ranged attacks deliberately approach but
+ // never teleport through a distant target: one modest lunge per landed hit.
+ const melee=u.type!=='ranged';
+ const clearance=CHASSIS[u.type].radius+CHASSIS[target.type].radius+8+stacks*8;
+ const travel=Math.min(18+stacks*8,Math.max(0,d-CHASSIS[u.type].radius-CHASSIS[target.type].radius-5));
+ const end=melee?{x:target.x+dx*clearance,y:target.y+dy*clearance}:
+  {x:u.x+dx*travel,y:u.y+dy*travel};
+ if(!melee&&travel<.5)return false;
  const r=CHASSIS[u.type].radius+3;
  if(end.x<20+r||end.x>700-r||end.y<20+r||end.y>500-r)return false;
- if(!clearLine(u,end,state.arena,0)||state.arena.obstacles.some(o=>rectHit(end.x,end.y,r,o)))return false;
+ if(!clearLine(u,end,state.arena,melee?0:r)||state.arena.obstacles.some(o=>rectHit(end.x,end.y,r,o)))return false;
  // Do not pass through unrelated fighters or land inside one.
  for(const other of state.units){
   if(other===u||other===target||other.hp<=0)continue;
@@ -797,7 +803,7 @@ export function applyFollowthrough(state,hit){
  }
  const old={x:u.x,y:u.y};
  u.x=end.x;u.y=end.y;
- u.phasingUntil=state.time+.16;u.phaseTarget=target.id;
+ if(melee){u.phasingUntil=state.time+.16;u.phaseTarget=target.id;}
  u.followthroughAt=state.time+.75;
  u.lastFollowthroughAttackId=hit.attackId;
  u.combatStats&&(u.combatStats.followthrough=(u.combatStats.followthrough||0)+1);
@@ -999,7 +1005,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  }
  // Impact displacement occurs only after evasion filtering and direct-hit resolution.
  // One melee release can hit many enemies but can trigger Follow Through once.
- for(const hit of resolved)if(!hit.projectile&&!hit.secondary&&!hit.indirect&&hit.damage>0)
+ for(const hit of resolved)if(!hit.secondary&&!hit.indirect&&hit.damage>0)
   applyFollowthrough(state,hit);
  for(const [target,damage] of totals){
   const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);
