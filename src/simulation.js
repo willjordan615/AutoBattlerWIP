@@ -565,7 +565,7 @@ function reactToThreat(state,u,target,st,context){
 }
 // Utility upgrades add a second use window, not a stronger teleport.
 export function utilityCooldown(base,copies){return base/Math.min(2,Math.max(1,copies||1))}
-function utilityMove(state,u,target,st,dt,enemies){
+function utilityMove(state,u,target,st,dt,enemies,context){
  const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time,burst=st.speed*.4;
  // A second copy provides twice the use frequency without longer teleports.
  const ready=key=>(cds[key]||0)<=now;
@@ -593,20 +593,20 @@ function utilityMove(state,u,target,st,dt,enemies){
  })).filter(pair=>pair.explicit||pair.proximity<65))
  .sort((a,b)=>Number(b.explicit)-Number(a.explicit)||a.proximity-b.proximity||distance(u,a.enemy)-distance(u,b.enemy)||a.enemy.id-b.enemy.id);
  const intercept=attackers.find(pair=>distance(u,pair.enemy)>st.range*.6&&distance(u,pair.enemy)<260);
- if(intercept)offer('intercept',intercept.enemy,burst*(.8+.2*strength('intercept')),5);
+ if(intercept&&context.endangeredAllies.length)offer('intercept',intercept.enemy,burst*(.8+.2*strength('intercept')),5,{urgent:true});
  // Dodge is an emergency reaction, handled before routine utility movement.
- if(enemies.filter(e=>distance(u,e)<75).length>=2)offer('disengage',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*strength('disengage')),6);
- if(d<Math.max(85,st.range*.8))offer('backstep',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*strength('backstep')),4.5);
+ if(context.close.length>=2)offer('disengage',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*strength('disengage')),6);
+ if((context.close.length>0||context.melee.length>0)&&d<Math.max(85,st.range*.8))offer('backstep',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*strength('backstep')),4.5);
  if(d<st.range+25&&d>10)offer('followthrough',{x:target.x+dx*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22),y:target.y+dy*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22)},burst*(.8+.3*strength('followthrough')),6,{phase:true});
- if(d>st.range+35&&d<st.range+190)offer('dash',{x:target.x-dx*Math.max(10,st.range*.7),y:target.y-dy*Math.max(10,st.range*.7)},burst*(1+.35*strength('dash')),5);
- if(d>st.range*.7&&d<st.range+100)for(const side of [-1,1])offer('flank',{x:target.x-dx*st.range-side*dy*(35+strength('flank')*12),y:target.y-dy*st.range+side*dx*(35+strength('flank')*12)},burst*(.65+.2*strength('flank')),4);
+ if(context.engaging&&d<st.range+190)offer('dash',{x:target.x-dx*Math.max(10,st.range*.7),y:target.y-dy*Math.max(10,st.range*.7)},burst*(1+.35*strength('dash')),5);
+ if(d>st.range*.7&&d<st.range+100&&clearLine(u,target,state.arena))for(const side of [-1,1])offer('flank',{x:target.x-dx*st.range-side*dy*(35+strength('flank')*12),y:target.y-dy*st.range+side*dx*(35+strength('flank')*12)},burst*(.65+.2*strength('flank')),4);
  // Abilities are optional tools. Their projected position must beat staying
  // and ordinary walking; high Safety/Protection/etc. determines their use.
  const normal=u.moveDecision||{x:0,y:0};
  const walk={x:u.x+normal.x*st.speed*dt,y:u.y+normal.y*st.speed*dt};
  const threshold=Math.max(base,positionScore(state,u,target,walk,st,enemies))+.015;
  const best=proposals.sort((a,b)=>b.score-a.score)[0];
- if(!best||best.score<=threshold)return false;
+ if(!best||(!best.options.urgent&&best.score<=threshold))return false;
  const ox=u.x,oy=u.y;u.x=best.p.x;u.y=best.p.y;bound(u,state.arena);
  cds[best.key]=now+utilityCooldown(best.cooldown,st[best.key]);
  if(best.options.evade)u.evadingUntil=now+best.options.evade;
@@ -625,7 +625,7 @@ export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.t
   const norm=Math.hypot(prior.x,prior.y);
   unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
  }
-const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);reactToThreat(state,u,t,st,awareness);const activeStats=stats(u);utilityMove(state,u,t,activeStats,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=chooseMovement(state,u,t,activeStats,enemies,dt);
+const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);reactToThreat(state,u,t,st,awareness);const activeStats=stats(u);utilityMove(state,u,t,activeStats,dt,enemies,awareness);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=chooseMovement(state,u,t,activeStats,enemies,dt);
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
  record.frames++;if(!direction.x&&!direction.y)record.idle++;if(u.navigationBlocked)record.blocked++;
