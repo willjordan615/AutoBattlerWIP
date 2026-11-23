@@ -131,7 +131,7 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,mobilityCd:{},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,mobilityCd:{},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),projectiles:[],nextProjectileId:1,random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
 function targetsForAttack(state,u,target,st){
@@ -157,6 +157,102 @@ function targetsForAttack(state,u,target,st){
  return {hits,lanes};
 }
 
+// World-space projectile simulation. Every projectile is resolved in the
+// deterministic combat tick; rendering reads state.projectiles without inferring hits.
+export const PROJECTILE_SPEED=320;
+export const PROJECTILE_RADIUS=3;
+function segmentCircleHit(a,b,center,radius){
+ const dx=b.x-a.x,dy=b.y-a.y,fx=a.x-center.x,fy=a.y-center.y;
+ const aa=dx*dx+dy*dy,cc=fx*fx+fy*fy-radius*radius;
+ if(cc<=0)return 0;
+ if(aa<1e-12)return null;
+ const bb=2*(fx*dx+fy*dy),disc=bb*bb-4*aa*cc;
+ if(disc<0)return null;
+ const t=(-bb-Math.sqrt(disc))/(2*aa);
+ return t>=0&&t<=1?t:null;
+}
+function segmentBoxHit(a,b,o,pad=0){
+ const dx=b.x-a.x,dy=b.y-a.y;
+ let near=0,far=1;
+ for(const [start,velocity,lo,hi] of [
+  [a.x,dx,o.x-pad,o.x+o.w+pad],[a.y,dy,o.y-pad,o.y+o.h+pad]
+ ]){
+  if(Math.abs(velocity)<1e-9){if(start<lo||start>hi)return null;continue}
+  const t1=(lo-start)/velocity,t2=(hi-start)/velocity;
+  near=Math.max(near,Math.min(t1,t2));far=Math.min(far,Math.max(t1,t2));
+  if(near>far)return null;
+ }
+ return near>=0&&near<=1?near:null;
+}
+function spawnProjectileVolley(state,u,t,st){
+ const count=Math.min(st.projectiles,9),spacing=.22;
+ const angle=Math.atan2(t.y-u.y,t.x-u.x);
+ const volley={hitIds:new Set()};
+ state.projectiles ||= [];
+ for(let i=0;i<count;i++){
+  const offset=i===0?0:(i%2?1:-1)*Math.ceil(i/2)*spacing;
+  const heading=angle+offset;
+  state.projectiles.push({
+   id:state.nextProjectileId++,owner:u.owner,source:u,
+   x:u.x,y:u.y,vx:Math.cos(heading),vy:Math.sin(heading),
+   speed:PROJECTILE_SPEED,remaining:st.range,damage:st.damage,
+   knockback:st.knockback,taunt:st.taunt,penetration:Math.max(0,st.piercing),
+   hitIds:new Set(),volley
+  });
+ }
+}
+// Advance across the entire swept segment. Walls/arena bounds and hostile units
+// compete by earliest time of impact; each target can be hit once per volley.
+export function advanceProjectiles(state,dt,attacks=[]){
+ if(!state.projectiles?.length||dt<=0)return attacks;
+ const remaining=[];
+ for(const shot of state.projectiles){
+  let travel=Math.min(shot.speed*dt,shot.remaining);
+  let active=true,iterations=0;
+  while(active&&travel>1e-7&&iterations++<state.units.length+state.arena.obstacles.length+3){
+   const from={x:shot.x,y:shot.y};
+   const to={x:from.x+shot.vx*travel,y:from.y+shot.vy*travel};
+   let collision=null;
+   const consider=(time,kind,unit=null)=>{
+    if(time===null||time<0||time>1)return;
+    if(!collision||time<collision.time-1e-8||
+      (Math.abs(time-collision.time)<=1e-8&&kind==='wall')){
+     collision={time,kind,unit};
+    }
+   };
+   for(const o of state.arena.obstacles)consider(segmentBoxHit(from,to,o,PROJECTILE_RADIUS),'wall');
+   // The enclosed arena's playable boundary also absorbs outgoing shots.
+   const limits=[{x:20,y:0,w:0,h:520},{x:700,y:0,w:0,h:520},
+                 {x:0,y:20,w:720,h:0},{x:0,y:500,w:720,h:0}];
+   for(const o of limits)consider(segmentBoxHit(from,to,o,0),'wall');
+   for(const enemy of state.units){
+    if(enemy.hp<=0||enemy.owner===shot.owner||shot.hitIds.has(enemy.id))continue;
+    consider(segmentCircleHit(from,to,enemy,CHASSIS[enemy.type].radius+PROJECTILE_RADIUS),'unit',enemy);
+   }
+   const fraction=collision?collision.time:1;
+   const moved=travel*fraction;
+   shot.x=from.x+shot.vx*moved;shot.y=from.y+shot.vy*moved;
+   shot.remaining-=moved;travel-=moved;
+   if(!collision){active=shot.remaining>1e-7;break}
+   if(collision.kind==='wall'){active=false;break}
+   const victim=collision.unit;
+   shot.hitIds.add(victim.id);
+   if(!shot.volley.hitIds.has(victim.id)){
+    shot.volley.hitIds.add(victim.id);
+    attacks.push({source:shot.source,target:victim,
+     damage:Math.max(1,shot.damage-stats(victim).defense),
+     knockback:shot.knockback,taunt:shot.taunt});
+   }
+   state.visualEvents.push({kind:'impact',x:shot.x,y:shot.y,owner:shot.owner});
+   if(shot.penetration<=0){active=false;break}
+   shot.penetration--;
+   // Continue the residual segment, with the same collider excluded.
+  }
+  if(active&&shot.remaining>1e-7)remaining.push(shot);
+ }
+ state.projectiles=remaining;
+ return attacks;
+}
 // Utility movement is deterministic, shares the existing targeting weights, and
 // consumes its own cooldown. Terrain still blocks every movement technique.
 // Shared movement policy: the same ten editable weights score every position.
@@ -453,10 +549,11 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  record.before={x:u.x,y:u.y,step:st.speed*dt,seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
  }
  if(direction.x||direction.y){const step=st.speed*dt;u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
- if(inRange&&u.cd<=0){if(state.diagnostics)state.diagnostics.units[u.id].shots++;const volley=targetsForAttack(state,u,t,st);if(st.delivery==='projectile')for(const angle of volley.lanes)state.visualEvents.push({kind:'projectile',x:u.x,y:u.y,toX:u.x+Math.cos(angle)*st.range,toY:u.y+Math.sin(angle)*st.range,owner:u.owner});for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}u.cd+=st.rate}}
+ if(inRange&&u.cd<=0){if(state.diagnostics)state.diagnostics.units[u.id].shots++;if(st.delivery==='projectile')spawnProjectileVolley(state,u,t,st);else {const volley=targetsForAttack(state,u,t,st);for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}}u.cd+=st.rate}}
  resolveCollision(state);
  if(state.diagnostics){for(const u of state.units){const record=state.diagnostics.units[u.id];if(!record?.before)continue;const before=record.before,actual=distance(before,u);record.actual+=actual;record.intended+=before.step*(record.lastDirection.x||record.lastDirection.y?1:0);if(before.step>0&&actual<before.step*.2&&(record.lastDirection.x||record.lastDirection.y))record.collisionLoss++;if(before.seeking&&before.step>0&&(record.lastDirection.x||record.lastDirection.y)&&actual<before.step*.2)record.pursuitStallFrames=(record.pursuitStallFrames||0)+1;else record.pursuitStallFrames=0;record.maxPursuitStallFrames=Math.max(record.maxPursuitStallFrames||0,record.pursuitStallFrames);if(before.waypointDistance!==null&&u.navigation?.path?.[0])record.routeProgress+=before.waypointDistance-distance(u,u.navigation.path[0]);delete record.before;
  if(state.tick%30===0&&record.samples.length<35)record.samples.push({t:Math.round(state.time),x:Math.round(u.x),y:Math.round(u.y),idle:record.idle,blocked:record.blocked,stuck:record.stuck});}}
+ advanceProjectiles(state,dt,attacks);
  const totals=new Map();for(const a of attacks)if(!(a.target.evadingUntil>state.time)){const dealt=Math.min(a.damage,Math.max(0,a.target.hp));state.damageDealt[a.source.owner]+=dealt;if(state.diagnostics&&state.diagnostics.units[a.source.id])state.diagnostics.units[a.source.id].damage+=dealt;totals.set(a.target,(totals.get(a.target)||0)+a.damage)}for(const [target,damage] of totals){const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner})}// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
  // Multiple simultaneous taunts resolve deterministically in attack processing order.
  for(const a of attacks){if(a.taunt>0&&a.source.hp>0&&a.target.hp>0){a.target.tauntedBy=a.source.id;a.target.tauntedUntil=state.time+.25*a.taunt}}
