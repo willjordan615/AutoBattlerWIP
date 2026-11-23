@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
 test('chassis mutations are independent',()=>{const a=makeChassis('bruiser'),b=makeChassis('bruiser');a.mods.hp=2;assert.equal(stats({type:'bruiser',chassis:a}).hp,195);assert.equal(stats({type:'bruiser',chassis:b}).hp,155)});
@@ -9,7 +9,7 @@ test('obstacles block line of sight',()=>{const arena=ARENAS[1];assert.equal(cle
 test('obstacle collisions keep fighters outside',()=>{const u={type:'bruiser',x:300,y:200};bound(u,ARENAS[1]);assert.ok(u.x<=260||u.x>=336||u.y<=154||u.y>=275)});
 test('unit collision resolves overlap',()=>{const s=spawn(players());s.units[1].x=s.units[0].x;s.units[1].y=s.units[0].y;resolveCollision(s);assert.ok(Math.hypot(s.units[1].x-s.units[0].x,s.units[1].y-s.units[0].y)>20)});
 test('all ten utility metrics exist',()=>{const c=makeChassis('rogue');assert.equal(Object.keys(c.weights).length,10);c.weights.kill+=1;assert.equal(c.weights.kill,2.4)});
-test('simultaneous elimination records same tick',()=>{const s=spawn(players());s.units=s.units.slice(0,2);s.units[0].owner=0;s.units[1].owner=1;s.units[0].x=100;s.units[1].x=120;s.units[0].y=s.units[1].y=100;s.units[0].hp=s.units[1].hp=1;s.units[0].cd=s.units[1].cd=0;tick(s,STEP);assert.equal(s.units[0].hp,0);assert.equal(s.units[1].hp,0);assert.equal(s.eliminations.length,2);assert.equal(s.eliminations[0].tick,s.eliminations[1].tick)});
+test('simultaneous elimination records same tick',()=>{const s=spawn(players());s.units=s.units.slice(0,2);s.units[0].owner=0;s.units[1].owner=1;s.units[0].x=100;s.units[1].x=120;s.units[0].y=s.units[1].y=100;s.units[0].hp=s.units[1].hp=1;s.units[0].cd=s.units[1].cd=0;for(let i=0;i<12;i++)tick(s,STEP);assert.equal(s.units[0].hp,0);assert.equal(s.units[1].hp,0);assert.equal(s.eliminations.length,2);assert.equal(s.eliminations[0].tick,s.eliminations[1].tick)});
 test('30 second timeout',()=>{const s=spawn(players());s.units.forEach((u,i)=>{u.x=50+i*200;u.y=50;u.cd=1000});let result=null;for(let i=0;i<901&&result===null;i++)result=tick(s,STEP);assert.ok(s.time>=30&&s.time<30.1)});
 test('survivors rank above eliminated',()=>{const s=spawn(players());s.units[1].hp=0;s.eliminations=[{owner:1,tick:5}];const groups=placementGroups(s);assert.equal(groups.at(-1)[0],1)});
 test('team HP percent uses max HP of defeated units',()=>{const p=players();p[0].squad.push(makeChassis('bruiser'));const s=spawn(p);s.units[0].hp=0;assert.equal(teamPercent(s,0),.5)});
@@ -33,7 +33,9 @@ test('ranged damage and floating numbers occur at physical impact, not firing',(
  attacker.x=200;attacker.y=200;victim.x=300;victim.y=200;
  attacker.cd=0;victim.cd=1000;
  const before=victim.hp;tick(state,STEP);
- assert.ok(state.projectiles.length>0,'a projectile should exist in simulation');
+ assert.equal(state.projectiles.length,0,'windup must not launch a projectile');
+ for(let i=0;i<8;i++)tick(state,STEP);
+ assert.ok(state.projectiles.length>0,'a projectile should exist following release');
  assert.equal(victim.hp,before,'launching cannot immediately apply damage');
  assert.ok(!state.visualEvents.some(e=>e.kind==='damage'));
  let impacted=false;
@@ -60,7 +62,7 @@ test('taunt forces the struck enemy to target its attacker and expires',()=>{
  alternative.x=229;alternative.y=200;
  // Force a hit on the victim; the alternative is on the attacker's team.
  alternative.owner=taunter.owner;alternative.cd=99;victim.cd=99;taunter.cd=0;
- tick(state,STEP);
+ for(let i=0;i<12;i++)tick(state,STEP);
  assert.equal(victim.tauntedBy,taunter.id);
  assert.ok(victim.tauntedUntil-state.time>.49);
  assert.equal(chooseTarget(state,victim,[taunter,alternative]),taunter);
@@ -81,6 +83,8 @@ test('multishot creates independent shots and damages an enemy at most once per 
  s.units=s.units.slice(0,2);a.chassis.mods.projectiles=4;
  a.x=200;a.y=200;v.x=260;v.y=200;a.cd=0;v.cd=99;
  const before=v.hp;tick(s,STEP);
+ assert.equal(s.projectiles.length,0,'no volley during windup');
+ for(let i=0;i<8;i++)tick(s,STEP);
  assert.equal(s.projectiles.length,5);
  assert.equal(before-v.hp,0,'volley needs flight time');
  for(let i=0;i<20;i++)tick(s,STEP);
@@ -479,7 +483,7 @@ test('bulwark prepares before a dangerous attack rather than providing permanent
  defender.x=180;defender.y=210;attacker.x=215;attacker.y=210;
  attacker.cd=0;defender.cd=1000;
  assert.equal(stats(defender).defense,4);
- tick(b,STEP);
+ for(let i=0;i<6;i++)tick(b,STEP);
  assert.equal(defender.combatStats.bulwark,1);
  assert.ok(defender.bulwarkUntil>b.time);
  assert.equal(stats(defender).defense,9);
@@ -540,4 +544,67 @@ test('Haste does not repeatedly activate while already active',()=>{
  assert.equal(a.combatStats.haste,1);
  for(let i=0;i<30;i++)tick(b,STEP);
  assert.equal(a.combatStats.haste,1);
+});
+
+test('melee sweep hits a front target and cannot hit a rear target',()=>{
+ const p=players();const b=spawn(p,ARENAS[0],889),u=b.units[0],front=b.units[1],behind=b.units[2];
+ b.units=[u,front,behind];u.x=200;u.y=220;front.x=247;front.y=220;behind.x=160;behind.y=220;
+ const hits=meleeAttackTargets(b,u,0,stats(u));
+ assert.deepEqual(hits.map(e=>e.id),[front.id]);
+});
+test('rogue narrow thrust reaches beyond contact but rejects flank',()=>{
+ const p=players();p[0].squad[0]=makeChassis('rogue');
+ const b=spawn(p,ARENAS[0],890),u=b.units[0],front=b.units[1],off=b.units[2];
+ b.units=[u,front,off];u.x=200;u.y=220;front.x=254;front.y=220;off.x=246;off.y=271;
+ const hits=meleeAttackTargets(b,u,0,stats(u));
+ assert.deepEqual(hits.map(e=>e.id),[front.id]);
+});
+test('melee direction locks during windup and target leaving arc avoids hit',()=>{
+ const b=spawn(players(),ARENAS[0],891),a=b.units[0],victim=b.units[1];
+ b.units=[a,victim];a.x=200;a.y=220;victim.x=247;victim.y=220;a.cd=0;victim.cd=999;
+ assert.ok(startAttack(b,a,victim));
+ const attacks=[];for(let i=0;i<5;i++){b.time+=STEP;advanceAttack(b,a,victim,stats(a),STEP,attacks)}
+ assert.ok(a.attack.locked);
+ const locked=a.attack.direction;
+ victim.x=200;victim.y=268;
+ for(let i=0;i<6;i++){b.time+=STEP;advanceAttack(b,a,victim,stats(a),STEP,attacks)}
+ assert.equal(a.attack.direction,locked);
+ assert.equal(attacks.length,0);
+});
+test('another opponent entering a committed swing is struck at release',()=>{
+ const b=spawn(players(),ARENAS[0],892),a=b.units[0],victim=b.units[1],interloper=b.units[2];
+ b.units=[a,victim,interloper];a.x=200;a.y=220;victim.x=247;victim.y=220;
+ interloper.x=200;interloper.y=300;a.cd=0;victim.cd=interloper.cd=999;
+ startAttack(b,a,victim);
+ const attacks=[];for(let i=0;i<5;i++)advanceAttack(b,a,victim,stats(a),STEP,attacks);
+ victim.x=200;victim.y=300;interloper.x=248;interloper.y=222;
+ for(let i=0;i<5;i++)advanceAttack(b,a,victim,stats(a),STEP,attacks);
+ assert.ok(attacks.some(hit=>hit.target===interloper));
+ assert.ok(!attacks.some(hit=>hit.target===victim));
+});
+test('attack windup and recovery create chassis-specific movement penalties',()=>{
+ for(const type of Object.keys(CHASSIS)){
+  const p=players();p[0].squad[0]=makeChassis(type);
+  const b=spawn(p),a=b.units[0],enemy=b.units[1];
+  a.cd=0;startAttack(b,a,enemy);
+  const wind=attackMovementMultiplier(a);
+  assert.ok(wind<1&&wind>0);
+  const attacks=[];for(let i=0;i<Math.ceil(ATTACK_TIMING[type].windup/STEP)+1;i++)
+   advanceAttack(b,a,enemy,stats(a),STEP,attacks);
+  assert.equal(a.attack.phase,'recovery');
+  const recovery=attackMovementMultiplier(a);
+  assert.ok(recovery>wind&&recovery<1);
+  for(let i=0;i<Math.ceil(ATTACK_TIMING[type].recovery/STEP)+1;i++)
+   advanceAttack(b,a,enemy,stats(a),STEP,attacks);
+  assert.equal(a.attack,null);
+  assert.equal(attackMovementMultiplier(a),1);
+ }
+});
+test('committed attack emits a renderer-independent visual event',()=>{
+ const b=spawn(players(),ARENAS[0],893),a=b.units[0],target=b.units[1];
+ a.cd=0;startAttack(b,a,target);
+ const hits=[];
+ for(let i=0;i<Math.ceil(ATTACK_TIMING.bruiser.windup*.5/STEP)+1;i++)
+  advanceAttack(b,a,target,stats(a),STEP,hits);
+ assert.ok(b.visualEvents.some(e=>e.kind==='attackCommit'&&e.type==='bruiser'&&Number.isFinite(e.angle)));
 });
