@@ -15,6 +15,40 @@ export const ARENAS=[
  {name:'Twin Pillars',obstacles:[{x:278,y:172,w:40,h:85},{x:402,y:263,w:40,h:85}]},
  {name:'Central Barrier',obstacles:[{x:335,y:155,w:50,h:115},{x:335,y:310,w:50,h:55}]}
 ];
+// Attack modules are composed by stage, not treated as interchangeable procs.
+// Geometric/conditional effects work per hit; persistent aftermath has an
+// independent activation window per chassis, shared by every hit of one release.
+export const ATTACK_STAGES={
+ projectiles:{stage:'shape',label:'Spread lanes'},
+ piercing:{stage:'shape',label:'Extra targets'},
+ area:{stage:'shape',label:'Hit footprint'},
+ range:{stage:'shape',label:'Reach'},
+ chain:{stage:'shape',label:'Secondary target / damage redistribution'},
+ knockback:{stage:'impact',label:'Displacement'},
+ taunt:{stage:'impact',label:'Target override'},
+ sunder:{stage:'impact',label:'Defense reduction'},
+ expose:{stage:'impact',label:'Ally-consumable mark'},
+ disruption:{stage:'impact',label:'Movement slow'},
+ precision:{stage:'condition',label:'Healthy-target damage'},
+ momentum:{stage:'condition',label:'Recent movement damage'},
+ burning:{stage:'aftermath',label:'Damage over time',cooldown:1},
+ hazardous:{stage:'aftermath',label:'Persistent ground',cooldown:1},
+ restless:{stage:'targeting',label:'Recent-hit target avoidance'}
+};
+// Returns true for all targets struck by the SAME committed attack; other
+// attacks respect the independent cooldown. Projectile volleys can arrive
+// across multiple simulation ticks without multiplying the proc rate.
+export function claimAttackEffect(source,key,attackId,now){
+ const cooldown=ATTACK_STAGES[key]?.cooldown||0;
+ if(!cooldown)return true;
+ const active=source.effectActivations||(source.effectActivations={});
+ const previous=active[key];
+ if(previous&&attackId!=null&&previous.attackId===attackId)return true;
+ if(previous&&now+1e-8<previous.until)return false;
+ active[key]={attackId,until:now+cooldown};
+ return true;
+}
+
 export const WIDTH=720,HEIGHT=520,STEP=1/30,DURATION=30;
 export const ATTACK_TIMING={bruiser:{windup:.30,recovery:.22,lock:.5,windupMove:.18,recoveryMove:.55,arc:95},rogue:{windup:.18,recovery:.12,lock:.5,windupMove:.3,recoveryMove:.75,arc:35},ranged:{windup:.24,recovery:.18,lock:.5,windupMove:.22,recoveryMove:.55,arc:0}};
 export function rng(seed=12345){let s=seed>>>0;return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
@@ -135,7 +169,7 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,squadSize:p.squad.length,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,motion:[],effects:{},lastAttacked:null,lastAttackAt:-100,retaliationReady:0,focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,moduleDamage:{},moduleHits:{},attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),zones:[],projectiles:[],nextProjectileId:1,random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,squadSize:p.squad.length,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,motion:[],effects:{},lastAttacked:null,lastAttackAt:-100,retaliationReady:0,effectActivations:{},focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,moduleDamage:{},moduleHits:{},attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),zones:[],projectiles:[],nextProjectileId:1,nextAttackId:1,random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
 // Melee shape is locked during windup, then evaluated at the actual release.
@@ -184,9 +218,10 @@ export function advanceAttack(state,u,target,st,dt,attacks){
   attack.phase='recovery';attack.elapsed=0;
   u.combatStats&&(u.combatStats.attacks++);
   // Only enemies inside the locked attack shape at release can be hit.
+  const attackId=state.nextAttackId++;
   if(st.delivery==='projectile'){
    const dx=Math.cos(attack.direction),dy=Math.sin(attack.direction);
-   spawnProjectileVolley(state,u,{id:attack.targetId,x:u.x+dx*st.range,y:u.y+dy*st.range},st,attack.direction);
+   spawnProjectileVolley(state,u,{id:attack.targetId,x:u.x+dx*st.range,y:u.y+dy*st.range},st,attack.direction,attackId);
   }else{
    const victims=meleeAttackTargets(state,u,attack.direction,st);
    for(let i=0;i<victims.length;i++){
@@ -202,7 +237,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
     if(st.projectiles>1&&diff>baseArc&&st.area===0)deliveredBy.push('projectiles');
     if(st.area>0&&(diff>baseArc||dist>st.range+radius))deliveredBy.push('area');
     if(st.range>CHASSIS[u.type].range&&dist>CHASSIS[u.type].range+st.area*9+radius)deliveredBy.push('range');
-    attacks.push({source:u,target:victim,rawDamage:st.damage,
+    attacks.push({source:u,target:victim,attackId,rawDamage:st.damage,
      damage:Math.max(1,st.damage-stats(victim).defense),
      knockback:st.knockback,taunt:st.taunt,deliveredBy});
    }
@@ -245,10 +280,10 @@ function segmentBoxHit(a,b,o,pad=0){
  }
  return near>=0&&near<=1?near:null;
 }
-function spawnProjectileVolley(state,u,t,st,aimAngle=null){
+function spawnProjectileVolley(state,u,t,st,aimAngle=null,attackId=null){
  const count=Math.min(st.projectiles,9),spacing=.22;
  const angle=aimAngle??Math.atan2(t.y-u.y,t.x-u.x);
- const volley={hitIds:new Set()};
+ const volley={hitIds:new Set(),attackId:attackId??state.nextAttackId++};
  state.projectiles ||= [];
  for(let i=0;i<count;i++){
   const offset=i===0?0:(i%2?1:-1)*Math.ceil(i/2)*spacing;
@@ -314,7 +349,7 @@ export function advanceProjectiles(state,dt,attacks=[]){
     if(shot.landedCount>0&&shot.source.chassis.mods.piercing>0)deliveredBy.push('piercing');
     shot.landedCount++;
     if(shot.source.combatStats&&victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
-    attacks.push({source:shot.source,target:victim,projectile:true,
+    attacks.push({source:shot.source,target:victim,projectile:true,attackId:shot.volley.attackId,
      rawDamage:shot.damage,damage:Math.max(1,shot.damage-stats(victim).defense),
      knockback:shot.knockback,taunt:shot.taunt,deliveredBy});
    }
@@ -759,8 +794,9 @@ export function resolveAttackModules(state,attacks){
    effects.slowStrength=Math.min(.45,.08*mods.disruption);
    effects.slowUntil=state.time+.6;
   }
-  if(mods.burning)effects.burn={source,dps:Math.min(12,2*mods.burning),until:state.time+2};
-  if(mods.hazardous){
+  if(mods.burning&&claimAttackEffect(source,'burning',hit.attackId,state.time))
+   effects.burn={source,dps:Math.min(12,2*mods.burning),until:state.time+2};
+  if(mods.hazardous&&claimAttackEffect(source,'hazardous',hit.attackId,state.time)){
    const own=state.zones.filter(z=>z.source.id===source.id);
    if(own.length>=2){
     const oldest=own.sort((a,b)=>a.until-b.until)[0];
