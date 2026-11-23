@@ -1306,3 +1306,20 @@ test('2.12.3 live multi-fighter combat has independent screens and useful suppor
  assert.ok(t.maxMutualPassiveFrames<90,'cooperation must not create passive standoff');
  assert.ok(Object.values(b.diagnostics.units).some(u=>u.screenFrames>0),'per-unit screen trace exists');
 });
+
+test('2.12.3 supporting ally remains a valid commitment after beginning to move',()=>{
+ const sides=[{hp:100,squad:[makeChassis('bruiser'),makeChassis('ranged')]},
+              {hp:100,squad:[makeChassis('rogue')]}];
+ const b=spawn(sides,ARENAS[0],8107),u=b.units[0],ally=b.units[1],enemy=b.units[2];
+ b.time=1;u.x=175;u.y=200;ally.x=220;ally.y=200;enemy.x=340;enemy.y=200;
+ ally.focus=enemy.id;ally.attack={phase:'windup'};
+ u.moveDecision={x:1,y:0};
+ u.motion=[{time:.5,x:125,y:200},{time:1,x:175,y:200}];
+ u.supportNavigation={allyId:ally.id,enemyId:enemy.id,
+  goal:{x:273,y:200},path:[{x:273,y:200}],until:1.25};
+ const plan=cooperativeEngagement(b,u,stats(u),[enemy]);
+ assert.ok(plan,'moving toward a support point should not cancel the support plan');
+ assert.equal(plan.allyId,ally.id);
+ const direction=chooseMovement(b,u,enemy,stats(u),[enemy],STEP);
+ assert.ok(direction.x>0);assert.equal(u.supportingAlly,ally.id);
+});
