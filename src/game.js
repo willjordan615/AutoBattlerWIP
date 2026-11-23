@@ -36,7 +36,8 @@ function endCombat(){
    (u.prevented?' · '+fmt(u.prevented)+' blocked':'')+
    (u.haste?' · '+u.haste+' haste':'')+
    (u.focus?' · '+u.focus+' focus':'')+
-   (u.bulwark?' · '+u.bulwark+' bulwark':'');
+   (u.bulwark?' · '+u.bulwark+' bulwark':'')+
+   (u.followthrough?' · '+u.followthrough+' follow-through advances ('+fmt(u.followthroughDistance)+' units)':'');
   row.append(heading,values);
   const bonus=Object.entries(u.moduleDamage||{}).filter(([,damage])=>damage>0.05).sort((a,b)=>b[1]-a[1]);
   if(bonus.length){
