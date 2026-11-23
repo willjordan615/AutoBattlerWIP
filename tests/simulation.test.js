@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
 test('chassis mutations are independent',()=>{const a=makeChassis('bruiser'),b=makeChassis('bruiser');a.mods.hp=2;assert.equal(stats({type:'bruiser',chassis:a}).hp,195);assert.equal(stats({type:'bruiser',chassis:b}).hp,155)});
@@ -658,4 +658,49 @@ test('Dodge can interrupt uncommitted windup and enforces a brief retry delay',(
  assert.ok(a.combatStats.dodges>0);
  assert.equal(a.attack,null);
  assert.ok(a.cd>0);
+});
+
+test('2.7 ranged and melee range stacks increase reach by eight',()=>{
+ for(const type of Object.keys(CHASSIS)){
+  const unit={type,chassis:makeChassis(type)};
+  const base=stats(unit).range;unit.chassis.mods.range=2;
+  assert.equal(stats(unit).range,base+16);
+ }
+});
+test('2.7 chain splits rather than duplicating damage, and cannot recurse',()=>{
+ const b=spawn(players(),ARENAS[0],910),u=b.units[0],a=b.units[1],other=b.units[2];
+ b.units=[u,a,other];u.x=200;u.y=200;a.x=250;a.y=200;other.x=275;other.y=220;
+ u.chassis.mods.chain=1;
+ const attacks=resolveAttackModules(b,[{source:u,target:a,rawDamage:20,damage:20}]);
+ assert.equal(attacks.length,2);
+ assert.ok(Math.abs(attacks[0].damage-16)<1e-6);
+ assert.equal(attacks[1].secondary,true);
+ assert.equal(attacks[1].target,other);
+ assert.ok(attacks[1].damage<=4);
+ const noOther=spawn(players(),ARENAS[0],911);
+ noOther.units=noOther.units.slice(0,2);noOther.units[0].chassis.mods.chain=1;
+ const lone=resolveAttackModules(noOther,[{source:noOther.units[0],target:noOther.units[1],rawDamage:20,damage:20}]);
+ assert.equal(lone.length,1);
+ assert.ok(Math.abs(lone[0].damage-16)<1e-6);
+});
+test('2.7 marks, burning, hazards and slow have bounded lifetimes',()=>{
+ const b=spawn(players(),ARENAS[0],912),source=b.units[0],target=b.units[1];
+ source.chassis.mods.expose=1;source.chassis.mods.burning=1;
+ source.chassis.mods.disruption=1;source.chassis.mods.hazardous=1;
+ resolveAttackModules(b,[{source,target,rawDamage:16,damage:16}]);
+ assert.ok(target.effects.expose.until>b.time);
+ assert.ok(target.effects.burn.until>b.time);
+ assert.ok(target.effects.slowUntil>b.time);
+ assert.equal(b.zones.length,1);
+ assert.ok(b.zones[0].until>b.time);
+});
+test('2.7 restless attack favors a different target after hitting',()=>{
+ const b=spawn(players(),ARENAS[0],913),source=b.units[0],a=b.units[1],other=b.units[2];
+ b.units=[source,a,other];source.x=200;source.y=200;
+ a.x=280;a.y=200;other.x=280;other.y=200;
+ source.chassis.mods.restless=2;
+ const beforeA=targetScoreDetails(b,source,a).total;
+ source.lastAttacked=a.id;source.lastAttackAt=b.time;
+ assert.ok(targetScoreDetails(b,source,a).total<beforeA);
+ assert.ok(targetScoreDetails(b,source,other).total>targetScoreDetails(b,source,a).total);
 });
