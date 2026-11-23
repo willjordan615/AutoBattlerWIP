@@ -789,7 +789,7 @@ export function applyFollowthrough(state,hit){
  const budget=(melee?72:18)+8*stacks;
  const r=CHASSIS[u.type].radius+3;
  const collisionGap=CHASSIS[u.type].radius+CHASSIS[target.type].radius+5;
- const crossingDistance=d+collisionGap;
+ const crossingDistance=d+collisionGap+stacks*8;
  const passes=melee&&crossingDistance<=budget+1e-8;
  const travel=passes?crossingDistance:Math.min(budget,Math.max(0,d-collisionGap));
  if(travel<.5)return false;
