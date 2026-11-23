@@ -1,7 +1,7 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=navigation-19';
-import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=navigation-19';
-import {cardDetail} from './module-info.js?v=navigation-19';
-import {chooseCpuDraft} from './draft-ai.js?v=navigation-19';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=projectiles-20';
+import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from './headless.js?v=projectiles-20';
+import {cardDetail} from './module-info.js?v=projectiles-20';
+import {chooseCpuDraft} from './draft-ai.js?v=projectiles-20';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let effects=[],match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
