@@ -1,4 +1,4 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=module-telemetry-291';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=attack-pipeline-210';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
 export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless'];
 export const UTILITY_MODULES=['dash','dodge','backstep','flank','disengage','intercept','followthrough'];
