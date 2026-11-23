@@ -359,10 +359,10 @@ test('separate lanes cannot damage an intercepted unit twice in the same volley'
  assert.deepEqual(hits.map(h=>h.target.id),[enemy.id]);
 });
 
-test('draft catalog omits generic stat improvements but retains behavior modifiers',()=>{
- for(const key of ['damage','hp','speed','rate','range'])assert.ok(!ATTACK_MODULES.includes(key),key);
- for(const key of ['projectiles','piercing','area','knockback','taunt'])assert.ok(ATTACK_MODULES.includes(key),key);
- assert.ok(!catalog.some(card=>card.kind==='attack'&&['damage','hp','speed','rate','range'].includes(card.key)));
+test('draft catalog omits flat stat boosts but includes modest Range',()=>{
+ for(const key of ['damage','hp','speed','rate'])assert.ok(!ATTACK_MODULES.includes(key),key);
+ for(const key of ['projectiles','piercing','area','knockback','taunt','range'])assert.ok(ATTACK_MODULES.includes(key),key);
+ assert.ok(!catalog.some(card=>card.kind==='attack'&&['damage','hp','speed','rate'].includes(card.key)));
 });
 test('duplicate utility draft upgrades existing slot to two, capped, without replacing another passive',()=>{
  const m=createMatch(['bruiser','bruiser','rogue','ranged'],12);
