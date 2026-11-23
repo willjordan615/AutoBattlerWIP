@@ -1113,3 +1113,24 @@ test('2.12 projectile volley waits for its final impact before initiating commit
  assert.equal(u.x,120);
  assert.equal(u.combatStats.followthrough,1);
 });
+
+test('2.12 Follow Through and Disengage resolve sequentially, without cancelling either module',()=>{
+ const b=spawn(players(),ARENAS[0],4518),u=b.units[0],target=b.units[1];
+ b.units=[u,target];u.chassis.mods.followthrough=1;u.chassis.mods.disengage=1;
+ u.x=120;u.y=220;target.x=260;target.y=220;b.time=.2;
+ u.disengageUntil=b.time+.5;
+ assert.ok(applyFollowthrough(b,{source:u,target,attackId:70,attackDirection:0}));
+ assert.ok(Math.abs(u.disengageUntil-(b.time+1))<1e-8);
+ assert.ok(u.followthroughCommit.until<b.time+.6);
+});
+test('2.12 Follow Through movement never exceeds speed-scaled commitment budget even with collision',()=>{
+ const b=spawn(players(),ARENAS[0],4519),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.type='rogue';u.chassis=makeChassis('rogue');
+ u.chassis.mods.followthrough=1;u.x=150;u.y=220;enemy.x=205;enemy.y=220;
+ b.time=.1;assert.ok(applyFollowthrough(b,{source:u,target:enemy,attackId:71,attackDirection:0}));
+ const start=u.x;
+ for(let i=0;i<15;i++){b.time+=STEP;advanceFollowthrough(b,u,STEP);resolveCollision(b)}
+ const cap=stats(u).speed*.5;
+ assert.ok(u.x-start<=cap+2,'contact does not create a far-side teleport');
+ assert.ok(enemy.x>205,'fighter yields space during committed contact');
+});
