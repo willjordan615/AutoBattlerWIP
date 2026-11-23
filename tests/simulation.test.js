@@ -608,3 +608,34 @@ test('committed attack emits a renderer-independent visual event',()=>{
   advanceAttack(b,a,target,stats(a),STEP,hits);
  assert.ok(b.visualEvents.some(e=>e.kind==='attackCommit'&&e.type==='bruiser'&&Number.isFinite(e.angle)));
 });
+
+test('ranged attack commitment imposes actual movement penalties during its attack',()=>{
+ const b=spawn([{name:'Shooter',hp:100,squad:[makeChassis('ranged')]},
+                {name:'Pursuer',hp:100,squad:[makeChassis('bruiser')]}],ARENAS[0],901);
+ const a=b.units[0],enemy=b.units[1];
+ a.x=200;a.y=220;enemy.x=340;enemy.y=220;
+ a.cd=0;enemy.cd=1000;
+ tick(b,STEP);
+ assert.equal(a.attack?.phase,'windup');
+ const firstMovement=a.move?Math.hypot(a.move.x,a.move.y)*stats(a).speed*STEP*attackMovementMultiplier(a):0;
+ assert.ok(firstMovement<stats(a).speed*STEP*.5);
+ for(let i=0;i<9;i++)tick(b,STEP);
+ assert.ok(a.combatStats.shots>0,'release should fire after windup');
+ assert.equal(a.attack?.phase,'recovery');
+});
+test('Dodge can interrupt uncommitted windup and enforces a brief retry delay',()=>{
+ const b=spawn([{name:'Dodger',hp:100,squad:[makeChassis('bruiser')]},
+                {name:'Shooter',hp:100,squad:[makeChassis('ranged')]}],ARENAS[0],902);
+ const a=b.units[0],enemy=b.units[1];
+ a.chassis.passives=['dodge'];a.chassis.mods.dodge=1;
+ a.x=200;a.y=200;enemy.x=240;enemy.y=200;
+ a.cd=0;enemy.cd=1000;startAttack(b,a,enemy);
+ const shot={id:901,owner:1,source:enemy,aimedAtId:a.id,x:175,y:200,vx:1,vy:0,
+ speed:320,remaining:100,radius:3,damage:10,knockback:0,taunt:0,
+ penetration:0,hitIds:new Set(),volley:{hitIds:new Set()}};
+ b.projectiles.push(shot);
+ tick(b,STEP);
+ assert.ok(a.combatStats.dodges>0);
+ assert.equal(a.attack,null);
+ assert.ok(a.cd>0);
+});
