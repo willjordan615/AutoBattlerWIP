@@ -177,6 +177,7 @@ function collectEffects(){
   else if(e.kind==='mobility')effects.push({...e,born:now,duration:.3});
   else if(e.kind==='impact')effects.push({...e,born:now,duration:.18});
   else if(e.kind==='wallImpact')effects.push({...e,born:now,duration:.16});
+  else if(e.kind==='attackCommit')effects.push({...e,born:now,duration:.14});
  }
  if(effects.length>220)effects=effects.slice(-220);
 }
@@ -190,6 +191,19 @@ function drawEffects(){
    ctx.save();ctx.globalAlpha=(1-t)*.7;ctx.strokeStyle=COLORS[e.owner];
    ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(e.x,e.y);
    ctx.lineTo(e.toX,e.toY);ctx.stroke();ctx.restore();
+  }else if(e.kind==='attackCommit'){
+   // Fourteen-frame-free hundredths of a second: one stroke, no asset or particle system.
+   ctx.save();ctx.globalAlpha=(1-t)*.8;
+   ctx.strokeStyle=e.type==='bruiser'?'#f5b56d':e.type==='rogue'?'#c2a1fa':'#8ce7bd';
+   ctx.lineWidth=2;ctx.beginPath();
+   if(e.type==='ranged'){
+    ctx.moveTo(e.x+Math.cos(e.angle)*14,e.y+Math.sin(e.angle)*14);
+    ctx.lineTo(e.x+Math.cos(e.angle)*40,e.y+Math.sin(e.angle)*40);
+   }else{
+    const half=e.arc*Math.PI/360;
+    ctx.arc(e.x,e.y,e.reach,e.angle-half,e.angle+half);
+   }
+   ctx.stroke();ctx.restore();
   }else if(e.kind==='wallImpact'){
    ctx.save();ctx.globalAlpha=1-t;ctx.strokeStyle='#f8d991';ctx.lineWidth=1.5;
    ctx.beginPath();
