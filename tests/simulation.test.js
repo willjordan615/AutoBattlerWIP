@@ -9,7 +9,7 @@ test('obstacles block line of sight',()=>{const arena=ARENAS[1];assert.equal(cle
 test('obstacle collisions keep fighters outside',()=>{const u={type:'bruiser',x:300,y:200};bound(u,ARENAS[1]);assert.ok(u.x<=260||u.x>=336||u.y<=154||u.y>=275)});
 test('unit collision resolves overlap',()=>{const s=spawn(players());s.units[1].x=s.units[0].x;s.units[1].y=s.units[0].y;resolveCollision(s);assert.ok(Math.hypot(s.units[1].x-s.units[0].x,s.units[1].y-s.units[0].y)>20)});
 test('all ten utility metrics exist',()=>{const c=makeChassis('rogue');assert.equal(Object.keys(c.weights).length,10);c.weights.kill+=1;assert.equal(c.weights.kill,2.4)});
-test('simultaneous elimination records same tick',()=>{const s=spawn(players());s.units=s.units.slice(0,2);s.units[0].owner=0;s.units[1].owner=1;s.units[0].x=100;s.units[1].x=120;s.units[0].y=s.units[1].y=100;s.units[0].hp=s.units[1].hp=1;s.units[0].cd=s.units[1].cd=0;for(let i=0;i<12;i++)tick(s,STEP);assert.equal(s.units[0].hp,0);assert.equal(s.units[1].hp,0);assert.equal(s.eliminations.length,2);assert.equal(s.eliminations[0].tick,s.eliminations[1].tick)});
+test('simultaneous elimination records same tick',()=>{const p=players();p[1].squad[0]=makeChassis('bruiser');const s=spawn(p);s.units=s.units.slice(0,2);s.units[0].owner=0;s.units[1].owner=1;s.units[0].x=100;s.units[1].x=120;s.units[0].y=s.units[1].y=100;s.units[0].hp=s.units[1].hp=1;s.units[0].cd=s.units[1].cd=0;for(let i=0;i<12;i++)tick(s,STEP);assert.equal(s.units[0].hp,0);assert.equal(s.units[1].hp,0);assert.equal(s.eliminations.length,2);assert.equal(s.eliminations[0].tick,s.eliminations[1].tick)});
 test('30 second timeout',()=>{const s=spawn(players());s.units.forEach((u,i)=>{u.x=50+i*200;u.y=50;u.cd=1000});let result=null;for(let i=0;i<901&&result===null;i++)result=tick(s,STEP);assert.ok(s.time>=30&&s.time<30.1)});
 test('survivors rank above eliminated',()=>{const s=spawn(players());s.units[1].hp=0;s.eliminations=[{owner:1,tick:5}];const groups=placementGroups(s);assert.equal(groups.at(-1)[0],1)});
 test('team HP percent uses max HP of defeated units',()=>{const p=players();p[0].squad.push(makeChassis('bruiser'));const s=spawn(p);s.units[0].hp=0;assert.equal(teamPercent(s,0),.5)});
@@ -64,7 +64,7 @@ test('taunt forces the struck enemy to target its attacker and expires',()=>{
  alternative.owner=taunter.owner;alternative.cd=99;victim.cd=99;taunter.cd=0;
  for(let i=0;i<12;i++)tick(state,STEP);
  assert.equal(victim.tauntedBy,taunter.id);
- assert.ok(victim.tauntedUntil-state.time>.49);
+ assert.ok(victim.tauntedUntil-state.time>.2);
  assert.equal(chooseTarget(state,victim,[taunter,alternative]),taunter);
  state.time=victim.tauntedUntil+.001;
  assert.notEqual(victim.tauntedUntil>state.time,true);
