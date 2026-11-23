@@ -1,6 +1,6 @@
-# Modular Arena Autobattler — Prototype 2.6
+# Modular Arena Autobattler — Prototype 2.6.1
 
-**Current playable iteration: Prototype 2.6 — Melee Chassis Tuning.** Bruiser damage increases from 13 to 16 and its attack arc narrows from 110° to 95°. Rogue windup/recovery lengthen from .14/.10s to .18/.12s. Movement speeds and attack module interactions are unchanged; Bruiser does not gain inherent cleave. Prototype 2.5 introduced the translucent white attack commitment cues, retained here. See `AGENTS.md` for release-by-release implementation notes. The original GDD remains v0.1; it is a document version, not the prototype number.
+**Current playable iteration: Prototype 2.6.1 — Draft Clarity.** Player-facing draft categories now consistently identify all shared-slot upgrades as Utility, while attack modifiers and targeting weights have explicit Attack and Targeting labels. This is a display-only update over Prototype 2.6 — Melee Chassis Tuning. Bruiser damage increases from 13 to 16 and its attack arc narrows from 110° to 95°. Rogue windup/recovery lengthen from .14/.10s to .18/.12s. Movement speeds and attack module interactions are unchanged; Bruiser does not gain inherent cleave. Prototype 2.5 introduced the translucent white attack commitment cues, retained here. See `AGENTS.md` for release-by-release implementation notes. The original GDD remains v0.1; it is a document version, not the prototype number.
 
 Mobile-first, deterministic, four-player free-for-all autobattler. Source of truth: the uploaded 45-page **Modular Arena Autobattler — Game Design Document v0.1**, plus subsequent user decisions:
 
