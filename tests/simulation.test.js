@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED} from '../src/simulation.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
 test('chassis mutations are independent',()=>{const a=makeChassis('bruiser'),b=makeChassis('bruiser');a.mods.hp=2;assert.equal(stats({type:'bruiser',chassis:a}).hp,195);assert.equal(stats({type:'bruiser',chassis:b}).hp,155)});
 test('wall clamping for all archetypes',()=>{for(const type of Object.keys(CHASSIS)){const u={type,x:-100,y:900};bound(u);assert.ok(u.x>20&&u.y<500)}});
@@ -24,7 +24,30 @@ test('eliminations on the same tick form a placement tie',()=>{const p=players()
 
 test('all players receive unique randomized corners and move corners every round',()=>{const p=players();for(let seed=1;seed<=30;seed++){let previous=null;for(let round=1;round<=8;round++){const a=spawn(p,ARENAS[0],seed+round*991,round,previous),b=spawn(p,ARENAS[0],seed+round*991,round,previous);assert.deepEqual(a.spawnSlots,b.spawnSlots);assert.deepEqual([...a.spawnSlots].sort(),[0,1,2,3]);if(previous)for(let i=0;i<4;i++)assert.ok(a.spawnSlots[i]!==previous[i]);for(let i=0;i<4;i++){const unit=a.units.find(u=>u.owner===i);assert.ok(unit);const corner=a.spawnSlots[i];assert.ok((corner===0||corner===3?unit.x<200:unit.x>500));assert.ok((corner===0||corner===1?unit.y<200:unit.y>300))}previous=a.spawnSlots}}});
 
-test('combat emits floating damage and projectile visual events without changing HP math',()=>{const p=players();const state=spawn(p,ARENAS[0],33);const attacker=state.units.find(u=>u.type==='ranged');const victim=state.units.find(u=>u.owner!==attacker.owner);for(const u of state.units)if(u!==attacker&&u!==victim)u.hp=0;attacker.x=200;attacker.y=200;victim.x=260;victim.y=200;attacker.cd=0;const before=victim.hp;tick(state,STEP);assert.ok(state.visualEvents.some(e=>e.kind==='projectile'&&e.owner===attacker.owner));const damage=state.visualEvents.find(e=>e.kind==='damage'&&e.owner===victim.owner);assert.ok(damage);assert.equal(damage.value,before-victim.hp);tick(state,STEP);assert.ok(!state.visualEvents.some(e=>e.kind==='projectile'))});
+test('ranged damage and floating numbers occur at physical impact, not firing',()=>{
+ const p=players(),state=spawn(p,ARENAS[0],33);
+ const attacker=state.units.find(u=>u.type==='ranged');
+ const victim=state.units.find(u=>u.owner!==attacker.owner);
+ for(const u of state.units)if(u!==attacker&&u!==victim)u.hp=0;
+ attacker.x=200;attacker.y=200;victim.x=300;victim.y=200;
+ attacker.cd=0;victim.cd=1000;
+ const before=victim.hp;tick(state,STEP);
+ assert.ok(state.projectiles.length>0,'a projectile should exist in simulation');
+ assert.equal(victim.hp,before,'launching cannot immediately apply damage');
+ assert.ok(!state.visualEvents.some(e=>e.kind==='damage'));
+ let impacted=false;
+ for(let i=0;i<30;i++){
+  tick(state,STEP);
+  if(victim.hp<before){
+   const event=state.visualEvents.find(e=>e.kind==='damage'&&e.owner===victim.owner);
+   assert.ok(event,'impact damage must produce a floating number');
+   assert.equal(event.value,before-victim.hp);
+   assert.ok(state.visualEvents.some(e=>e.kind==='impact'));
+   impacted=true;break;
+  }
+ }
+ assert.ok(impacted,'a clear, stationary target should be struck after travel time');
+});
 
 test('Bruiser base damage is 13',()=>{assert.equal(CHASSIS.bruiser.damage,13)});
 test('taunt forces the struck enemy to target its attacker and expires',()=>{
@@ -51,14 +74,16 @@ test('Rogue baseline and reduced flat modules match new values',()=>{
  assert.equal(CHASSIS.rogue.speed,95.45);
  assert.equal(st.hp,125);assert.equal(st.damage,20);
 });
-test('multishot cannot damage the same enemy twice per attack cycle',()=>{
+test('multishot creates independent shots and damages an enemy at most once per volley',()=>{
  const p=players();p[0].squad[0]=makeChassis('ranged');
  const s=spawn(p,ARENAS[0],51),a=s.units[0],v=s.units[1];
  s.units=s.units.slice(0,2);a.chassis.mods.projectiles=4;
  a.x=200;a.y=200;v.x=260;v.y=200;a.cd=0;v.cd=99;
  const before=v.hp;tick(s,STEP);
+ assert.equal(s.projectiles.length,5);
+ assert.equal(before-v.hp,0,'volley needs flight time');
+ for(let i=0;i<20;i++)tick(s,STEP);
  assert.equal(before-v.hp,Math.max(1,stats(a).damage-stats(v).defense));
- assert.equal(s.visualEvents.filter(e=>e.kind==='projectile').length,5);
 });
 test('multishot with pierce remains bounded to one hit per enemy',()=>{
  const p=players();p[0].squad[0]=makeChassis('ranged');
@@ -245,4 +270,86 @@ test('all chassis reach stationary targets around both obstacle layouts',()=>{
   }
   assert.ok(achieved,arena.name+' '+type+' should find a firing position within 10 seconds');
  }
+});
+
+function projectileFixture(arena=ARENAS[0],types=['ranged','bruiser']){
+ const p=types.map((type,i)=>({name:'P'+i,hp:100,squad:[makeChassis(type)]}));
+ const state=spawn(p,arena,9);
+ state.units.forEach(u=>{u.x=90+u.owner*90;u.y=200});
+ state.visualEvents=[];
+ state.projectiles=[];
+ return state;
+}
+function testShot(state,source,settings={}){
+ const shot={id:1,owner:source.owner,source,x:source.x,y:source.y,
+  vx:settings.vx??1,vy:settings.vy??0,speed:settings.speed??PROJECTILE_SPEED,
+  remaining:settings.remaining??250,radius:settings.radius??3,
+  damage:settings.damage??14,knockback:0,taunt:0,penetration:settings.piercing??0,
+  hitIds:new Set(),volley:{hitIds:new Set()}};
+ state.projectiles.push(shot);return shot;
+}
+test('wall absorbs projectile before any enemy behind it',()=>{
+ const b=projectileFixture(ARENAS[1]),a=b.units[0],enemy=b.units[1];
+ a.x=240;a.y=210;enemy.x=350;enemy.y=210;
+ testShot(b,a,{remaining:150});
+ const hits=advanceProjectiles(b,1);
+ assert.equal(hits.length,0);
+ assert.equal(b.projectiles.length,0);
+ assert.ok(!b.visualEvents.some(e=>e.kind==='impact'));
+});
+test('front enemy intercepts a shot intended for a rear enemy',()=>{
+ const b=projectileFixture(ARENAS[0],['ranged','bruiser','bruiser']);
+ const [a,front,back]=b.units;a.x=100;a.y=200;
+ front.x=155;front.y=200;back.x=210;back.y=200;
+ testShot(b,a,{remaining:180});
+ const hits=advanceProjectiles(b,1);
+ assert.deepEqual(hits.map(h=>h.target.id),[front.id]);
+ assert.equal(b.projectiles.length,0);
+});
+test('friendly units do not intercept friendly shots',()=>{
+ const b=projectileFixture(ARENAS[0],['ranged','bruiser','bruiser']);
+ const [a,ally,enemy]=b.units;
+ a.owner=ally.owner=0;enemy.owner=1;
+ a.x=100;a.y=200;ally.x=150;ally.y=200;
+ enemy.x=210;enemy.y=200;
+ testShot(b,a,{remaining:170});
+ const hits=advanceProjectiles(b,1);
+ assert.deepEqual(hits.map(h=>h.target.id),[enemy.id]);
+});
+test('piercing can hit multiple enemies, each at most once, along one path',()=>{
+ const b=projectileFixture(ARENAS[0],['ranged','bruiser','bruiser','bruiser']);
+ const [a,one,two,three]=b.units;
+ a.x=100;a.y=200;one.x=145;two.x=190;three.x=235;
+ one.y=two.y=three.y=200;
+ testShot(b,a,{remaining:180,piercing:1});
+ const hits=advanceProjectiles(b,1);
+ assert.deepEqual(hits.map(h=>h.target.id),[one.id,two.id]);
+ assert.equal(b.projectiles.length,0);
+ assert.equal(b.visualEvents.filter(e=>e.kind==='impact').length,2);
+});
+test('swept projectile collision cannot skip small targets at high velocity',()=>{
+ const b=projectileFixture(ARENAS[0]),[a,enemy]=b.units;
+ a.x=100;a.y=200;enemy.x=200;enemy.y=200;
+ testShot(b,a,{speed:12000,remaining:180});
+ assert.deepEqual(advanceProjectiles(b,STEP).map(h=>h.target.id),[enemy.id]);
+});
+test('projectiles expire at range and arena boundaries',()=>{
+ const b=projectileFixture(ARENAS[0]),[a,enemy]=b.units;
+ a.x=100;a.y=200;enemy.x=300;enemy.y=300;
+ testShot(b,a,{remaining:35});
+ assert.equal(advanceProjectiles(b,1).length,0);
+ assert.equal(b.projectiles.length,0);
+ a.x=680;a.y=200;
+ testShot(b,a,{remaining:120});
+ assert.equal(advanceProjectiles(b,1).length,0);
+ assert.equal(b.projectiles.length,0);
+});
+test('separate lanes cannot damage an intercepted unit twice in the same volley',()=>{
+ const b=projectileFixture(),[a,enemy]=b.units;
+ a.x=100;a.y=200;enemy.x=155;enemy.y=200;
+ const volley={hitIds:new Set()};
+ const first=testShot(b,a);first.volley=volley;
+ const second=testShot(b,a);second.volley=volley;
+ const hits=advanceProjectiles(b,1);
+ assert.deepEqual(hits.map(h=>h.target.id),[enemy.id]);
 });
