@@ -51,7 +51,7 @@ export function draftPool(match){
  const order=match.lastRanking.length?match.lastRanking.filter(i=>match.players[i].hp>0).reverse():active;
  match.draft={pool,originalPool:pool.map(card=>({...card})),order,turn:0,picks:[]};match.phase='draft';ensureDraftChoice(match);return match.draft
 }
-export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
+export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0,reasoning=null){
  const d=match.draft;if(match.phase!=='draft'||!d||d.order[d.turn]!==playerIndex)throw Error('Not this player\'s draft turn');
  const player=match.players[playerIndex],index=d.pool.findIndex(c=>c.uid===cardUid);if(index<0)throw Error('Card not available');
  const card=d.pool[index];if(!legal(player,card))throw Error('Illegal draft pick');
@@ -88,7 +88,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
   }
  }else unit.modules.push({kind:card.kind,name:card.name});
  }
- d.pool.splice(index,1);d.picks.push({player:playerIndex,uid:card.uid,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';else ensureDraftChoice(match);return card
+ d.pool.splice(index,1);d.picks.push({player:playerIndex,uid:card.uid,card:card.name,chassisIndex,reasoning:reasoning?{baseScore:reasoning.baseScore,variation:reasoning.variation,reasons:[...reasoning.reasons],breakdown:reasoning.breakdown.map(x=>({...x}))}:null});d.turn++;if(d.turn===d.order.length)match.phase='combat';else ensureDraftChoice(match);return card
 }
 export function autoDraft(match){if(!match.draft)draftPool(match);while(match.phase==='draft'){ensureDraftChoice(match);const d=match.draft,i=d.order[d.turn],p=match.players[i];const legalCards=d.pool.filter(c=>legal(p,c));const card=legalCards[Math.floor(match.random()*legalCards.length)];
  const slots=card.kind==='unit'?[0]:p.squad.map((unit,index)=>canEquip(unit,card)?index:-1).filter(index=>index>=0);
