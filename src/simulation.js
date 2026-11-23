@@ -725,7 +725,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
    }
    const direction=steer(waypoint,true);
    if(direction){
-    u.navigation=null;u.navProgress=null;u.navMotion=null;
+    u.navigation=null;u.navProgress=null;
     return {x:direction.x,y:direction.y};
    }
   }
