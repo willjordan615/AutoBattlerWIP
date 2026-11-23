@@ -161,7 +161,60 @@ export function steerAroundAllies(state,u,desired,step){
  if(score>bestScore){bestScore=score;best=dir}
  }return best
 }
-export function resolveCollision(state){const units=state.units.filter(u=>u.hp>0);for(let i=0;i<units.length;i++)for(let j=i+1;j<units.length;j++){const a=units[i],b=units[j];if((a.phasingUntil>state.time&&a.phaseTarget===b.id)||(b.phasingUntil>state.time&&b.phaseTarget===a.id))continue;const min=CHASSIS[a.type].radius+CHASSIS[b.type].radius+5;let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);if(d>=min)continue;if(d<.001){dx=a.id<b.id?1:-1;dy=0;d=1}const delta=(min-d)/2;a.x-=dx/d*delta;a.y-=dy/d*delta;b.x+=dx/d*delta;b.y+=dy/d*delta;bound(a,state.arena);bound(b,state.arena)}}
+// A planted fighter braces; movement over the previous half second supplies
+// momentum. Max HP provides mass without making damage change physics mid-fight.
+export function recentMovement(u,now,window=.5){
+ const points=(u.motion||[]).filter(p=>p.time>=now-window-1e-8);
+ let total=0;
+ for(let i=1;i<points.length;i++)total+=distance(points[i-1],points[i]);
+ return total;
+}
+export function collisionStability(u,now){
+ const pace=CHASSIS[u.type]?.speed||1;
+ const traveled=recentMovement(u,now);
+ const normalized=Math.min(1,traveled/Math.max(1,pace*.5));
+ const brace=normalized<.1;
+ return (u.maxHp||CHASSIS[u.type].hp)*(brace?1.5:1+normalized);
+}
+export function resolveCollision(state){
+ const units=state.units.filter(u=>u.hp>0);
+ for(let pass=0;pass<2;pass++)for(let i=0;i<units.length;i++)for(let j=i+1;j<units.length;j++){
+  const a=units[i],b=units[j],min=CHASSIS[a.type].radius+CHASSIS[b.type].radius+5;
+  let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+  if(d>=min-1e-6)continue;
+  if(d<.001){dx=a.id<b.id?1:-1;dy=0;d=1}
+  const overlap=min-d,ax=dx/d,ay=dy/d;
+  const sa=collisionStability(a,state.time),sb=collisionStability(b,state.time);
+  const ca=a.followthroughCommit?.until>state.time?1:0;
+  const cb=b.followthroughCommit?.until>state.time?1:0;
+  // Ordinary navigation remains mostly cooperative. The directional
+  // commitment claims space, but high stability and bracing still resist it.
+  const weightA=sa*(1+ca*1.25),weightB=sb*(1+cb*1.25);
+  const shareA=.5*.7+.3*weightB/(weightA+weightB)+
+   .7*(ca||cb)*weightB/(weightA+weightB)-.35*(ca||cb);
+  const portionA=Math.max(.1,Math.min(.9,shareA));
+  const ax0=a.x,ay0=a.y,bx0=b.x,by0=b.y;
+  a.x-=ax*overlap*portionA;a.y-=ay*overlap*portionA;
+  b.x+=ax*overlap*(1-portionA);b.y+=ay*overlap*(1-portionA);
+  bound(a,state.arena);bound(b,state.arena);
+  if(state.diagnostics){
+   state.diagnostics.collisions=(state.diagnostics.collisions||0)+1;
+   if(ca||cb)state.diagnostics.committedCollisions=(state.diagnostics.committedCollisions||0)+1;
+  }
+  // Geometry may prevent the defender from yielding. Recover the residual
+  // overlap without allowing either actor to move through terrain.
+  const remaining=min-distance(a,b);
+  if(remaining>.01){
+   const moveA=distance({x:ax0,y:ay0},a),moveB=distance({x:bx0,y:by0},b);
+   const winner=moveA<.01&&moveB>.01?b:moveB<.01&&moveA>.01?a:null;
+   if(winner){
+    const direction=winner===a?-1:1;
+    winner.x+=ax*direction*remaining;winner.y+=ay*direction*remaining;
+    bound(winner,state.arena);
+   }
+  }
+ }
+}
 export function teamPercent(state,owner){const team=state.units.filter(u=>u.owner===owner);const max=team.reduce((n,u)=>n+u.maxHp,0);return max?team.reduce((n,u)=>n+Math.max(0,u.hp),0)/max:0}
 // Randomize the *owner-to-corner assignment*, not just the arena orientation.
 // When a prior assignment is supplied, no player repeats their previous corner.
@@ -171,7 +224,7 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,squadSize:p.squad.length,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,motion:[],effects:{},lastAttacked:null,lastAttackAt:-100,retaliationReady:0,effectActivations:{},disengageUntil:0,followthroughAt:0,focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,moduleDamage:{},moduleHits:{},attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),zones:[],projectiles:[],nextProjectileId:1,nextAttackId:1,random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,squadSize:p.squad.length,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,motion:[],effects:{},lastAttacked:null,lastAttackAt:-100,retaliationReady:0,effectActivations:{},disengageUntil:0,followthroughAt:0,followthroughCommit:null,focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,moduleDamage:{},moduleHits:{},attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),zones:[],projectiles:[],nextProjectileId:1,nextAttackId:1,random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
 // Melee shape is locked during windup, then evaluated at the actual release.
@@ -775,46 +828,46 @@ export function disengageDirection(state,u,enemies){
 }
 // An Impact module: displace the attacker after the first landed hit of a
 // release. Phasing bypasses only that target's body blocking, never terrain.
+// A successful hit establishes a short, speed-scaled *movement commitment*.
+// No immediate relocation. All overlaps are negotiated by resolveCollision.
 export function applyFollowthrough(state,hit){
  const u=hit.source,target=hit.target;
  if(!u?.chassis?.mods?.followthrough||!target||u.hp<=0)return false;
  if(u.followthroughAt>state.time+1e-8)return false;
  if(hit.attackId!=null&&u.lastFollowthroughAttackId===hit.attackId)return false;
- // The target may be far away, but a displacement never exceeds its budget.
- const d=distance(u,target);
- if(d<.001)return false;
- const dx=(target.x-u.x)/d,dy=(target.y-u.y)/d;
+ const origin=hit.attackOrigin||{x:u.x,y:u.y};
+ const heading=hit.attackDirection??Math.atan2(target.y-origin.y,target.x-origin.x);
  const stacks=Math.min(3,Math.max(0,u.chassis.mods.followthrough-1));
- const melee=u.type!=='ranged';
- const budget=(melee?72:18)+8*stacks;
- const r=CHASSIS[u.type].radius+3;
- const collisionGap=CHASSIS[u.type].radius+CHASSIS[target.type].radius+5;
- const crossingDistance=d+collisionGap+stacks*8;
- const passes=melee&&crossingDistance<=budget+1e-8;
- const travel=passes?crossingDistance:Math.min(budget,Math.max(0,d-collisionGap));
- if(travel<.5)return false;
- const end={x:u.x+dx*travel,y:u.y+dy*travel};
- if(end.x<20+r||end.x>700-r||end.y<20+r||end.y>500-r)return false;
- if(!clearLine(u,end,state.arena,passes?0:r)||
-    state.arena.obstacles.some(o=>rectHit(end.x,end.y,r,o)))return false;
- // Check the full swept path against every OTHER unit. Only melee can
- // ignore the particular target it crosses.
- for(const other of state.units){
-  if(other===u||other.hp<=0||(passes&&other===target))continue;
-  if(other===target)continue; // near-side end already accounts for target clearance
-  const radius=r+CHASSIS[other.type].radius+2;
-  if(segmentCircleHit(u,end,other,radius)!==null)return false;
- }
- const old={x:u.x,y:u.y};
- u.x=end.x;u.y=end.y;
- if(passes){u.phasingUntil=state.time+.16;u.phaseTarget=target.id;}
+ const duration=.5;
+ u.followthroughCommit={x:Math.cos(heading),y:Math.sin(heading),
+  until:state.time+duration,started:state.time,attackId:hit.attackId,
+  speedFactor:1+stacks*.12};
  u.followthroughAt=state.time+.75;
  u.lastFollowthroughAttackId=hit.attackId;
+ u.navigation=null;u.navProgress=null;
  u.combatStats&&(u.combatStats.followthrough=(u.combatStats.followthrough||0)+1);
- state.visualEvents.push({kind:'mobility',ability:'followthrough',owner:u.owner,
-  x:old.x,y:old.y,toX:u.x,toY:u.y});
+ state.visualEvents.push({kind:'reaction',ability:'followthrough',
+  x:u.x,y:u.y,owner:u.owner});
  return true;
 }
+export function advanceFollowthrough(state,u,dt){
+ const commit=u.followthroughCommit;
+ if(!commit||commit.until<=state.time-dt)return false;
+ const active=Math.min(dt,Math.max(0,commit.until-(state.time-dt)));
+ if(active<=0)return false;
+ const st=stats(u),step=st.speed*commit.speedFactor*active;
+ const before={x:u.x,y:u.y};
+ u.x+=commit.x*step;u.y+=commit.y*step;
+ bound(u,state.arena);
+ if(state.diagnostics){
+  state.diagnostics.followthroughAttempted=(state.diagnostics.followthroughAttempted||0)+step;
+  state.diagnostics.followthroughMoved=(state.diagnostics.followthroughMoved||0)+distance(before,u);
+ }
+ if(distance(before,u)>1e-6)state.visualEvents.push({kind:'mobility',
+  ability:'followthrough',owner:u.owner,x:before.x,y:before.y,toX:u.x,toY:u.y});
+ return true;
+}
+
 // One destination per committed attack. Depth is projected along the attack's
 // original direction; tie-breaking is stable and independent of processing order.
 export function followthroughDepth(hit){
@@ -959,10 +1012,12 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   const delta=Math.atan2(Math.sin(desired-u.facing),Math.cos(desired-u.facing));
   u.facing+=Math.max(-dt*10,Math.min(dt*10,delta));
  }
- if(!u.attack&&!retreating&&inRange&&u.cd<=0)startAttack(state,u,t);
+ if(!u.attack&&!retreating&&!(u.followthroughCommit?.until>state.time)&&inRange&&u.cd<=0)startAttack(state,u,t);
  // Committed attacks reduce movement; only an emergency Dodge can cancel windup.
- if(!u.attack&&!retreating)utilityMove(state,u,t,activeStats,dt,enemies,awareness);
- const direction=retreating?disengageDirection(state,u,enemies):chooseMovement(state,u,t,activeStats,enemies,dt);
+ const committing=u.followthroughCommit?.until>state.time-dt;
+ if(!u.attack&&!retreating&&!committing)utilityMove(state,u,t,activeStats,dt,enemies,awareness);
+ const direction=committing?{x:u.followthroughCommit.x,y:u.followthroughCommit.y}:
+  retreating?disengageDirection(state,u,enemies):chooseMovement(state,u,t,activeStats,enemies,dt);
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
  record.frames++;if(!direction.x&&!direction.y)record.idle++;if(u.navigationBlocked)record.blocked++;
@@ -972,9 +1027,13 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if((u.navStuckCount||0)>record.stuck){record.stuck=u.navStuckCount;record.reasonCounts.stuck=(record.reasonCounts.stuck||0)+1}
  if(record.lastDirection&&direction.x*record.lastDirection.x+direction.y*record.lastDirection.y<-.5)record.reversals++;record.lastDirection={x:direction.x,y:direction.y};
  if(inRange)record.attackOpportunities++;
- record.before={x:u.x,y:u.y,step:activeStats.speed*dt*attackMovementMultiplier(u),seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
+ record.before={x:u.x,y:u.y,step:activeStats.speed*dt*(committing?(u.followthroughCommit.speedFactor):attackMovementMultiplier(u)),seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
  }
- if(direction.x||direction.y){const step=activeStats.speed*dt*(retreating?1+Math.min(.35,Math.max(0,u.chassis.mods.disengage-1)*.1):attackMovementMultiplier(u));u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
+ if(direction.x||direction.y){
+  if(committing){advanceFollowthrough(state,u,dt)}
+  else{const step=activeStats.speed*dt*(retreating?1+Math.min(.35,Math.max(0,u.chassis.mods.disengage-1)*.1):attackMovementMultiplier(u));u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
+  u.move=direction;
+ }
  if(u.attack){if(state.diagnostics&&u.attack.phase==='windup'&&u.attack.elapsed+dt>=ATTACK_TIMING[u.type].windup)state.diagnostics.units[u.id].shots++;advanceAttack(state,u,t,activeStats,dt,attacks)}}
  resolveCollision(state);
  for(const u of state.units){
