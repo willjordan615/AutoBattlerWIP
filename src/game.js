@@ -9,7 +9,7 @@ function log(s){const d=document.createElement('div');d.textContent=s;$('log').p
 function button(text,detail,fn){const b=document.createElement('button');b.className='choice';const title=document.createElement('strong');title.textContent=text;const desc=document.createElement('span');desc.textContent=detail;b.append(title,desc);b.onclick=fn;return b}
 function shortCard(card){
  if(card.kind==='unit')return 'New chassis · '+CHASSIS[card.key].hp+' HP';
- if(card.kind==='utility')return 'Utility · slot 1 of 2 · second copy halves cooldown · '+(({dash:'Burst toward target',dodge:'Evasive roll',backstep:'Retreat from danger',flank:'Approach from the side',disengage:'Escape crowds',intercept:'Dash toward enemy threatening ally',followthrough:'Pass through targeted enemy'})[card.key]||'Mobility utility');
+ if(card.kind==='utility')return 'Utility · one of 2 slots · second copy halves cooldown · '+(({dash:'Burst toward target',dodge:'Evasive roll',backstep:'Retreat from danger',flank:'Approach from the side',disengage:'Escape crowds',intercept:'Dash toward enemy threatening ally',followthrough:'Pass through targeted enemy'})[card.key]||'Mobility utility');
  if(card.kind==='passive')return 'Utility · occupies 1 of 2 slots · unique per chassis';
  if(card.kind==='target')return 'Targeting · priority +1';
  return 'Attack · '+(({projectiles:'+1 spread lane · no repeat hits',piercing:'+1 extra target',area:'Wider attack footprint',knockback:'Stronger knockback',taunt:'Force target to self · 0.25s per stack'})[card.key]||'Attack modifier');
