@@ -812,6 +812,8 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   return false;
  });
  const resolved=resolveAttackModules(state,landed).concat(environmentalAttacks(state,dt));
+ // Preserve a visual distinction between direct hits and fractional DoT ticks.
+ const directTargets=new Set(resolved.filter(a=>!a.indirect).map(a=>a.target));
  const totals=new Map();
  for(const a of resolved){
   // Estimate the defense prevented by a timed Bulwark rather than counting
@@ -843,7 +845,8 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  for(const [target,damage] of totals){
   const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);
   target.combatStats&&(target.combatStats.damageTaken+=applied);
-  if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner});
+  if(applied>0)state.visualEvents.push({kind:directTargets.has(target)?'damage':'dotDamage',
+   targetId:target.id,x:target.x,y:target.y,value:applied,owner:target.owner});
  }// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
  // Multiple simultaneous taunts resolve deterministically in attack processing order.
  for(const a of resolved){if(a.taunt>0&&a.source.hp>0&&a.target.hp>0){a.target.tauntedBy=a.source.id;a.target.tauntedUntil=state.time+.25*a.taunt}}
