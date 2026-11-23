@@ -33,7 +33,7 @@ export const DETAILS={
  'target:duelist':'Targeting: Target Isolation weight +1. Prefer enemies separated from their team.',
  'target:hunter':'Targeting: Target Distance weight +1. Prefer nearer enemies.',
  'target:aggressor':'Targeting: Damage Opportunity weight +1. Prefer targets vulnerable to damage.',
- 'passive:retaliation':'Utility slot. After taking damage, the next attack within 4 seconds gains +4 raw damage. Does not modify attack timing.',
+ 'passive:retaliation':'Utility slot. After receiving a direct melee hit, the next attack within 4 seconds gains +4 raw damage. Does not modify attack timing.',
  'passive:regen':'Utility slot: regenerate 2 chassis HP per second. Unique per chassis; shares two slots with utilities.',
  'passive:bulwark':"Utility slot. Reactive brace: +5 defense for 2 seconds when significant damage is imminent or enemies surround this chassis. Cooldown 6s; unique per chassis.",
  'passive:haste':"Utility slot. Reactive pursuit or escape burst: +40% movement speed for 1.5 seconds when closing distance or withdrawing. Cooldown 5s; unique per chassis.",
