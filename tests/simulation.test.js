@@ -743,3 +743,20 @@ test('2.7 Retaliation primes only from direct melee and applies once',()=>{
  const second=resolveAttackModules(b,[{source:defender,target:source,rawDamage:18,damage:18}]);
  assert.equal(second[0].rawDamage,18);
 });
+
+test('2.7.1 burning subtracts fractional HP and emits tagged DoT damage',()=>{
+ const p=players(),b=spawn(p,ARENAS[0],917),source=b.units[0],target=b.units[1];
+ b.units=[source,target];source.cd=target.cd=1000;
+ source.x=200;source.y=220;target.x=242;target.y=220;
+ source.chassis.mods.burning=1;
+ resolveAttackModules(b,[{source,target,rawDamage:10,damage:10}]);
+ const before=target.hp;
+ tick(b,STEP);
+ const expected=2*STEP;
+ assert.ok(Math.abs(before-target.hp-expected)<1e-6);
+ const event=b.visualEvents.find(e=>e.kind==='dotDamage'&&e.targetId===target.id);
+ assert.ok(event,'fractional environmental damage should be tagged for aggregation');
+ assert.ok(Math.abs(event.value-expected)<1e-6);
+ for(let i=0;i<9;i++)tick(b,STEP);
+ assert.ok(Math.abs(before-target.hp-expected*10)<1e-5);
+});
