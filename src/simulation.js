@@ -1,7 +1,7 @@
 // Deterministic, renderer-independent combat backend. Values are provisional balance defaults.
 export const CHASSIS={
- bruiser:{name:'Bruiser',hp:155,damage:13,range:44,speed:48,rate:1.25,defense:4,radius:15,delivery:'melee',fill:'#eeb878',desc:'Durable melee frontliner'},
- rogue:{name:'Rogue',hp:105,damage:18,range:40,speed:95.45,rate:.78,defense:1,radius:11,delivery:'melee',fill:'#c2a1fa',desc:'Fast opportunistic melee'},
+ bruiser:{name:'Bruiser',hp:155,damage:13,range:58,speed:48,rate:1.25,defense:4,radius:15,delivery:'melee',fill:'#eeb878',desc:'Durable melee frontliner'},
+ rogue:{name:'Rogue',hp:105,damage:18,range:60,speed:95.45,rate:.78,defense:1,radius:11,delivery:'melee',fill:'#c2a1fa',desc:'Fast opportunistic melee'},
  ranged:{name:'Ranged',hp:80,damage:14,range:160,speed:62,rate:1.12,defense:0,radius:11,delivery:'projectile',fill:'#8ce7bd',desc:'Long-range projectile attacker'}
 };
 export const METRICS=['kill','damage','threat','distance','allyProximity','safety','protection','ability','isolation','preferredRange'];
@@ -16,6 +16,7 @@ export const ARENAS=[
  {name:'Central Barrier',obstacles:[{x:335,y:155,w:50,h:115},{x:335,y:310,w:50,h:55}]}
 ];
 export const WIDTH=720,HEIGHT=520,STEP=1/30,DURATION=30;
+export const ATTACK_TIMING={bruiser:{windup:.30,recovery:.22,lock:.5,windupMove:.18,recoveryMove:.55,arc:110},rogue:{windup:.14,recovery:.10,lock:.5,windupMove:.3,recoveryMove:.75,arc:35},ranged:{windup:.24,recovery:.18,lock:.5,windupMove:.22,recoveryMove:.55,arc:0}};
 export function rng(seed=12345){let s=seed>>>0;return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
 export function makeChassis(type){if(!CHASSIS[type])throw Error('Unknown chassis');return {type,mods:{hp:0,damage:0,speed:0,rate:0,range:0,projectiles:0,piercing:0,area:0,knockback:0,taunt:0,dash:0,dodge:0,backstep:0,flank:0,disengage:0,intercept:0,followthrough:0},weights:Object.fromEntries(METRICS.map((m,i)=>[m,BASE_WEIGHTS[type][i]])),passives:[],modules:[]}}
 export function stats(u){const c=CHASSIS[u.type],m=u.chassis.mods;return {hp:c.hp+m.hp*20,damage:c.damage+m.damage*2,speed:(c.speed+m.speed*18)*(u.hasteUntil>u.stateTime?1.4:1),range:c.range+m.range*20,rate:c.rate/(1+m.rate*.15)/(u.focusUntil>u.stateTime?1.35:1),defense:c.defense+(u.bulwarkUntil>u.stateTime?5:0),radius:c.radius,projectiles:1+m.projectiles,piercing:m.piercing,area:m.area,knockback:m.knockback,taunt:m.taunt||0,dash:m.dash||0,dodge:m.dodge||0,backstep:m.backstep||0,flank:m.flank||0,disengage:m.disengage||0,intercept:m.intercept||0,followthrough:m.followthrough||0,delivery:c.delivery}}
@@ -131,30 +132,74 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),projectiles:[],nextProjectileId:1,random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),projectiles:[],nextProjectileId:1,random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
-function targetsForAttack(state,u,target,st){
- const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);
- const angle=Math.atan2(target.y-u.y,target.x-u.x);
- const count=Math.min(1+Math.max(0,st.projectiles-1),9);
- const spacing=.22; // 12.6 degrees between lanes
- const lanes=Array.from({length:count},(_,i)=>angle+(i===0?0:(i%2?1:-1)*Math.ceil(i/2)*spacing));
- const hits=[],hitIds=new Set();
- for(const lane of lanes){
-  const dx=Math.cos(lane),dy=Math.sin(lane);
-  const candidates=enemies.map(e=>{
-   const vx=e.x-u.x,vy=e.y-u.y;
-   return {enemy:e,along:vx*dx+vy*dy,across:Math.abs(vx*dy-vy*dx)};
-  }).filter(({enemy,along,across})=>along>0&&along<=st.range+st.area*15+CHASSIS[enemy.type].radius&&across<=CHASSIS[enemy.type].radius+5+st.area*8&&clearLine(u,enemy,state.arena))
-   .sort((a,b)=>a.along-b.along||a.enemy.id-b.enemy.id);
-  // A lane stops after the first enemy unless Piercing adds depth.
-  for(const {enemy} of candidates.slice(0,1+st.piercing)){
-   if(hitIds.has(enemy.id))continue;
-   hitIds.add(enemy.id);hits.push(enemy);
-  }
+// Melee shape is locked during windup, then evaluated at the actual release.
+export function meleeAttackTargets(state,u,angle,st){
+ const profile=ATTACK_TIMING[u.type],wide=(profile.arc+st.area*12)*Math.PI/180;
+ const laneCount=Math.min(9,Math.max(1,st.projectiles));
+ const laneSpacing=(profile.arc*.7)*Math.PI/180;
+ const lanes=Array.from({length:laneCount},(_,i)=>angle+(i===0?0:(i%2?1:-1)*Math.ceil(i/2)*laneSpacing));
+ const candidates=[];
+ for(const enemy of state.units){
+  if(enemy.owner===u.owner||enemy.hp<=0||!clearLine(u,enemy,state.arena))continue;
+  const d=distance(u,enemy),reach=st.range+st.area*9+CHASSIS[enemy.type].radius;
+  if(d>reach||d<1e-7)continue;
+  const bearing=Math.atan2(enemy.y-u.y,enemy.x-u.x);
+  const within=lanes.some(lane=>Math.abs(Math.atan2(Math.sin(bearing-lane),Math.cos(bearing-lane)))<=
+   wide/2+Math.asin(Math.min(.98,CHASSIS[enemy.type].radius/Math.max(1,d))));
+  if(within)candidates.push({enemy,d});
  }
- return {hits,lanes};
+ candidates.sort((a,b)=>a.d-b.d||a.enemy.id-b.enemy.id);
+ return candidates.slice(0,1+Math.max(0,st.piercing)).map(c=>c.enemy);
+}
+export function startAttack(state,u,target){
+ if(u.attack||u.cd>0||!target||target.hp<=0)return false;
+ const angle=Math.atan2(target.y-u.y,target.x-u.x);
+ const profile=ATTACK_TIMING[u.type];
+ u.facing=angle;
+ u.attack={phase:'windup',elapsed:0,direction:angle,locked:false,targetId:target.id};
+ u.combatStats&&(u.combatStats.attacks++);
+ return true;
+}
+export function advanceAttack(state,u,target,st,dt,attacks){
+ const attack=u.attack;
+ if(!attack)return;
+ const profile=ATTACK_TIMING[u.type];
+ attack.elapsed+=dt;
+ if(attack.phase==='windup'){
+  if(!attack.locked){
+   if(target?.hp>0)attack.direction=Math.atan2(target.y-u.y,target.x-u.x);
+   u.facing=attack.direction;
+   if(attack.elapsed>=profile.windup*profile.lock){
+    attack.locked=true;
+    state.visualEvents.push({kind:'attackCommit',x:u.x,y:u.y,owner:u.owner,
+     type:u.type,angle:attack.direction,reach:st.range,arc:profile.arc});
+   }
+  }
+  if(attack.elapsed+1e-8<profile.windup)return;
+  attack.phase='recovery';attack.elapsed=0;
+  // Only enemies inside the locked attack shape at release can be hit.
+  if(st.delivery==='projectile'){
+   const dx=Math.cos(attack.direction),dy=Math.sin(attack.direction);
+   spawnProjectileVolley(state,u,{id:attack.targetId,x:u.x+dx*st.range,y:u.y+dy*st.range},st,attack.direction);
+  }else{
+   for(const victim of meleeAttackTargets(state,u,attack.direction,st)){
+    attacks.push({source:u,target:victim,rawDamage:st.damage,
+     damage:Math.max(1,st.damage-stats(victim).defense),
+     knockback:st.knockback,taunt:st.taunt});
+   }
+  }
+  u.cd+=st.rate;
+  return;
+ }
+ if(attack.phase==='recovery'&&attack.elapsed+1e-8>=profile.recovery)u.attack=null;
+}
+export function attackMovementMultiplier(u){
+ if(!u.attack)return 1;
+ const profile=ATTACK_TIMING[u.type];
+ return u.attack.phase==='windup'?profile.windupMove:profile.recoveryMove;
 }
 
 // World-space projectile simulation. Every projectile is resolved in the
@@ -184,9 +229,9 @@ function segmentBoxHit(a,b,o,pad=0){
  }
  return near>=0&&near<=1?near:null;
 }
-function spawnProjectileVolley(state,u,t,st){
+function spawnProjectileVolley(state,u,t,st,aimAngle=null){
  const count=Math.min(st.projectiles,9),spacing=.22;
- const angle=Math.atan2(t.y-u.y,t.x-u.x);
+ const angle=aimAngle??Math.atan2(t.y-u.y,t.x-u.x);
  const volley={hitIds:new Set()};
  state.projectiles ||= [];
  for(let i=0;i<count;i++){
@@ -504,8 +549,11 @@ export function tacticalAssessment(state,u,target,st,enemies){
  }
  shots.sort((a,b)=>a.when-b.when||a.shot.id-b.shot.id);
  const melee=enemies.filter(e=>e.type!=='ranged'&&
-  distance(e,u)<stats(e).range+CHASSIS[u.type].radius+8&&
-  clearLine(e,u,state.arena)&&e.cd<=.16&&e.focus===u.id);
+  distance(e,u)<stats(e).range+CHASSIS[u.type].radius+8&&clearLine(e,u,state.arena)&&
+  e.attack?.phase==='windup'&&e.attack.locked&&
+  Math.abs(Math.atan2(Math.sin(Math.atan2(u.y-e.y,u.x-e.x)-e.attack.direction),
+    Math.cos(Math.atan2(u.y-e.y,u.x-e.x)-e.attack.direction)))<
+  ATTACK_TIMING[e.type].arc*Math.PI/360+.2);
  const incoming=shots.reduce((sum,x)=>sum+x.damage,0)+melee.reduce((sum,e)=>sum+Math.max(1,stats(e).damage-st.defense),0);
  const close=enemies.filter(e=>distance(e,u)<Math.max(75,stats(e).range+30));
  const d=distance(u,target),clear=clearLine(u,target,state.arena);
@@ -560,6 +608,8 @@ function reactToThreat(state,u,target,st,context){
    const pathImproved=imminent.length?safest?.score>=-imminent.length*10:
     safest?.score> -context.melee.length*3+.1;
    if(safest?.valid&&pathImproved){
+    // Evasion sacrifices an uncommitted attack windup, never grants an instant retry.
+    if(u.attack?.phase==='windup'){u.attack=null;u.cd=Math.max(u.cd,.18)}
     const old={x:u.x,y:u.y};u.x=safest.p.x;u.y=safest.p.y;bound(u,state.arena);
     // Covers the roll frame but cannot substitute for an unsafe landing point.
     u.evadingUntil=now+.13;
@@ -642,7 +692,14 @@ export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.t
   const norm=Math.hypot(prior.x,prior.y);
   unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
  }
-const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);reactToThreat(state,u,t,st,awareness);const activeStats=stats(u);utilityMove(state,u,t,activeStats,dt,enemies,awareness);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=chooseMovement(state,u,t,activeStats,enemies,dt);
+const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);
+ reactToThreat(state,u,t,st,awareness);
+ const activeStats=stats(u);
+ const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=activeStats.range&&visible;
+ if(!u.attack&&inRange&&u.cd<=0)startAttack(state,u,t);
+ // Committed attacks reduce movement; only an emergency Dodge can cancel windup.
+ if(!u.attack)utilityMove(state,u,t,activeStats,dt,enemies,awareness);
+ const direction=chooseMovement(state,u,t,activeStats,enemies,dt);
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
  record.frames++;if(!direction.x&&!direction.y)record.idle++;if(u.navigationBlocked)record.blocked++;
@@ -652,10 +709,10 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if((u.navStuckCount||0)>record.stuck){record.stuck=u.navStuckCount;record.reasonCounts.stuck=(record.reasonCounts.stuck||0)+1}
  if(record.lastDirection&&direction.x*record.lastDirection.x+direction.y*record.lastDirection.y<-.5)record.reversals++;record.lastDirection={x:direction.x,y:direction.y};
  if(inRange)record.attackOpportunities++;
- record.before={x:u.x,y:u.y,step:activeStats.speed*dt,seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
+ record.before={x:u.x,y:u.y,step:activeStats.speed*dt*attackMovementMultiplier(u),seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
  }
- if(direction.x||direction.y){const step=activeStats.speed*dt;u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
- if(inRange&&u.cd<=0){u.combatStats&&(u.combatStats.attacks++);if(state.diagnostics)state.diagnostics.units[u.id].shots++;if(activeStats.delivery==='projectile')spawnProjectileVolley(state,u,t,activeStats);else {const volley=targetsForAttack(state,u,t,activeStats);for(const victim of volley.hits){attacks.push({source:u,target:victim,rawDamage:activeStats.damage,damage:Math.max(1,activeStats.damage-stats(victim).defense),knockback:activeStats.knockback,taunt:activeStats.taunt});}}u.cd+=activeStats.rate}}
+ if(direction.x||direction.y){const step=activeStats.speed*dt*attackMovementMultiplier(u);u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
+ if(u.attack){if(state.diagnostics&&u.attack.phase==='windup'&&u.attack.elapsed+dt>=ATTACK_TIMING[u.type].windup)state.diagnostics.units[u.id].shots++;advanceAttack(state,u,t,activeStats,dt,attacks)}}
  resolveCollision(state);
  if(state.diagnostics){for(const u of state.units){const record=state.diagnostics.units[u.id];if(!record?.before)continue;const before=record.before,actual=distance(before,u);record.actual+=actual;record.intended+=before.step*(record.lastDirection.x||record.lastDirection.y?1:0);if(before.step>0&&actual<before.step*.2&&(record.lastDirection.x||record.lastDirection.y))record.collisionLoss++;if(before.seeking&&before.step>0&&(record.lastDirection.x||record.lastDirection.y)&&actual<before.step*.2)record.pursuitStallFrames=(record.pursuitStallFrames||0)+1;else record.pursuitStallFrames=0;record.maxPursuitStallFrames=Math.max(record.maxPursuitStallFrames||0,record.pursuitStallFrames);if(before.waypointDistance!==null&&u.navigation?.path?.[0])record.routeProgress+=before.waypointDistance-distance(u,u.navigation.path[0]);delete record.before;
  if(state.tick%30===0&&record.samples.length<35)record.samples.push({t:Math.round(state.time),x:Math.round(u.x),y:Math.round(u.y),idle:record.idle,blocked:record.blocked,stuck:record.stuck});}}
