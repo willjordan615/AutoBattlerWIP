@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 import {DETAILS,SUMMARIES,cardDetail,cardSummary} from '../src/module-info.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
@@ -715,7 +715,7 @@ test('2.7 Sunder reduces armor only to zero and hazards cap at two per fighter',
  assert.equal(first.damage,10-stats(target).defense);
  const second=hit();
  assert.equal(second.damage,10-Math.max(0,stats(target).defense-2));
- for(let i=0;i<5;i++)hit();
+ for(let i=0;i<5;i++){b.time+=1.01;hit()}
  assert.equal(b.zones.filter(z=>z.source.id===source.id).length,2);
  target.effects.sunder=99;target.effects.sunderUntil=b.time+2;
  assert.equal(hit().damage,10-Math.max(0,stats(target).defense-3));
@@ -918,4 +918,58 @@ test('2.9.1 delivered-hit telemetry is explicitly separate from additive damage'
  assert.ok(source.combatStats.moduleHits);
  assert.ok(source.combatStats.moduleDamage);
  assert.equal(source.combatStats.moduleHits.piercing||0,0,'a single enemy is not a piercing follow-up');
+});
+
+test('2.10 every attack module has a compositional stage',()=>{
+ assert.deepEqual([...Object.keys(ATTACK_STAGES)].sort(),ATTACK_MODULES.slice().sort());
+ for(const [key,meta] of Object.entries(ATTACK_STAGES)){
+  assert.ok(['shape','impact','aftermath','condition','targeting'].includes(meta.stage),key);
+  assert.ok(meta.label,key);
+ }
+ assert.equal(ATTACK_STAGES.burning.cooldown,1);
+ assert.equal(ATTACK_STAGES.hazardous.cooldown,1);
+ assert.equal(ATTACK_STAGES.momentum.cooldown,undefined);
+});
+test('2.10 aftermath effects proc once per second independently, while keeping all targets in one attack',()=>{
+ const b=spawn(players(),ARENAS[0],3020),source=b.units[0],a=b.units[1],other=b.units[2];
+ b.units=[source,a,other];source.chassis.mods.burning=source.chassis.mods.hazardous=1;
+ b.time=.05;
+ resolveAttackModules(b,[{source,target:a,attackId:100,rawDamage:12},
+  {source,target:other,attackId:100,rawDamage:12}]);
+ assert.ok(a.effects.burn&&other.effects.burn);
+ assert.equal(b.zones.length,2);
+ const until=a.effects.burn.until;
+ b.time=.4;
+ resolveAttackModules(b,[{source,target:a,attackId:101,rawDamage:12}]);
+ assert.equal(a.effects.burn.until,until);
+ assert.equal(b.zones.length,2);
+ b.time=.7;
+ assert.ok(!claimAttackEffect(source,'hazardous',102,b.time));
+ assert.ok(!claimAttackEffect(source,'burning',102,b.time));
+ b.time=1.06;
+ resolveAttackModules(b,[{source,target:a,attackId:102,rawDamage:12}]);
+ assert.ok(a.effects.burn.until>until);
+ assert.equal(b.zones.length,2);
+ assert.ok(b.zones.some(z=>z.until>3));
+});
+test('2.10 effect cooldowns are per chassis and do not gate conditional hit damage',()=>{
+ const b=spawn(players(),ARENAS[0],3021),source=b.units[0],target=b.units[1],other=b.units[2];
+ b.units=[source,target,other];
+ source.chassis.mods.burning=1;source.chassis.mods.precision=1;
+ other.chassis.mods.burning=1;
+ b.time=.1;
+ const first=resolveAttackModules(b,[{source,target,attackId:1,rawDamage:12}])[0];
+ assert.ok(first.moduleDamage.precision>0);
+ assert.ok(claimAttackEffect(other,'burning',2,b.time));
+ assert.ok(!claimAttackEffect(source,'burning',3,b.time));
+ const next=resolveAttackModules(b,[{source,target,attackId:4,rawDamage:12}])[0];
+ assert.equal(next.moduleDamage.precision,first.moduleDamage.precision);
+});
+test('2.10 same attack identifier can affect late-arriving projectile targets without reopening cooldown',()=>{
+ const b=spawn(players(),ARENAS[0],3022),source=b.units[0],target=b.units[1],other=b.units[2];
+ source.chassis.mods.burning=1;b.units=[source,target,other];
+ b.time=.1;resolveAttackModules(b,[{source,target,attackId:55,rawDamage:12}]);
+ b.time=.65;resolveAttackModules(b,[{source,target:other,attackId:55,rawDamage:12}]);
+ assert.ok(other.effects.burn);
+ assert.ok(!claimAttackEffect(source,'burning',56,b.time));
 });
