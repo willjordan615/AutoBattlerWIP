@@ -195,7 +195,7 @@ function spawnProjectileVolley(state,u,t,st){
   state.projectiles.push({
    id:state.nextProjectileId++,owner:u.owner,source:u,
    x:u.x,y:u.y,vx:Math.cos(heading),vy:Math.sin(heading),
-   speed:PROJECTILE_SPEED,remaining:st.range,damage:st.damage,
+   speed:PROJECTILE_SPEED,remaining:st.range,radius:PROJECTILE_RADIUS+Math.max(0,st.area)*3,damage:st.damage,
    knockback:st.knockback,taunt:st.taunt,penetration:Math.max(0,st.piercing),
    hitIds:new Set(),volley
   });
@@ -220,14 +220,14 @@ export function advanceProjectiles(state,dt,attacks=[]){
      collision={time,kind,unit};
     }
    };
-   for(const o of state.arena.obstacles)consider(segmentBoxHit(from,to,o,PROJECTILE_RADIUS),'wall');
+   for(const o of state.arena.obstacles)consider(segmentBoxHit(from,to,o,shot.radius),'wall');
    // The enclosed arena's playable boundary also absorbs outgoing shots.
    const limits=[{x:20,y:0,w:0,h:520},{x:700,y:0,w:0,h:520},
                  {x:0,y:20,w:720,h:0},{x:0,y:500,w:720,h:0}];
    for(const o of limits)consider(segmentBoxHit(from,to,o,0),'wall');
    for(const enemy of state.units){
     if(enemy.hp<=0||enemy.owner===shot.owner||shot.hitIds.has(enemy.id))continue;
-    consider(segmentCircleHit(from,to,enemy,CHASSIS[enemy.type].radius+PROJECTILE_RADIUS),'unit',enemy);
+    consider(segmentCircleHit(from,to,enemy,CHASSIS[enemy.type].radius+shot.radius),'unit',enemy);
    }
    const fraction=collision?collision.time:1;
    const moved=travel*fraction;
