@@ -92,3 +92,4 @@ button.choice.draft-card.squad-full .draft-owner{background:#494153}
 .round-stat{border-top:1px solid #2b3b54;padding:7px 0;display:flex;flex-direction:column;gap:2px}
 .round-stat strong{color:#e8eef9;font-size:12px}
 .round-stat span{color:#b3c5d9;overflow-wrap:anywhere}
+.round-team-totals{border-top:1px solid #354c60;margin-top:6px;padding:8px 0;color:#9dc5d3;overflow-wrap:anywhere}
