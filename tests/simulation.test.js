@@ -849,6 +849,7 @@ test('2.9.1 direct bonus telemetry separately credits damage and respects HP cap
 test('2.9.1 Sunder, Expose, Chain and Retaliation capture measurable contributions',()=>{
  const p=players(),b=spawn(p,ARENAS[0],2011),source=b.units[0],ally=b.units[1],enemy=b.units[2],extra=b.units[3];
  source.owner=ally.owner=0;enemy.owner=extra.owner=1;
+ enemy.type='bruiser';enemy.chassis=makeChassis('bruiser');
  source.x=ally.x=180;source.y=ally.y=200;
  enemy.x=240;enemy.y=200;extra.x=260;extra.y=200;
  b.units=[source,ally,enemy,extra];
