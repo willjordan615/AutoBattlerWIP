@@ -778,7 +778,7 @@ export function applyFollowthrough(state,hit){
  const u=hit.source,target=hit.target;
  if(!u?.chassis?.mods?.followthrough||!target||u.hp<=0||u.type==='ranged')return false;
  if(u.followthroughAt>state.time+1e-8)return false;
- const already=u.lastFollowthroughAttackId===hit.attackId;
+ const already=hit.attackId!=null&&u.lastFollowthroughAttackId===hit.attackId;
  if(already)return false;
  const d=distance(u,target);
  if(d<.001)return false;
