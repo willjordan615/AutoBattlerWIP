@@ -76,7 +76,7 @@ export const SUMMARIES={
  'passive:bulwark':'Utility slot · reactive +5 defense',
  'passive:haste':'Utility slot · reactive +40% movement speed',
  'passive:focus':'Utility slot · reactive faster attacks',
- 'passive:retaliation':'Utility slot · next hit after taking melee damage gains +4 damage'
+ 'passive:retaliation':'Utility slot · next attack after receiving a melee hit gains +4 damage'
 };
 export function cardDetail(card){
  const key=card.kind+':'+card.key;
