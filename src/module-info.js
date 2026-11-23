@@ -1,4 +1,4 @@
-import {ATTACK_STAGES} from './simulation.js?v=attack-pipeline-210';
+import {ATTACK_STAGES} from './simulation.js?v=attack-reclass-211';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
