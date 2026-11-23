@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,disengageDirection} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 import {DETAILS,SUMMARIES,cardDetail,cardSummary} from '../src/module-info.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
@@ -972,4 +972,67 @@ test('2.10 same attack identifier can affect late-arriving projectile targets wi
  b.time=.65;resolveAttackModules(b,[{source,target:other,attackId:55,rawDamage:12}]);
  assert.ok(other.effects.burn);
  assert.ok(!claimAttackEffect(source,'burning',56,b.time));
+});
+
+test('2.11 impact and aftermath modules reflect their persistent versus immediate roles',()=>{
+ for(const k of ['taunt','sunder','disruption','expose','burning','hazardous','disengage'])
+  assert.equal(ATTACK_STAGES[k].stage,'aftermath',k);
+ for(const k of ['knockback','followthrough'])assert.equal(ATTACK_STAGES[k].stage,'impact',k);
+ assert.ok(ATTACK_MODULES.includes('disengage'));
+ assert.ok(ATTACK_MODULES.includes('followthrough'));
+ assert.ok(!catalog.some(c=>c.kind==='utility'&&['disengage','followthrough'].includes(c.key)));
+ assert.ok(!canEquip(makeChassis('ranged'),{kind:'attack',key:'followthrough'}));
+ assert.ok(canEquip(makeChassis('rogue'),{kind:'attack',key:'followthrough'}));
+});
+test('2.11 Follow Through advances through target exactly once per attack, respects cooldown and stacks',()=>{
+ const b=spawn(players(),ARENAS[0],3201),a=b.units[0],target=b.units[1];
+ b.units=[a,target];a.x=200;a.y=200;target.x=247;target.y=200;
+ a.chassis.mods.followthrough=1;a.type='rogue';a.chassis.type='rogue';target.type='bruiser';target.chassis.type='bruiser';
+ b.time=.1;
+ assert.equal(applyFollowthrough(b,{source:a,target,attackId:50}),true);
+ const firstX=a.x;
+ assert.ok(firstX>target.x,'attacker ends beyond struck enemy');
+ assert.equal(a.phaseTarget,target.id);
+ assert.ok(a.phasingUntil>b.time);
+ assert.equal(applyFollowthrough(b,{source:a,target,attackId:50}),false);
+ assert.equal(applyFollowthrough(b,{source:a,target,attackId:51}),false);
+ b.time=1;
+ a.x=200;a.y=200;a.chassis.mods.followthrough=2;
+ assert.equal(applyFollowthrough(b,{source:a,target,attackId:52}),true);
+ assert.ok(a.x>=firstX+7,'second stack adds displacement');
+});
+test('2.11 Follow Through cannot cross terrain or phase through unrelated fighters',()=>{
+ const b=spawn(players(),ARENAS[1],3202),a=b.units[0],target=b.units[1];
+ b.units=[a,target];a.type='rogue';a.chassis.type='rogue';
+ a.chassis.mods.followthrough=1;
+ a.x=252;a.y=200;target.x=270;target.y=200;
+ assert.equal(applyFollowthrough(b,{source:a,target,attackId:22}),false);
+ assert.equal(a.x,252);
+});
+test('2.11 Disengage starts on committed release and suppresses attacks during half-second retreat',()=>{
+ const b=spawn(players(),ARENAS[0],3203),a=b.units[0],target=b.units[1];
+ b.units=[a,target];a.x=200;a.y=220;target.x=245;target.y=220;
+ a.type='rogue';a.chassis.type='rogue';a.chassis.mods.disengage=1;
+ a.cd=0;target.cd=1000;
+ let started=false;
+ for(let step=0;step<40;step++){
+  tick(b,STEP);
+  if(a.disengageUntil>b.time){started=true;break}
+ }
+ assert.ok(started,'attack release should activate retreat');
+ const until=a.disengageUntil,startX=a.x,attacks=a.combatStats.attacks;
+ for(let step=0;step<10;step++)tick(b,STEP);
+ assert.ok(a.x<startX,'fighter actually retreats instead of simply increasing a score');
+ assert.equal(a.combatStats.attacks,attacks,'no attack during forced retreat');
+ assert.ok(a.disengageUntil<=until);
+ for(let step=0;step<10;step++)tick(b,STEP);
+ assert.equal(a.disengageUntil,0,'retreat expires and resets targeting');
+});
+test('2.11 retreat direction favors separation and stronger stacks increase speed without duration',()=>{
+ const b=spawn(players(),ARENAS[0],3204),a=b.units[0],target=b.units[1];
+ b.units=[a,target];a.x=200;a.y=200;target.x=240;target.y=200;
+ a.chassis.mods.disengage=3;
+ const d=disengageDirection(b,a,[target]);
+ assert.ok(d.x<-.8,'retreat direction should lead away from threat');
+ assert.equal(ATTACK_STAGES.disengage.duration,.5);
 });
