@@ -981,7 +981,7 @@ test('2.11 impact and aftermath modules reflect their persistent versus immediat
  assert.ok(ATTACK_MODULES.includes('disengage'));
  assert.ok(ATTACK_MODULES.includes('followthrough'));
  assert.ok(!catalog.some(c=>c.kind==='utility'&&['disengage','followthrough'].includes(c.key)));
- assert.ok(!canEquip(makeChassis('ranged'),{kind:'attack',key:'followthrough'}));
+ assert.ok(canEquip(makeChassis('ranged'),{kind:'attack',key:'followthrough'}));
  assert.ok(canEquip(makeChassis('rogue'),{kind:'attack',key:'followthrough'}));
 });
 test('2.11 Follow Through advances through target exactly once per attack, respects cooldown and stacks',()=>{
@@ -1035,4 +1035,30 @@ test('2.11 retreat direction favors separation and stronger stacks increase spee
  const d=disengageDirection(b,a,[target]);
  assert.ok(d.x<-.8,'retreat direction should lead away from threat');
  assert.equal(ATTACK_STAGES.disengage.duration,.5);
+});
+
+test('2.11 ranged Follow Through approaches without bypassing target or using utility slots',()=>{
+ const b=spawn(players(),ARENAS[0],3301),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.type='ranged';u.chassis=makeChassis('ranged');u.chassis.mods.followthrough=1;
+ u.x=180;u.y=220;enemy.x=340;enemy.y=220;
+ b.time=.15;
+ assert.equal(applyFollowthrough(b,{source:u,target:enemy,attackId:501,projectile:true}),true);
+ assert.ok(Math.abs(u.x-198)<1e-6,'ranged moves 18 units after hit');
+ assert.equal(u.phaseTarget,undefined,'ranged impact is not a body-block bypass');
+ assert.equal(applyFollowthrough(b,{source:u,target:enemy,attackId:501,projectile:true}),false);
+ b.time=1.1;u.x=180;u.chassis.mods.followthrough=2;
+ assert.equal(applyFollowthrough(b,{source:u,target:enemy,attackId:502,projectile:true}),true);
+ assert.ok(Math.abs(u.x-206)<1e-6,'extra stack adds 8 units');
+});
+test('2.11 ranged Follow Through refuses terrain-crossing approaches and target overlap',()=>{
+ const b=spawn(players(),ARENAS[1],3302),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.type='ranged';u.chassis=makeChassis('ranged');
+ u.chassis.mods.followthrough=1;u.x=255;u.y=200;enemy.x=345;enemy.y=200;
+ b.time=.1;
+ assert.equal(applyFollowthrough(b,{source:u,target:enemy,attackId:1000,projectile:true}),false);
+ assert.equal(u.x,255);
+ const b2=spawn(players(),ARENAS[0],3303),a=b2.units[0],v=b2.units[1];
+ b2.units=[a,v];a.type='ranged';a.chassis=makeChassis('ranged');
+ a.chassis.mods.followthrough=1;a.x=200;a.y=200;v.x=222;v.y=200;
+ assert.equal(applyFollowthrough(b2,{source:a,target:v,attackId:1001,projectile:true}),false);
 });
