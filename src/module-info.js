@@ -23,9 +23,9 @@ export const DETAILS={
  'target:duelist':'Targeting: Target Isolation weight +1. Prefer enemies separated from their team.',
  'target:hunter':'Targeting: Target Distance weight +1. Prefer nearer enemies.',
  'target:aggressor':'Targeting: Damage Opportunity weight +1. Prefer targets vulnerable to damage.',
- 'passive:regen':'Passive slot: regenerate 2 chassis HP per second. Unique per chassis; shares two slots with utilities.',
- 'passive:bulwark':"Reactive brace: +5 defense for 2 seconds when significant damage is imminent or enemies surround this chassis. Cooldown 6s; unique per chassis.",
- 'passive:haste':"Reactive pursuit or escape burst: +40% movement speed for 1.5 seconds when closing distance or withdrawing. Cooldown 5s; unique per chassis.",
- 'passive:focus':"Reactive finishing burst: attacks 35% faster for 1.5 seconds when several quick attacks could finish an enemy. Does not trigger for trivial one-hit kills. Cooldown 6s; unique per chassis.",
+ 'passive:regen':'Utility slot: regenerate 2 chassis HP per second. Unique per chassis; shares two slots with utilities.',
+ 'passive:bulwark':"Utility slot. Reactive brace: +5 defense for 2 seconds when significant damage is imminent or enemies surround this chassis. Cooldown 6s; unique per chassis.",
+ 'passive:haste':"Utility slot. Reactive pursuit or escape burst: +40% movement speed for 1.5 seconds when closing distance or withdrawing. Cooldown 5s; unique per chassis.",
+ 'passive:focus':"Utility slot. Reactive finishing burst: attacks 35% faster for 1.5 seconds when several quick attacks could finish an enemy. Does not trigger for trivial one-hit kills. Cooldown 6s; unique per chassis.",
 };
 export function cardDetail(card){const detail=DETAILS[card.kind+':'+card.key]||card.name;return card.kind==='utility'?detail+' A second copy on the same chassis halves its cooldown (maximum two copies); it does not consume another slot.':detail}
