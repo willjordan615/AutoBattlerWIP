@@ -469,7 +469,7 @@ test('haste reacts to pursuit and focus reacts to a finish opportunity',()=>{
  target.x=270;target.y=220;target.cd=1000;pursuer.cd=1000;
  tick(b,STEP);assert.equal(pursuer.combatStats.haste,1);
  assert.ok(pursuer.hasteUntil>b.time);
- pursuer.x=240;target.hp=5;pursuer.cd=0;
+ pursuer.x=240;target.hp=16;pursuer.cd=0;
  tick(b,STEP);assert.equal(pursuer.combatStats.focus,1);
  assert.ok(pursuer.focusUntil>b.time);
 });
