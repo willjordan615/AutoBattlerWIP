@@ -114,7 +114,7 @@ advance.style.display='';advance.disabled=!chosen;advance.textContent='Confirm d
  if(view==='over'){status.textContent='Match complete';phase.textContent='Match complete';info.textContent=match.players.find(p=>p.hp>0)?.name+' wins the match!'}
  const squad=$('squad');squad.replaceChildren();const heading=document.createElement('strong');heading.textContent='Your squad · '+(match?.players[0].squad.length||0)+'/3 chassis';squad.append(heading);for(const [i,u] of (match?.players[0].squad||[]).entries()){const row=document.createElement('div');row.className='fighter';row.textContent=(i+1)+'. '+CHASSIS[u.type].name+' · '+u.modules.map(m=>m.name).join(', ');squad.append(row)}renderStandings();renderDraftHistory();renderInspector()}
 const LABELS={kill:'Kill Opportunity',damage:'Damage Opportunity',threat:'Threat',distance:'Target Distance',allyProximity:'Ally Proximity',safety:'Safety',protection:'Protection',ability:'Ability Readiness',isolation:'Isolation',preferredRange:'Preferred Range'};
-const UTILITY_COOLDOWNS={dash:5,dodge:5,backstep:4.5,flank:4,disengage:6,intercept:5,followthrough:6};
+const UTILITY_COOLDOWNS={dash:5,dodge:5,backstep:4.5,flank:4,intercept:5};
 function selectFighter(owner,slot){inspected={owner,slot};renderInspector();draw()}
 function renderInspector(){
  const root=$('inspector');if(!root)return;
@@ -166,6 +166,8 @@ function renderInspector(){
    line('Position score',format(positionScore(battle,live,target,live,st,enemies)));
   }
   line('Attack cooldown',format(Math.max(0,live.cd))+'s');
+  if(live.disengageUntil>battle.time)line('Disengage retreat',format(live.disengageUntil-battle.time)+'s remaining');
+  if(live.chassis.mods.followthrough)line('Follow Through impact cooldown',format(Math.max(0,(live.followthroughAt||0)-battle.time))+'s');
   for(const [key,seconds] of Object.entries(UTILITY_COOLDOWNS))if(st[key])line(key+' ×'+st[key],format(Math.max(0,(live.mobilityCd?.[key]||0)-battle.time))+'s remaining / '+seconds+'s base');
   if(live.evadingUntil>battle.time)line('Evading',format(live.evadingUntil-battle.time)+'s');
   if(live.phasingUntil>battle.time)line('Follow Through',format(live.phasingUntil-battle.time)+'s');
