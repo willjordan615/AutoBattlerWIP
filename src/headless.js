@@ -1,7 +1,7 @@
 import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=attack-pipeline-210';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless'];
-export const UTILITY_MODULES=['dash','dodge','backstep','flank','disengage','intercept','followthrough'];
+export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','followthrough','disengage'];
+export const UTILITY_MODULES=['dash','dodge','backstep','flank','intercept'];
 export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
  coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1}
