@@ -18,7 +18,7 @@ export const ARENAS=[
 export const WIDTH=720,HEIGHT=520,STEP=1/30,DURATION=30;
 export function rng(seed=12345){let s=seed>>>0;return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
 export function makeChassis(type){if(!CHASSIS[type])throw Error('Unknown chassis');return {type,mods:{hp:0,damage:0,speed:0,rate:0,range:0,projectiles:0,piercing:0,area:0,knockback:0,taunt:0,dash:0,dodge:0,backstep:0,flank:0,disengage:0,intercept:0,followthrough:0},weights:Object.fromEntries(METRICS.map((m,i)=>[m,BASE_WEIGHTS[type][i]])),passives:[],modules:[]}}
-export function stats(u){const c=CHASSIS[u.type],m=u.chassis.mods;return {hp:c.hp+m.hp*20,damage:c.damage+m.damage*2,speed:(c.speed+m.speed*18)*(u.chassis.passives.includes('haste')?1.25:1),range:c.range+m.range*20,rate:c.rate/(1+m.rate*.15)/(u.chassis.passives.includes('focus')?1.15:1),defense:c.defense+(u.chassis.passives.includes('bulwark')?3:0),radius:c.radius,projectiles:1+m.projectiles,piercing:m.piercing,area:m.area,knockback:m.knockback,taunt:m.taunt||0,dash:m.dash||0,dodge:m.dodge||0,backstep:m.backstep||0,flank:m.flank||0,disengage:m.disengage||0,intercept:m.intercept||0,followthrough:m.followthrough||0,delivery:c.delivery}}
+export function stats(u){const c=CHASSIS[u.type],m=u.chassis.mods;return {hp:c.hp+m.hp*20,damage:c.damage+m.damage*2,speed:(c.speed+m.speed*18)*(u.hasteUntil>u.stateTime?1.4:1),range:c.range+m.range*20,rate:c.rate/(1+m.rate*.15)/(u.focusUntil>u.stateTime?1.35:1),defense:c.defense+(u.bulwarkUntil>u.stateTime?5:0),radius:c.radius,projectiles:1+m.projectiles,piercing:m.piercing,area:m.area,knockback:m.knockback,taunt:m.taunt||0,dash:m.dash||0,dodge:m.dodge||0,backstep:m.backstep||0,flank:m.flank||0,disengage:m.disengage||0,intercept:m.intercept||0,followthrough:m.followthrough||0,delivery:c.delivery}}
 export function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function rectHit(x,y,r,o){return Math.hypot(x-clamp(x,o.x,o.x+o.w),y-clamp(y,o.y,o.y+o.h))<r}
@@ -131,7 +131,7 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,mobilityCd:{},combatStats:{damage:0,damageTaken:0,attacks:0,shots:0,hits:0,wallHits:0,interceptions:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),projectiles:[],nextProjectileId:1,random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),projectiles:[],nextProjectileId:1,random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
 function targetsForAttack(state,u,target,st){
@@ -487,6 +487,82 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  }
  return best;
 }
+// One small deterministic threat/opportunity assessment per fighter per tick.
+// Projectile risk uses projected swept motion; melee risk uses attack readiness.
+export function tacticalAssessment(state,u,target,st,enemies){
+ const now=state.time,lookahead=.42,radius=CHASSIS[u.type].radius+PROJECTILE_RADIUS+2;
+ const shots=[];
+ for(const shot of state.projectiles||[]){
+  if(shot.owner===u.owner)continue;
+  const horizon=Math.min(lookahead,shot.remaining/Math.max(1,shot.speed));
+  if(horizon<=0)continue;
+  const end={x:shot.x+shot.vx*shot.speed*horizon,y:shot.y+shot.vy*shot.speed*horizon};
+  const impact=segmentCircleHit(shot,end,u,radius+Math.max(0,(shot.radius||3)-PROJECTILE_RADIUS));
+  if(impact===null)continue;
+  const when=horizon*impact;
+  // A blocking wall means the shot will not reach this fighter.
+  const hitPoint={x:shot.x+(end.x-shot.x)*impact,y:shot.y+(end.y-shot.y)*impact};
+  if(!clearLine(shot,hitPoint,state.arena,shot.radius||PROJECTILE_RADIUS))continue;
+  shots.push({shot,when,damage:Math.max(1,shot.damage-st.defense)});
+ }
+ shots.sort((a,b)=>a.when-b.when||a.shot.id-b.shot.id);
+ const melee=enemies.filter(e=>distance(e,u)<stats(e).range+CHASSIS[u.type].radius+8&&
+  clearLine(e,u,state.arena)&&e.cd<=lookahead);
+ const incoming=shots.reduce((sum,x)=>sum+x.damage,0)+melee.reduce((sum,e)=>sum+Math.max(1,stats(e).damage-st.defense),0);
+ const close=enemies.filter(e=>distance(e,u)<Math.max(75,stats(e).range+30));
+ const d=distance(u,target),clear=clearLine(u,target,state.arena);
+ const engaging=d>st.range+20&&clear,retreating=close.length>0&&
+  (u.chassis.weights.safety||0)>(u.chassis.weights.distance||0)+.2;
+ const finish=clear&&d<=st.range+20&&
+  target.hp<=Math.max(1,st.damage-stats(target).defense)*Math.max(1,1.35/st.rate)*1.35;
+ const endangeredAllies=state.units.filter(a=>a!==u&&a.owner===u.owner&&a.hp>0&&
+  enemies.some(e=>e.focus===a.id&&distance(e,a)<=stats(e).range+35));
+ return {shots,melee,incoming,close,engaging,retreating,finish,endangeredAllies,now};
+}
+function reactToThreat(state,u,target,st,context){
+ const cds=u.reactionCd||(u.reactionCd={}),now=state.time;
+ const ready=k=>(cds[k]||0)<=now;
+ const activate=(key,duration,cooldown)=>{
+  cds[key]=now+cooldown;u[key+'Until']=now+duration;
+  if(u.combatStats)u.combatStats[key]=(u.combatStats[key]||0)+1;
+  state.visualEvents.push({kind:'reaction',ability:key,x:u.x,y:u.y,owner:u.owner});
+ };
+ // Emergency defense has priority. Dodge is displacement away from the actual
+ // incoming projectile direction, not a generic target-relative sidestep.
+ if(u.chassis.passives.includes('dodge')&&ready('dodge')&&(context.shots.length||context.melee.length)){
+  const threat=context.shots[0]?.shot||context.melee[0];
+  const heading=context.shots.length?{x:threat.vx,y:threat.vy}:
+   {x:(u.x-threat.x)/Math.max(1,distance(u,threat)),y:(u.y-threat.y)/Math.max(1,distance(u,threat))};
+  const travel=st.speed*.4*.85,r=CHASSIS[u.type].radius+3;
+  const options=[1,-1].map(sign=>{
+   const p={x:u.x-heading.y*sign*travel,y:u.y+heading.x*sign*travel};
+   const valid=p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&
+    clearLine(u,p,state.arena,r)&&!state.arena.obstacles.some(o=>rectHit(p.x,p.y,r,o));
+   const safety=valid?context.shots.reduce((sum,x)=>{
+    const shot=x.shot,end={x:shot.x+shot.vx*shot.speed*.42,y:shot.y+shot.vy*shot.speed*.42};
+    return sum+(segmentCircleHit(shot,end,p,CHASSIS[u.type].radius+(shot.radius||3))===null?1:0);
+   },0): -Infinity;
+   return {p,safety,valid};
+  }).sort((a,b)=>b.safety-a.safety);
+  if(options[0]?.valid){
+   const old={x:u.x,y:u.y};u.x=options[0].p.x;u.y=options[0].p.y;bound(u,state.arena);
+   u.evadingUntil=now+.18;
+   cds.dodge=now+utilityCooldown(5,st.dodge);
+   u.combatStats&&(u.combatStats.dodges++);
+   state.visualEvents.push({kind:'mobility',ability:'dodge',owner:u.owner,x:old.x,y:old.y,toX:u.x,toY:u.y});
+  }
+ }
+ if(u.chassis.passives.includes('bulwark')&&ready('bulwark')&&
+  (context.incoming>=Math.max(6,u.hp*.09)||context.close.length>=2)){
+  activate('bulwark',2,6);
+ }
+ if(u.chassis.passives.includes('haste')&&ready('haste')&&(context.engaging||context.retreating)){
+  activate('haste',1.5,5);
+ }
+ if(u.chassis.passives.includes('focus')&&ready('focus')&&context.finish){
+  activate('focus',1.5,6);
+ }
+}
 // Utility upgrades add a second use window, not a stronger teleport.
 export function utilityCooldown(base,copies){return base/Math.min(2,Math.max(1,copies||1))}
 function utilityMove(state,u,target,st,dt,enemies){
@@ -518,7 +594,7 @@ function utilityMove(state,u,target,st,dt,enemies){
  .sort((a,b)=>Number(b.explicit)-Number(a.explicit)||a.proximity-b.proximity||distance(u,a.enemy)-distance(u,b.enemy)||a.enemy.id-b.enemy.id);
  const intercept=attackers.find(pair=>distance(u,pair.enemy)>st.range*.6&&distance(u,pair.enemy)<260);
  if(intercept)offer('intercept',intercept.enemy,burst*(.8+.2*strength('intercept')),5);
- if(threatened)offer('dodge',{x:u.x-dy*100,y:u.y+dx*100},burst*(.65+.2*strength('dodge')),5,{evade:.12+strength('dodge')*.04});
+ // Dodge is an emergency reaction, handled before routine utility movement.
  if(enemies.filter(e=>distance(u,e)<75).length>=2)offer('disengage',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*strength('disengage')),6);
  if(d<Math.max(85,st.range*.8))offer('backstep',{x:u.x-dx*110,y:u.y-dy*110},burst*(.75+.2*strength('backstep')),4.5);
  if(d<st.range+25&&d>10)offer('followthrough',{x:target.x+dx*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22),y:target.y+dy*(CHASSIS[u.type].radius+CHASSIS[target.type].radius+22)},burst*(.8+.3*strength('followthrough')),6,{phase:true});
@@ -549,7 +625,7 @@ export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.t
   const norm=Math.hypot(prior.x,prior.y);
   unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
  }
-const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;utilityMove(state,u,t,st,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=chooseMovement(state,u,t,st,enemies,dt);
+const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);reactToThreat(state,u,t,st,awareness);const activeStats=stats(u);utilityMove(state,u,t,activeStats,dt,enemies);const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=st.range&&visible;const direction=chooseMovement(state,u,t,activeStats,enemies,dt);
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
  record.frames++;if(!direction.x&&!direction.y)record.idle++;if(u.navigationBlocked)record.blocked++;
@@ -559,10 +635,10 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if((u.navStuckCount||0)>record.stuck){record.stuck=u.navStuckCount;record.reasonCounts.stuck=(record.reasonCounts.stuck||0)+1}
  if(record.lastDirection&&direction.x*record.lastDirection.x+direction.y*record.lastDirection.y<-.5)record.reversals++;record.lastDirection={x:direction.x,y:direction.y};
  if(inRange)record.attackOpportunities++;
- record.before={x:u.x,y:u.y,step:st.speed*dt,seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
+ record.before={x:u.x,y:u.y,step:activeStats.speed*dt,seeking:!inRange,waypointDistance:waypoint?distance(u,waypoint):null};
  }
- if(direction.x||direction.y){const step=st.speed*dt;u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
- if(inRange&&u.cd<=0){u.combatStats&&(u.combatStats.attacks++);if(state.diagnostics)state.diagnostics.units[u.id].shots++;if(st.delivery==='projectile')spawnProjectileVolley(state,u,t,st);else {const volley=targetsForAttack(state,u,t,st);for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,st.damage-stats(victim).defense),knockback:st.knockback,taunt:st.taunt});}}u.cd+=st.rate}}
+ if(direction.x||direction.y){const step=activeStats.speed*dt;u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
+ if(inRange&&u.cd<=0){u.combatStats&&(u.combatStats.attacks++);if(state.diagnostics)state.diagnostics.units[u.id].shots++;if(activeStats.delivery==='projectile')spawnProjectileVolley(state,u,t,activeStats);else {const volley=targetsForAttack(state,u,t,activeStats);for(const victim of volley.hits){attacks.push({source:u,target:victim,damage:Math.max(1,activeStats.damage-stats(victim).defense),knockback:activeStats.knockback,taunt:activeStats.taunt});}}u.cd+=activeStats.rate}}
  resolveCollision(state);
  if(state.diagnostics){for(const u of state.units){const record=state.diagnostics.units[u.id];if(!record?.before)continue;const before=record.before,actual=distance(before,u);record.actual+=actual;record.intended+=before.step*(record.lastDirection.x||record.lastDirection.y?1:0);if(before.step>0&&actual<before.step*.2&&(record.lastDirection.x||record.lastDirection.y))record.collisionLoss++;if(before.seeking&&before.step>0&&(record.lastDirection.x||record.lastDirection.y)&&actual<before.step*.2)record.pursuitStallFrames=(record.pursuitStallFrames||0)+1;else record.pursuitStallFrames=0;record.maxPursuitStallFrames=Math.max(record.maxPursuitStallFrames||0,record.pursuitStallFrames);if(before.waypointDistance!==null&&u.navigation?.path?.[0])record.routeProgress+=before.waypointDistance-distance(u,u.navigation.path[0]);delete record.before;
  if(state.tick%30===0&&record.samples.length<35)record.samples.push({t:Math.round(state.time),x:Math.round(u.x),y:Math.round(u.y),idle:record.idle,blocked:record.blocked,stuck:record.stuck});}}
