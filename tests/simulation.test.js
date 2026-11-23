@@ -713,7 +713,7 @@ test('2.7 Sunder reduces armor only to zero and hazards cap at two per fighter',
  const first=hit();
  assert.equal(first.damage,10-stats(target).defense);
  const second=hit();
- assert.equal(second.damage,10-(stats(target).defense-2));
+ assert.equal(second.damage,10-Math.max(0,stats(target).defense-2));
  for(let i=0;i<5;i++)hit();
  assert.equal(b.zones.filter(z=>z.source.id===source.id).length,2);
  target.effects.sunder=99;target.effects.sunderUntil=b.time+2;
