@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,disengageDirection} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,disengageDirection,resolveFollowthroughImpacts} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 import {DETAILS,SUMMARIES,cardDetail,cardSummary} from '../src/module-info.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
@@ -986,7 +986,7 @@ test('2.11 impact and aftermath modules reflect their persistent versus immediat
 });
 test('2.11 Follow Through advances through target exactly once per attack, respects cooldown and stacks',()=>{
  const b=spawn(players(),ARENAS[0],3201),a=b.units[0],target=b.units[1];
- b.units=[a,target];a.x=200;a.y=200;target.x=247;target.y=200;
+ b.units=[a,target];a.x=212;a.y=200;target.x=247;target.y=200;
  a.chassis.mods.followthrough=1;a.type='rogue';a.chassis.type='rogue';target.type='bruiser';target.chassis.type='bruiser';
  b.time=.1;
  assert.equal(applyFollowthrough(b,{source:a,target,attackId:50}),true);
@@ -1061,4 +1061,49 @@ test('2.11 ranged Follow Through refuses terrain-crossing approaches and target 
  b2.units=[a,v];a.type='ranged';a.chassis=makeChassis('ranged');
  a.chassis.mods.followthrough=1;a.x=200;a.y=200;v.x=222;v.y=200;
  assert.equal(applyFollowthrough(b2,{source:a,target:v,attackId:1001,projectile:true}),false);
+});
+
+test('2.11.1 Follow Through never teleports beyond its displacement budget',()=>{
+ const b=spawn(players(),ARENAS[0],3501),source=b.units[0],target=b.units[1];
+ b.units=[source,target];source.type='rogue';source.chassis=makeChassis('rogue');
+ source.chassis.mods.followthrough=1;
+ source.x=150;source.y=220;target.x=240;target.y=220;
+ const start=source.x;
+ b.time=.2;
+ assert.ok(applyFollowthrough(b,{source,target,attackId:1301}));
+ assert.ok(source.x-start<=72+1e-8);
+ assert.ok(source.x<target.x,'distant target does not cause teleport to far side');
+ assert.ok(Math.abs(target.x-source.x-(CHASSIS.rogue.radius+CHASSIS[target.type].radius+5))<1e-8);
+});
+test('2.11.1 deepest successful target wins within simultaneous melee hits',()=>{
+ const b=spawn(players(),ARENAS[0],3502),source=b.units[0],first=b.units[1],last=b.units[2];
+ b.units=[source,first,last];source.chassis.mods.followthrough=1;
+ source.x=200;source.y=240;first.x=232;first.y=240;last.x=252;last.y=240;
+ b.time=.2;
+ const origin={x:200,y:240},attackDirection=0;
+ // Deliberately reverse processing order: depth must not depend on array order.
+ resolveFollowthroughImpacts(b,[
+  {source,target:last,attackId:1302,damage:16,attackOrigin:origin,attackDirection},
+  {source,target:first,attackId:1302,damage:16,attackOrigin:origin,attackDirection}
+ ]);
+ assert.ok(source.x<=272+1e-8);
+ assert.ok(source.x>first.x);
+ assert.equal(source.combatStats.followthrough,1);
+});
+test('2.11.1 ranged volley chooses deepest hit after its final projectile resolves',()=>{
+ const b=spawn(players(),ARENAS[0],3503),source=b.units[0],first=b.units[1],last=b.units[2];
+ source.type='ranged';source.chassis=makeChassis('ranged');source.chassis.mods.followthrough=1;
+ b.units=[source,first,last];source.x=150;source.y=240;first.x=230;first.y=240;last.x=285;last.y=240;
+ const origin={x:150,y:240},attackDirection=0,attackId=1303;
+ b.time=.2;
+ b.projectiles=[{volley:{attackId}}];
+ resolveFollowthroughImpacts(b,[{source,target:first,attackId,projectile:true,damage:12,attackOrigin:origin,attackDirection}]);
+ assert.equal(source.x,150,'do not trigger until volley is complete');
+ resolveFollowthroughImpacts(b,[{source,target:last,attackId,projectile:true,damage:12,attackOrigin:origin,attackDirection}]);
+ assert.equal(source.x,150);
+ b.projectiles=[];
+ resolveFollowthroughImpacts(b,[]);
+ assert.ok(Math.abs(source.x-168)<1e-8);
+ assert.equal(source.combatStats.followthrough,1);
+ assert.equal(b.followthroughPending.size,0);
 });
