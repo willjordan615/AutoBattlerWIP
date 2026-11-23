@@ -19,11 +19,15 @@ export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  return score;
  }
  if(card.kind==='attack'){
- const scores={damage:24+2/(st.damage+m.damage*2)*35,rate:25,range:type==='ranged'?19:26,projectiles:22,piercing:20,area:15,knockback:12,taunt:type==='bruiser'?29:21,speed:type==='ranged'?19:25,hp:type==='bruiser'?26:19};
+ const scores={damage:24+2/(st.damage+m.damage*2)*35,rate:25,range:type==='ranged'?19:26,projectiles:22,piercing:20,area:15,knockback:12,taunt:type==='bruiser'?29:21,range:type==='ranged'?23:25,sunder:24,precision:22,expose:player.squad.length>1?29:15,disruption:25,momentum:type==='rogue'?29:22,chain:24,burning:24,hazardous:23,restless:18,speed:type==='ranged'?19:25,hp:type==='bruiser'?26:19};
  let score=scores[card.key]||10;
  if(card.key==='projectiles')score+=m.piercing*5+Math.min(6,player.squad.length*2);
  if(card.key==='piercing')score+=m.projectiles*6;
- if(card.key==='range'&&type==='ranged')score+=m.damage*2;
+ if(card.key==='range'&&type==='ranged')score+=Math.min(4,m.area*2);
+ if(card.key==='chain')score+=Math.min(5,m.area*2);
+ if(card.key==='hazardous')score+=Math.min(5,m.disruption*2);
+ if(card.key==='expose')score+=Math.min(6,player.squad.length*2);
+ if(card.key==='restless')score+=Math.min(5,m.expose*2);
  if(card.key==='hp'&&unit.passives.includes('regen'))score+=3;
  return score;
  }
@@ -33,7 +37,7 @@ export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0){
  return (bonus[card.key]||18)-Math.max(0,unit.weights[key]-2)*2;
  }
  if(card.kind==='passive'){
- const scores={regen:type==='bruiser'?29:23,bulwark:type==='bruiser'?32:24,haste:type==='rogue'?29:25,focus:type==='ranged'?31:27};
+ const scores={regen:type==='bruiser'?29:23,bulwark:type==='bruiser'?32:24,haste:type==='rogue'?29:25,focus:type==='ranged'?31:27,retaliation:type==='bruiser'?30:20};
  let score=scores[card.key]||20;
  if(unit.passives.includes(card.key))return -Infinity;
  if(unit.passives.length===2){const replaced=unit.passives[passiveSlot];if(replaced===card.key)return -20;score-=8}
