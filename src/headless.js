@@ -1,6 +1,6 @@
 import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=projectiles-20';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-export const ATTACK_MODULES=['damage','rate','range','projectiles','piercing','area','knockback','taunt','speed','hp'];
+export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt'];
 export const UTILITY_MODULES=['dash','dodge','backstep','flank','disengage','intercept','followthrough'];
 export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
@@ -18,7 +18,16 @@ export function createMatch(types=['bruiser','rogue','ranged','bruiser'],seed=12
  const random=rng(seed);
  return {seed,random,round:1,phase:'draft',players:types.map((type,i)=>({name:i===0?'You':'Bot '+i,hp:100,streak:0,squad:[makeChassis(type)]})),lastRanking:[],lastSpawnSlots:null,draft:null,history:[]}
 }
-export function legal(player,card){return player.hp>0&&(card.kind!=='unit'||player.squad.length<3)}
+export function canEquip(unit,card){
+ if(card.kind==='utility')return (unit.mods[card.key]||0)<2;
+ if(card.kind==='passive')return !unit.passives.includes(card.key);
+ return true;
+}
+export function legal(player,card){
+ if(player.hp<=0)return false;
+ if(card.kind==='unit')return player.squad.length<3;
+ return player.squad.some(unit=>canEquip(unit,card));
+}
 export function draftPool(match){
  const active=match.players.map((p,i)=>p.hp>0?i:-1).filter(i=>i>=0);
  const pool=Array.from({length:active.length+2},(_,i)=>({...catalog[Math.floor(match.random()*catalog.length)],uid:match.round+'-'+i}));
@@ -34,6 +43,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  const card=d.pool[index];if(!legal(player,card))throw Error('Illegal draft pick');
  if(card.kind==='unit')player.squad.push(makeChassis(card.key));
  else{const unit=player.squad[chassisIndex];if(!unit)throw Error('Invalid chassis slot');
+ if(!canEquip(unit,card))throw Error('This chassis cannot equip another copy of '+card.key);
  if(card.kind==='attack')unit.mods[card.key]++;
  if(card.kind==='target')for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
  if(card.kind==='passive'||card.kind==='utility'){
@@ -47,7 +57,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
    // Re-drafting an equipped utility strengthens it without using another slot.
    const existing=slots.indexOf(card.key);
    if(existing>=0){
-    unit.mods[card.key]=(unit.mods[card.key]||0)+1;
+    unit.mods[card.key]=Math.min(2,(unit.mods[card.key]||0)+1);
     unit.modules=unit.modules.filter(m=>m.passiveSlot!==(existing+1));
     unit.modules.push({kind:card.kind,name:card.name+' ×'+unit.mods[card.key],passiveSlot:existing+1});
    }else{
@@ -65,7 +75,9 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0){
  }
  d.pool.splice(index,1);d.picks.push({player:playerIndex,uid:card.uid,card:card.name,chassisIndex});d.turn++;if(d.turn===d.order.length)match.phase='combat';return card
 }
-export function autoDraft(match){if(!match.draft)draftPool(match);while(match.phase==='draft'){const d=match.draft,i=d.order[d.turn],p=match.players[i];const legalCards=d.pool.filter(c=>legal(p,c));const card=legalCards[Math.floor(match.random()*legalCards.length)];assign(match,i,card.uid,Math.floor(match.random()*p.squad.length),Math.floor(match.random()*2))}return match.draft.picks}
+export function autoDraft(match){if(!match.draft)draftPool(match);while(match.phase==='draft'){const d=match.draft,i=d.order[d.turn],p=match.players[i];const legalCards=d.pool.filter(c=>legal(p,c));const card=legalCards[Math.floor(match.random()*legalCards.length)];
+ const slots=card.kind==='unit'?[0]:p.squad.map((unit,index)=>canEquip(unit,card)?index:-1).filter(index=>index>=0);
+ assign(match,i,card.uid,slots[Math.floor(match.random()*slots.length)],Math.floor(match.random()*2))}return match.draft.picks}
 function duel(match,a,b){const players=match.players.map((p,i)=>({...p,hp:i===a||i===b?100:0}));const battle=spawn(players,ARENAS[(match.round-1)%ARENAS.length],match.seed+match.round*101+a*13+b*7,match.round);for(let t=0;t<900;t++)if(tick(battle,STEP)!==null)break;const x=teamPercent(battle,a),y=teamPercent(battle,b);return x!==y?x>y?a:b:Math.min(a,b)}
 export function rankRound(match,battle){
  // At the time limit, remaining health alone rewards refusing engagements.
@@ -80,6 +92,13 @@ export function rankRound(match,battle){
  }
  const ranking=[];for(const group of groups){if(group.length===1){ranking.push(group[0]);continue}const wins=new Map(group.map(i=>[i,0]));for(let i=0;i<group.length;i++)for(let j=i+1;j<group.length;j++){const winner=duel(match,group[i],group[j]);wins.set(winner,wins.get(winner)+1)}ranking.push(...group.sort((a,b)=>wins.get(b)-wins.get(a)||a-b))}return ranking}
 export function beginCombat(match){if(match.phase!=='combat')throw Error('Complete the draft first');const battle=spawn(match.players,ARENAS[(match.round-1)%ARENAS.length],match.seed+match.round*991,match.round,match.lastSpawnSlots);match.lastSpawnSlots=battle.spawnSlots.slice();return battle}
-export function completeCombat(match,battle){if(match.phase!=='combat')throw Error('Combat already resolved');const ranking=rankRound(match,battle);const before=match.players.map(p=>p.hp);resolvePlayerHP(match.players,ranking,match.round);match.lastRanking=ranking;const result={round:match.round,ranking,damage:before.map((hp,i)=>hp-match.players[i].hp),remaining:match.players.map(p=>p.hp),time:battle.time,eliminations:battle.eliminations};match.history.push(result);if(match.players.filter(p=>p.hp>0).length<=1)match.phase='finished';else{match.round++;draftPool(match)}return result}
+export function completeCombat(match,battle){if(match.phase!=='combat')throw Error('Combat already resolved');const ranking=rankRound(match,battle);const before=match.players.map(p=>p.hp);resolvePlayerHP(match.players,ranking,match.round);match.lastRanking=ranking;const result={round:match.round,ranking,damage:before.map((hp,i)=>hp-match.players[i].hp),remaining:match.players.map(p=>p.hp),time:battle.time,eliminations:battle.eliminations,
+ combatReport:battle.units.map(u=>({id:u.id,owner:u.owner,type:u.type,
+  damage:Math.round((u.combatStats?.damage||0)*10)/10,
+  damageTaken:Math.round((u.combatStats?.damageTaken||0)*10)/10,
+  attacks:u.combatStats?.attacks||0,shots:u.combatStats?.shots||0,
+  hits:u.combatStats?.hits||0,wallHits:u.combatStats?.wallHits||0,
+  interceptions:u.combatStats?.interceptions||0,
+  survived:u.hp>0}))};match.history.push(result);if(match.players.filter(p=>p.hp>0).length<=1)match.phase='finished';else{match.round++;draftPool(match)}return result}
 export function fight(match){const battle=beginCombat(match);for(let t=0;t<900;t++)if(tick(battle,STEP)!==null)break;return completeCombat(match,battle)}
 export function simulate(seed=12345,maxRounds=250){const match=createMatch(undefined,seed);draftPool(match);while(match.phase!=='finished'&&match.round<=maxRounds){autoDraft(match);fight(match)}return match}
