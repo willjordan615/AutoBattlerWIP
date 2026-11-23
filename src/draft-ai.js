@@ -14,8 +14,8 @@ const TRAITS_BY_CARD={
  'attack:restless':{mobility:.55,coverage:.5},
  'utility:dash':{mobility:1},'utility:dodge':{survival:1,mobility:.5},
  'utility:backstep':{survival:.8,mobility:.65},'utility:flank':{mobility:1,coverage:.25},
- 'utility:disengage':{survival:.85,mobility:.7},'utility:intercept':{teamwork:1,mobility:.5},
- 'utility:followthrough':{mobility:1,coverage:.3},
+ 'attack:disengage':{survival:1,mobility:.7},'utility:intercept':{teamwork:1,mobility:.5},
+ 'attack:followthrough':{mobility:1,coverage:.3},
  'passive:regen':{survival:1},'passive:bulwark':{survival:1,teamwork:.2},
  'passive:haste':{mobility:1},'passive:focus':{focusFire:1},
  'passive:retaliation':{survival:.5,focusFire:.65},
@@ -27,8 +27,8 @@ const TRAITS_BY_CARD={
 const BASE={
  attack:{projectiles:23,piercing:21,area:21,knockback:18,taunt:21,range:22,
   sunder:22,precision:21,expose:21,disruption:23,momentum:21,chain:22,
-  burning:22,hazardous:22,restless:20},
- utility:{dash:22,dodge:24,backstep:21,flank:22,disengage:21,intercept:21,followthrough:21},
+  burning:22,hazardous:22,restless:20,followthrough:22,disengage:22},
+ utility:{dash:22,dodge:24,backstep:21,flank:22,intercept:21},
  passive:{regen:23,bulwark:24,haste:23,focus:23,retaliation:21},
  target:{executioner:22,guardian:21,skirmisher:21,coward:20,duelist:21,hunter:20,aggressor:21}
 };
@@ -100,6 +100,8 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
    if(card.key==='taunt'&&count>1)add(parts,'Can protect other fighters',2);
    if(card.key==='chain'&&count===1)add(parts,'Spreads pressure across enemies',1.5);
    if(card.key==='hazardous'&&w.safety>1)add(parts,'Control while staying distant',2);
+   if(card.key==='disengage')add(parts,'Safer after-attack retreat',clamp(w.safety-.4,0,3)*2+(type==='ranged'?2:0));
+   if(card.key==='followthrough')add(parts,'Melee impact repositioning',type==='rogue'?5:type==='bruiser'?2:-9);
    if(card.key==='projectiles'&&type==='ranged')add(parts,'Projectile spread',2);
    if(card.key==='area'&&type==='bruiser')add(parts,'Melee sweep reach',2);
    // Multiple stacks still work; their marginal value should be earned.
@@ -129,7 +131,6 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
     add(parts,'Second copy only shortens cooldown',-7);
    }
    if(card.key==='intercept')add(parts,'Allies to defend',count>1?4:-7);
-   if(card.key==='followthrough'&&type==='rogue')add(parts,'Fast melee repositioning',3);
    if(card.key==='backstep'&&type==='ranged')add(parts,'Maintain projectile distance',4);
    if(card.key==='flank'&&type==='rogue')add(parts,'Exploit fast lateral approach',3);
    if(card.key==='dodge'&&w.safety>1)add(parts,'Survival-focused movement',2);
