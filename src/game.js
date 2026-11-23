@@ -34,6 +34,12 @@ function endCombat(){
    (u.interceptions?' · '+u.interceptions+' interceptions':'');
   row.append(heading,values);summary.append(row);
  }
+ const totals=document.createElement('div');totals.className='round-team-totals';
+ totals.textContent='Team damage · '+match.players.map((player,index)=>{
+  const amount=result.combatReport.filter(u=>u.owner===index).reduce((sum,u)=>sum+u.damage,0);
+  return player.name+' '+fmt(amount);
+ }).join(' · ');
+ summary.append(totals);
  render();renderInspector();
 }
 function next(){if(view!=='results')return;view='draft';chosen=null;processBots();render()}
