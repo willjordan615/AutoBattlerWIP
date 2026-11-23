@@ -696,6 +696,12 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  reactToThreat(state,u,t,st,awareness);
  const activeStats=stats(u);
  const d=distance(u,t),visible=clearLine(u,t,state.arena),inRange=d<=activeStats.range&&visible;
+ if(!u.attack){
+  // Facing follows a target smoothly while moving; windup later locks the direction.
+  const desired=Math.atan2(t.y-u.y,t.x-u.x);
+  const delta=Math.atan2(Math.sin(desired-u.facing),Math.cos(desired-u.facing));
+  u.facing+=Math.max(-dt*10,Math.min(dt*10,delta));
+ }
  if(!u.attack&&inRange&&u.cd<=0)startAttack(state,u,t);
  // Committed attacks reduce movement; only an emergency Dodge can cancel windup.
  if(!u.attack)utilityMove(state,u,t,activeStats,dt,enemies,awareness);
