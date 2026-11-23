@@ -799,13 +799,15 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if(state.diagnostics){for(const u of state.units){const record=state.diagnostics.units[u.id];if(!record?.before)continue;const before=record.before,actual=distance(before,u);record.actual+=actual;record.intended+=before.step*(record.lastDirection.x||record.lastDirection.y?1:0);if(before.step>0&&actual<before.step*.2&&(record.lastDirection.x||record.lastDirection.y))record.collisionLoss++;if(before.seeking&&before.step>0&&(record.lastDirection.x||record.lastDirection.y)&&actual<before.step*.2)record.pursuitStallFrames=(record.pursuitStallFrames||0)+1;else record.pursuitStallFrames=0;record.maxPursuitStallFrames=Math.max(record.maxPursuitStallFrames||0,record.pursuitStallFrames);if(before.waypointDistance!==null&&u.navigation?.path?.[0])record.routeProgress+=before.waypointDistance-distance(u,u.navigation.path[0]);delete record.before;
  if(state.tick%30===0&&record.samples.length<35)record.samples.push({t:Math.round(state.time),x:Math.round(u.x),y:Math.round(u.y),idle:record.idle,blocked:record.blocked,stuck:record.stuck});}}
  advanceProjectiles(state,dt,attacks);
- const resolved=resolveAttackModules(state,attacks).concat(environmentalAttacks(state,dt));
+ // Evasion blocks impacts and their on-hit effects before any status is applied.
+ const landed=attacks.filter(a=>{
+  if(a.target.evadingUntil<=state.time)return true;
+  a.target.combatStats&&(a.target.combatStats.evaded++);
+  return false;
+ });
+ const resolved=resolveAttackModules(state,landed).concat(environmentalAttacks(state,dt));
  const totals=new Map();
  for(const a of resolved){
-  if(a.target.evadingUntil>state.time){
-   a.target.combatStats&&(a.target.combatStats.evaded++);
-   continue;
-  }
   // Estimate the defense prevented by a timed Bulwark rather than counting
   // hypothetical dodged damage as prevention.
   if(a.target.bulwarkUntil>state.time&&a.target.combatStats){
