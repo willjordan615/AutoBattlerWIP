@@ -119,6 +119,8 @@ export function completeCombat(match,battle){if(match.phase!=='combat')throw Err
   haste:u.combatStats?.haste||0,focus:u.combatStats?.focus||0,bulwark:u.combatStats?.bulwark||0,
   attacks:u.combatStats?.attacks||0,shots:u.combatStats?.shots||0,
   hits:u.combatStats?.hits||0,wallHits:u.combatStats?.wallHits||0,
+  followthrough:u.combatStats?.followthrough||0,
+  followthroughDistance:Math.round((u.combatStats?.followthroughDistance||0)*100)/100,
   interceptions:u.combatStats?.interceptions||0,
   survived:u.hp>0}))};match.history.push(result);if(match.players.filter(p=>p.hp>0).length<=1)match.phase='finished';else{match.round++;draftPool(match)}return result}
 export function fight(match){const battle=beginCombat(match);for(let t=0;t<900;t++)if(tick(battle,STEP)!==null)break;return completeCombat(match,battle)}
