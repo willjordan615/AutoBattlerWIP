@@ -484,6 +484,48 @@ export function positionScore(state,u,target,point,st,enemies){
  score+=.08*(d<old?1:0)-.03*distance(u,point)/Math.max(1,st.speed);
  return score;
 }
+// Deliberate holding is a tactical option, not an inactivity timer.
+// Only favor it when combat is available here or an opponent is actually
+// advancing into this position. A distant or stationary enemy must be pursued.
+export function holdingOpportunity(state,u,target,st,enemies){
+ const d=distance(u,target),visible=clearLine(u,target,state.arena);
+ if(!visible)return 0;
+ const targetRadius=CHASSIS[target.type].radius;
+ const striking=d<=st.range+targetRadius;
+ const desired=st.range*.82;
+ // Standing in melee range is useful; ranged fighters threatened at point
+ // blank range must remain free to seek a safer firing position.
+ const tooClose=u.type==='ranged'&&d<desired*.65;
+ const incoming=enemies.some(e=>e.hp>0&&e!==target&&distance(u,e)<stats(e).range+CHASSIS[u.type].radius+12);
+ if(tooClose||incoming)return 0;
+ let approach=0;
+ if(!striking&&d<st.range+targetRadius+110){
+  const history=(target.motion||[]).filter(p=>p.time>=state.time-.65);
+  let vx=0,vy=0;
+  if(history.length>1){
+   const first=history[0],last=history[history.length-1],elapsed=last.time-first.time;
+   if(elapsed>.05){vx=(last.x-first.x)/elapsed;vy=(last.y-first.y)/elapsed}
+  }else if(target.moveDecision){
+   const dir=target.moveDecision;
+   vx=dir.x*stats(target).speed;vy=dir.y*stats(target).speed;
+  }
+  const toward=((u.x-target.x)*vx+(u.y-target.y)*vy)/Math.max(1,d);
+  const future={x:target.x+vx*.9,y:target.y+vy*.9};
+  const futureD=distance(u,future);
+  if(toward>stats(target).speed*.18&&futureD<=st.range+targetRadius+20)
+   approach=Math.min(1,(d-futureD)/Math.max(1,stats(target).speed*.5));
+ }
+ if(!striking&&!approach)return 0;
+ const exposed=enemies.some(e=>e.hp>0&&e!==target&&
+  clearLine(e,u,state.arena)&&distance(e,u)<=stats(e).range+CHASSIS[u.type].radius);
+ const exposedPenalty=exposed?.2:0;
+ const inRangeBonus=striking?.23:0;
+ const incomingBonus=approach*.5;
+ const stableBonus=(u.holdingPosition? .12:0);
+ // Standing in the wrong range isn't a good defensive position.
+ const tooNear=striking&&d<Math.min(desired*.55,CHASSIS[u.type].radius+targetRadius+5);
+ return Math.max(0,inRangeBonus+incomingBonus+stableBonus-exposedPenalty-(tooNear?.17:0));
+}
 export function chooseMovement(state,u,target,st,enemies,dt){
  const arena=state.arena,step=st.speed*dt,r=CHASSIS[u.type].radius+3;
  const terrainBlocked=!clearLine(u,target,arena,0);
@@ -550,7 +592,8 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  }
  // Independent collision-deadlock detector: route progress alone cannot
  // diagnose characters pushed back by teammates or enemies in open sightlines.
- const activeApproach=distance(u,target)>st.range||terrainBlocked;
+ const activeApproach=(distance(u,target)>st.range||terrainBlocked)&&
+  !u.holdingPosition&&holdingOpportunity(state,u,target,st,enemies)===0;
  const motion=u.navMotion||(u.navMotion={x:u.x,y:u.y,time:state.time,stalls:0});
  if(state.time-motion.time>=.65){
   const displaced=distance(u,motion);
@@ -637,6 +680,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  const angle=Math.atan2(target.y-u.y,target.x-u.x);
  const candidates=[{x:0,y:0}];
  for(let i=0;i<16;i++){const a=angle+i*Math.PI/8;candidates.push({x:Math.cos(a),y:Math.sin(a)})}
+ const holdValue=holdingOpportunity(state,u,target,st,enemies);
  let best={x:0,y:0,score:-Infinity};
  for(const dir of candidates){
   if((dir.x||dir.y)&&!valid(dir))continue;
@@ -644,10 +688,14 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   const pressure=actorClearance(state,u,p,dt*.8);
   const progress=distance(u,target)-distance(p,target);
   const score=positionScore(state,u,target,p,st,enemies)-pressure*.09
-   +(hasGoal?progress*.09:0);
+   +(hasGoal?progress*.09:0)+(!(dir.x||dir.y)?holdValue:0);
   if(score>best.score+1e-8)best={...dir,score};
  }
- return best;
+ u.holdingPosition=!(best.x||best.y)&&holdValue>0;
+ if(u.holdingPosition){
+  u.navProgress=null;u.navMotion={x:u.x,y:u.y,time:state.time,stalls:0};
+ }
+ return {x:best.x,y:best.y};
 }
 // One small deterministic threat/opportunity assessment per fighter per tick.
 // Projectile risk uses projected swept motion; melee risk uses attack readiness.
@@ -1023,6 +1071,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if(!u.attack&&!retreating&&!committing)utilityMove(state,u,t,activeStats,dt,enemies,awareness);
  const direction=committing?{x:u.followthroughCommit.x,y:u.followthroughCommit.y}:
   retreating?disengageDirection(state,u,enemies):chooseMovement(state,u,t,activeStats,enemies,dt);
+ if(committing||retreating)u.holdingPosition=false;
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
  record.frames++;if(!direction.x&&!direction.y)record.idle++;if(u.navigationBlocked)record.blocked++;
