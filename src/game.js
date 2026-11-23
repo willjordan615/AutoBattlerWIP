@@ -1,7 +1,7 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=draft-labels-261';
-import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=draft-labels-261';
-import {cardDetail} from './module-info.js?v=draft-labels-261';
-import {chooseCpuDraft} from './draft-ai.js?v=draft-labels-261';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=attack-effects-27';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=attack-effects-27';
+import {cardDetail} from './module-info.js?v=attack-effects-27';
+import {chooseCpuDraft} from './draft-ai.js?v=attack-effects-27';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let effects=[],match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
@@ -132,6 +132,7 @@ function renderInspector(){
  line('Attack range / interval',st.range+' / '+format(st.rate)+'s');
  line('Movement speed',format(st.speed));
  line('Attack lanes / pierce',st.projectiles+' / '+st.piercing);
+ line('Attack modules',Object.entries(ch.mods).filter(([key,v])=>v>0&&!UTILITY_COOLDOWNS[key]&&['range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','area','projectiles','piercing','knockback','taunt'].includes(key)).map(([key,v])=>key+' ×'+v).join(', ')||'None');
  line('Area / knockback / taunt',st.area+' / '+st.knockback+' / '+st.taunt);
  section('AI weights · exact values');
  for(const key of METRICS)line(LABELS[key]||key,format(ch.weights[key]||0));
@@ -184,6 +185,7 @@ function collectEffects(){
   else if(e.kind==='impact')effects.push({...e,born:now,duration:.18});
   else if(e.kind==='wallImpact')effects.push({...e,born:now,duration:.16});
   else if(e.kind==='attackCommit')effects.push({...e,born:now,duration:.14});
+  else if(e.kind==='chain')effects.push({...e,born:now,duration:.18});
  }
  if(effects.length>220)effects=effects.slice(-220);
 }
@@ -221,6 +223,9 @@ function drawEffects(){
     ctx.moveTo(...a);ctx.lineTo(...b);ctx.lineTo(...c);ctx.closePath();
    }
    ctx.fill();ctx.restore();
+  }else if(e.kind==='chain'){
+   ctx.save();ctx.globalAlpha=(1-t)*.55;ctx.strokeStyle='#ffffff';ctx.lineWidth=2;
+   ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.lineTo(e.toX,e.toY);ctx.stroke();ctx.restore();
   }else if(e.kind==='wallImpact'){
    ctx.save();ctx.globalAlpha=1-t;ctx.strokeStyle='#f8d991';ctx.lineWidth=1.5;
    ctx.beginPath();
@@ -251,7 +256,11 @@ function drawEffects(){
  }
 }
 
-function draw(){ctx.fillStyle='#19263a';ctx.fillRect(0,0,720,520);ctx.strokeStyle='#31415a';ctx.lineWidth=1;for(let x=20;x<720;x+=40){ctx.beginPath();ctx.moveTo(x,20);ctx.lineTo(x,500);ctx.stroke()}for(let y=20;y<520;y+=40){ctx.beginPath();ctx.moveTo(20,y);ctx.lineTo(700,y);ctx.stroke()}ctx.strokeStyle='#71829a';ctx.lineWidth=5;ctx.strokeRect(20,20,680,480);for(const o of battle?.arena?.obstacles||[]){ctx.fillStyle='#52617a';ctx.fillRect(o.x,o.y,o.w,o.h);ctx.strokeStyle='#8b9bb2';ctx.strokeRect(o.x,o.y,o.w,o.h)}
+function draw(){ctx.fillStyle='#19263a';ctx.fillRect(0,0,720,520);ctx.strokeStyle='#31415a';ctx.lineWidth=1;for(let x=20;x<720;x+=40){ctx.beginPath();ctx.moveTo(x,20);ctx.lineTo(x,500);ctx.stroke()}for(let y=20;y<520;y+=40){ctx.beginPath();ctx.moveTo(20,y);ctx.lineTo(700,y);ctx.stroke()}ctx.strokeStyle='#71829a';ctx.lineWidth=5;ctx.strokeRect(20,20,680,480);for(const o of battle?.arena?.obstacles||[]){ctx.fillStyle='#52617a';ctx.fillRect(o.x,o.y,o.w,o.h);ctx.strokeStyle='#8b9bb2';ctx.strokeRect(o.x,o.y,o.w,o.h)}for(const z of battle?.zones||[]){
+ ctx.save();ctx.globalAlpha=Math.max(0,Math.min(.18,(z.until-battle.time)*.08));
+ ctx.fillStyle='#f5a85d';ctx.beginPath();ctx.arc(z.x,z.y,z.radius,0,Math.PI*2);ctx.fill();
+ ctx.restore();
+}
  for(const u of battle?.units||[]){if(u.hp<=0)continue;const c=CHASSIS[u.type],r=c.radius;ctx.fillStyle=COLORS[u.owner];ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.fill();if(inspected&&inspected.owner===u.owner&&inspected.slot===u.id%100){ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(u.x,u.y,r+8,0,Math.PI*2);ctx.stroke();}ctx.fillStyle=c.fill;ctx.beginPath();ctx.arc(u.x,u.y,r-1,0,Math.PI*2);ctx.fill();ctx.fillStyle='#0b1625';ctx.textAlign='center';ctx.font='bold 12px system-ui';ctx.fillText(u.type==='bruiser'?'B':u.type==='rogue'?'R':'A',u.x,u.y+4);ctx.fillStyle='#102033';ctx.fillRect(u.x-17,u.y-r-17,34,6);ctx.fillStyle='#77e7a3';ctx.fillRect(u.x-17,u.y-r-17,34*u.hp/u.maxHp,6)}drawEffects()}
 function step(){if(view!=='fight')return;const result=tick(battle,STEP);collectEffects();for(const event of battle.events.splice(0))log(event);$('timer').textContent=battle.time.toFixed(1)+'s';if(result!==null)endCombat();else if(inspected&&battle.tick%6===0)renderInspector()}
 function loop(now){const dt=Math.min(.08,(now-last)/1000);last=now;if(view==='fight'&&!paused){acc+=dt*Number($('speed').value||1);let count=0;while(acc>=STEP&&count++<12&&view==='fight'){step();acc-=STEP}}draw();if(view==='fight')frame=requestAnimationFrame(loop)}
