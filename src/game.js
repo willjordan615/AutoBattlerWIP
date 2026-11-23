@@ -1,10 +1,10 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=attack-effects-27';
-import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=attack-effects-27';
-import {cardDetail} from './module-info.js?v=attack-effects-27';
-import {chooseCpuDraft} from './draft-ai.js?v=attack-effects-27';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=dot-readouts-271';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=dot-readouts-271';
+import {cardDetail} from './module-info.js?v=dot-readouts-271';
+import {chooseCpuDraft} from './draft-ai.js?v=dot-readouts-271';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
-let effects=[],match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
+let effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
 function log(s){const d=document.createElement('div');d.textContent=s;$('log').prepend(d);while($('log').children.length>60)$('log').lastChild.remove()}
 function button(text,detail,fn){const b=document.createElement('button');b.className='choice';const title=document.createElement('strong');title.textContent=text;const desc=document.createElement('span');desc.textContent=detail;b.append(title,desc);b.onclick=fn;return b}
 function shortCard(card){
@@ -14,13 +14,13 @@ function shortCard(card){
  if(card.kind==='target')return 'Targeting · priority +1';
  return 'Attack · '+(({projectiles:'+1 spread lane · no repeat hits',piercing:'+1 extra target',area:'Wider attack footprint',knockback:'Stronger knockback',taunt:'Force target to self · 0.25s per stack',range:'+8 reach',sunder:'Reduce enemy defense',precision:'Bonus against healthy enemies',expose:'Mark target for ally damage',disruption:'Slow enemies on hit',momentum:'Travel distance empowers hits',chain:'Redistribute damage to nearby enemies',burning:'Apply burning damage',hazardous:'Leave damaging terrain',restless:'Encourage target switching'})[card.key]||'Attack modifier');
 }
-function reset(){$('roundSummary').replaceChildren();effects=[];cancelAnimationFrame(frame);match=null;battle=null;chosen=null;lastResult=null;completedDraft=null;inspected=null;view='start';paused=false;acc=0;$('log').replaceChildren();$('results').textContent='Choose a starting chassis.';$('pause').disabled=true;$('step').disabled=true;$('pause').textContent='Pause';$('timer').textContent='0.0s';render();draw()}
+function reset(){$('roundSummary').replaceChildren();effects=[];dotReadouts.clear();cancelAnimationFrame(frame);match=null;battle=null;chosen=null;lastResult=null;completedDraft=null;inspected=null;view='start';paused=false;acc=0;$('log').replaceChildren();$('results').textContent='Choose a starting chassis.';$('pause').disabled=true;$('step').disabled=true;$('pause').textContent='Pause';$('timer').textContent='0.0s';render();draw()}
 function freshSeed(){if(globalThis.crypto?.getRandomValues){const values=new Uint32Array(1);globalThis.crypto.getRandomValues(values);return values[0]}return (Date.now()^Math.floor(Math.random()*0x100000000))>>>0}
 function create(type){$('roundSummary').replaceChildren();const seed=freshSeed(),random=rng(seed),bots=['bruiser','rogue','ranged'];for(let i=bots.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[bots[i],bots[j]]=[bots[j],bots[i]]}match=createMatch([type,...bots],seed);draftPool(match);view='draft';chosen=null;log('Match seed: '+seed+' · Bot chassis: '+bots.join(', '));log('Match created. First draft precedes combat.');processBots();render()}
 function processBots(){while(match.phase==='draft'&&match.draft.order[match.draft.turn]!==0){const index=match.draft.order[match.draft.turn],choice=chooseCpuDraft(match,index);assign(match,index,choice.card.uid,choice.chassisIndex,choice.passiveSlot);log(match.players[index].name+' drafts '+choice.card.name)}if(match.phase==='combat')startCombat()}
 function choose(card){chosen=card.uid;render()}
 function takePick(){if(!chosen)return;const card=match.draft.pool.find(c=>c.uid===chosen);if(!card)return;const chassis=Number($('slot')?.value||0),passive=Number($('passiveSlot')?.value||0);assign(match,0,card.uid,chassis,passive);log('You draft '+card.name);chosen=null;processBots();render()}
-function startCombat(){effects=[];battle=beginCombat(match);view='fight';last=performance.now();acc=0;paused=false;$('pause').disabled=false;$('step').disabled=false;$('pause').textContent='Pause';log('Round '+match.round+' begins: '+battle.arena.name);renderInspector();cancelAnimationFrame(frame);frame=requestAnimationFrame(loop);render()}
+function startCombat(){effects=[];dotReadouts.clear();battle=beginCombat(match);view='fight';last=performance.now();acc=0;paused=false;$('pause').disabled=false;$('step').disabled=false;$('pause').textContent='Pause';log('Round '+match.round+' begins: '+battle.arena.name);renderInspector();cancelAnimationFrame(frame);frame=requestAnimationFrame(loop);render()}
 function endCombat(){
  completedDraft=match.draft;const result=completeCombat(match,battle);lastResult=result;
  view=match.phase==='finished'?'over':'results';$('pause').disabled=true;$('step').disabled=true;
@@ -177,15 +177,29 @@ function renderStandings(){const root=$('standings');root.replaceChildren();for(
 // Damage and impact animations are generated by authoritative combat events.
 // Live projectiles are rendered directly from the engine, never faked as hitscan.
 function collectEffects(){
- if(!battle?.visualEvents?.length)return;
+ if(!battle)return;
  const now=battle.time;
- for(const e of battle.visualEvents){
-  if(e.kind==='damage')effects.push({...e,born:now,duration:1.1});
+ for(const e of battle.visualEvents||[]){
+  if(e.kind==='dotDamage'){
+   // Gather fractional ticks per victim into readable, infrequent totals.
+   const previous=dotReadouts.get(e.targetId);
+   const entry=previous||{value:0,x:e.x,y:e.y,owner:e.owner,lastShown:now};
+   entry.value+=e.value;entry.x=e.x;entry.y=e.y;
+   dotReadouts.set(e.targetId,entry);
+  }else if(e.kind==='damage')effects.push({...e,born:now,duration:1.1});
   else if(e.kind==='mobility')effects.push({...e,born:now,duration:.3});
   else if(e.kind==='impact')effects.push({...e,born:now,duration:.18});
   else if(e.kind==='wallImpact')effects.push({...e,born:now,duration:.16});
   else if(e.kind==='attackCommit')effects.push({...e,born:now,duration:.14});
   else if(e.kind==='chain')effects.push({...e,born:now,duration:.18});
+ }
+ for(const [id,entry] of dotReadouts){
+  if(now-entry.lastShown<.4)continue;
+  if(entry.value>0){
+   effects.push({kind:'damage',dot:true,x:entry.x,y:entry.y,
+    value:entry.value,owner:entry.owner,born:now,duration:1.1});
+  }
+  dotReadouts.delete(id);
  }
  if(effects.length>220)effects=effects.slice(-220);
 }
@@ -242,7 +256,8 @@ function drawEffects(){
   }else{
    ctx.save();ctx.globalAlpha=Math.max(0,1-t);ctx.font='bold 16px system-ui';
    ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#142034';
-   const x=e.x,y=e.y-26-t*26;const label='-'+Math.round(e.value);
+   const x=e.x,y=e.y-26-t*26;
+   const label='-'+(e.dot||e.value<.5?(e.value<.1?e.value.toFixed(2):e.value.toFixed(1)):Math.round(e.value));
    ctx.strokeText(label,x,y);ctx.fillStyle='#fff0d1';
    ctx.fillText(label,x,y);ctx.restore();
   }
