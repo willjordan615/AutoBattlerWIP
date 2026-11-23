@@ -192,18 +192,29 @@ function drawEffects(){
    ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(e.x,e.y);
    ctx.lineTo(e.toX,e.toY);ctx.stroke();ctx.restore();
   }else if(e.kind==='attackCommit'){
-   // Fourteen-frame-free hundredths of a second: one stroke, no asset or particle system.
-   ctx.save();ctx.globalAlpha=(1-t)*.8;
-   ctx.strokeStyle=e.type==='bruiser'?'#f5b56d':e.type==='rogue'?'#c2a1fa':'#8ce7bd';
-   ctx.lineWidth=2;ctx.beginPath();
-   if(e.type==='ranged'){
-    ctx.moveTo(e.x+Math.cos(e.angle)*14,e.y+Math.sin(e.angle)*14);
-    ctx.lineTo(e.x+Math.cos(e.angle)*40,e.y+Math.sin(e.angle)*40);
+   // Compact, fading white attack cue; cosmetic only, with no stroke or particles.
+   ctx.save();ctx.globalAlpha=(1-t)*.5;ctx.fillStyle='#ffffff';
+   ctx.beginPath();
+   const forward=(distance,side=0)=>{
+    const angle=e.angle+Math.PI/2;
+    return [e.x+Math.cos(e.angle)*distance+Math.cos(angle)*side,
+            e.y+Math.sin(e.angle)*distance+Math.sin(angle)*side];
+   };
+   if(e.type==='bruiser'){
+    // Short curved sweep centered on the committed facing direction.
+    const half=Math.min(e.arc*Math.PI/360,.48);
+    ctx.arc(e.x,e.y,35,e.angle-half,e.angle+half);
+    ctx.arc(e.x,e.y,26,e.angle+half,e.angle-half,true);
+    ctx.closePath();
    }else{
-    const half=e.arc*Math.PI/360;
-    ctx.arc(e.x,e.y,e.reach,e.angle-half,e.angle+half);
+    // Small tapered thrust/aim glint extending forward from the fighter.
+    const start=e.type==='rogue'?24:19;
+    const end=e.type==='rogue'?45:39;
+    const width=e.type==='rogue'?5:3.5;
+    const a=forward(start,-width),b=forward(end),c=forward(start,width);
+    ctx.moveTo(...a);ctx.lineTo(...b);ctx.lineTo(...c);ctx.closePath();
    }
-   ctx.stroke();ctx.restore();
+   ctx.fill();ctx.restore();
   }else if(e.kind==='wallImpact'){
    ctx.save();ctx.globalAlpha=1-t;ctx.strokeStyle='#f8d991';ctx.lineWidth=1.5;
    ctx.beginPath();
