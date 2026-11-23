@@ -1,4 +1,6 @@
-# Modular Arena Autobattler — GDD v0.1 implementation
+# Modular Arena Autobattler — Prototype 2.5
+
+**Current playable iteration: Prototype 2.5 — Translucent Attack Cues.** Attack commitments render as short, fading, translucent white filled shapes for Bruiser sweeps, Rogue thrusts and Ranged aiming. This is a browser-only visual improvement over Prototype 2.4 — Attack Geometry & Commitment; attack cycles, committed-facing geometry and projectile physics are unchanged. See `AGENTS.md` for release-by-release implementation notes. The original GDD remains v0.1; it is a document version, not the prototype number.
 
 Mobile-first, deterministic, four-player free-for-all autobattler. Source of truth: the uploaded 45-page **Modular Arena Autobattler — Game Design Document v0.1**, plus subsequent user decisions:
 
