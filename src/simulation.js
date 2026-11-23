@@ -18,8 +18,8 @@ export const ARENAS=[
 export const WIDTH=720,HEIGHT=520,STEP=1/30,DURATION=30;
 export const ATTACK_TIMING={bruiser:{windup:.30,recovery:.22,lock:.5,windupMove:.18,recoveryMove:.55,arc:95},rogue:{windup:.18,recovery:.12,lock:.5,windupMove:.3,recoveryMove:.75,arc:35},ranged:{windup:.24,recovery:.18,lock:.5,windupMove:.22,recoveryMove:.55,arc:0}};
 export function rng(seed=12345){let s=seed>>>0;return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
-export function makeChassis(type){if(!CHASSIS[type])throw Error('Unknown chassis');return {type,mods:{hp:0,damage:0,speed:0,rate:0,range:0,projectiles:0,piercing:0,area:0,knockback:0,taunt:0,dash:0,dodge:0,backstep:0,flank:0,disengage:0,intercept:0,followthrough:0},weights:Object.fromEntries(METRICS.map((m,i)=>[m,BASE_WEIGHTS[type][i]])),passives:[],modules:[]}}
-export function stats(u){const c=CHASSIS[u.type],m=u.chassis.mods;return {hp:c.hp+m.hp*20,damage:c.damage+m.damage*2,speed:(c.speed+m.speed*18)*(u.hasteUntil>u.stateTime?1.4:1),range:c.range+m.range*20,rate:c.rate/(1+m.rate*.15)/(u.focusUntil>u.stateTime?1.35:1),defense:c.defense+(u.bulwarkUntil>u.stateTime?5:0),radius:c.radius,projectiles:1+m.projectiles,piercing:m.piercing,area:m.area,knockback:m.knockback,taunt:m.taunt||0,dash:m.dash||0,dodge:m.dodge||0,backstep:m.backstep||0,flank:m.flank||0,disengage:m.disengage||0,intercept:m.intercept||0,followthrough:m.followthrough||0,delivery:c.delivery}}
+export function makeChassis(type){if(!CHASSIS[type])throw Error('Unknown chassis');return {type,mods:{hp:0,damage:0,speed:0,rate:0,range:0,projectiles:0,piercing:0,area:0,knockback:0,taunt:0,dash:0,dodge:0,backstep:0,flank:0,disengage:0,intercept:0,followthrough:0,range:0,sunder:0,precision:0,expose:0,disruption:0,momentum:0,chain:0,burning:0,hazardous:0,restless:0},weights:Object.fromEntries(METRICS.map((m,i)=>[m,BASE_WEIGHTS[type][i]])),passives:[],modules:[]}}
+export function stats(u){const c=CHASSIS[u.type],m=u.chassis.mods;return {hp:c.hp+m.hp*20,damage:c.damage+m.damage*2,speed:(c.speed+m.speed*18)*(u.hasteUntil>u.stateTime?1.4:1)*(u.effects?.slowUntil>u.stateTime?1-Math.min(.45,u.effects.slowStrength||0):1),range:c.range+m.range*8,rate:c.rate/(1+m.rate*.15)/(u.focusUntil>u.stateTime?1.35:1),defense:c.defense+(u.bulwarkUntil>u.stateTime?5:0),radius:c.radius,projectiles:1+m.projectiles,piercing:m.piercing,area:m.area,knockback:m.knockback,taunt:m.taunt||0,dash:m.dash||0,dodge:m.dodge||0,backstep:m.backstep||0,flank:m.flank||0,disengage:m.disengage||0,intercept:m.intercept||0,followthrough:m.followthrough||0,delivery:c.delivery}}
 export function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function rectHit(x,y,r,o){return Math.hypot(x-clamp(x,o.x,o.x+o.w),y-clamp(y,o.y,o.y+o.h))<r}
@@ -85,7 +85,9 @@ export function targetScoreDetails(state,u,e){
  const isolated=enemyAllies.length?Math.min(...enemyAllies.map(a=>distance(a,e)))/200:1,nearAllies=allies.length?Math.min(...allies.map(a=>distance(a,e))):250;
  const features={kill:1-ratio,damage:st.damage/Math.max(1,e.hp),threat:enemyStats.damage/30+(e.focus===u.id?.5:0),distance:1-d/500,allyProximity:1-nearAllies/500,safety:d/500,protection:allies.some(a=>e.focus===a.id)?1:0,ability:u.cd<=0?1:0,isolation:clamp(isolated,0,1),preferredRange:1-Math.abs(d-st.range)/500};
  const contributions=Object.fromEntries(METRICS.map(k=>[k,(w[k]||0)*features[k]]));
- const total=METRICS.reduce((sum,k)=>sum+contributions[k],0)+(u.focus===e.id?.2:0);
+ const restlessness=u.chassis.mods.restless||0;
+ const recent=u.lastAttacked===e.id?Math.max(0,1-(state.time-u.lastAttackAt)/3):0;
+ const total=METRICS.reduce((sum,k)=>sum+contributions[k],0)+(u.focus===e.id?.2:0)-Math.min(2.4,.9*restlessness)*recent;
  return {total,features,contributions};
 }
 export function chooseTarget(state,u,enemies){
@@ -132,7 +134,7 @@ export function spawnSlots(seed,previousSlots=null){
  const eligible=previousSlots?.length===4?permutations.filter(p=>p.every((slot,i)=>slot!==previousSlots[i])):permutations;
  return eligible[Math.floor(random()*eligible.length)].slice()
 }
-export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),projectiles:[],nextProjectileId:1,random}}
+export function spawn(players,arena=ARENAS[0],seed=1,round=1,previousSlots=null){const starts=[[110,100],[610,100],[610,420],[110,420]],random=rng(seed),slots=spawnSlots(seed+round*37,previousSlots);return {phase:'fight',time:0,tick:0,events:[],visualEvents:[],arena,spawnSlots:slots.slice(),units:players.flatMap((p,i)=>p.hp<=0?[]:p.squad.map((chassis,j)=>{const type=chassis.type,base=starts[slots[i%4]],u={id:i*100+j,owner:i,type,chassis,x:base[0]+(j%3-1)*33,y:base[1]+(Math.floor(j/3)-1)*30,cd:random()*.25,motion:[],effects:{},lastAttacked:null,lastAttackAt:-100,retaliationReady:0,focus:null,tauntedBy:null,tauntedUntil:0,facing:0,attack:null,mobilityCd:{},reactionCd:{},stateTime:0,hasteUntil:0,focusUntil:0,bulwarkUntil:0,combatStats:{damage:0,damageTaken:0,attacks:0,shots:0,hits:0,wallHits:0,interceptions:0,dodges:0,evaded:0,prevented:0,haste:0,focus:0,bulwark:0},evadingUntil:0,phasingUntil:0,hp:1,maxHp:1,attacker:null};const st=stats(u);u.hp=u.maxHp=st.hp;bound(u,arena);return u})),players,eliminations:[],damageDealt:players.map(()=>0),zones:[],projectiles:[],nextProjectileId:1,random}}
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
 // Melee shape is locked during windup, then evaluated at the actual release.
@@ -681,6 +683,75 @@ function utilityMove(state,u,target,st,dt,enemies,context){
  state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:best.key});
  return true;
 }
+// Attack effects act on actual impacts, never on visual commitment events.
+function modifier(u,key){return u?.chassis?.mods?.[key]||0}
+function traveledRecently(u,now){
+ const path=u.motion||[];let total=0;
+ for(let i=1;i<path.length;i++)if(path[i].time>=now-2)total+=distance(path[i-1],path[i]);
+ return Math.min(100,total);
+}
+export function resolveAttackModules(state,attacks){
+ const output=[];
+ for(const hit of attacks){
+  if(hit.secondary||hit.indirect){output.push(hit);continue}
+  const source=hit.source,target=hit.target,mods=source.chassis.mods;
+  const effects=target.effects|| (target.effects={});
+  let raw=hit.rawDamage??hit.damage;
+  if(mods.precision&&target.hp/target.maxHp>.75)raw+=mods.precision*2;
+  if(mods.momentum)raw+=mods.momentum*2*traveledRecently(source,state.time)/100;
+  if(source.retaliationReady>state.time){raw+=4;source.retaliationReady=0}
+  if(effects.sunderUntil>state.time)raw+=Math.min(3,effects.sunder||0);
+  if(effects.expose&&effects.expose.until>state.time&&
+     effects.expose.owner===source.owner&&effects.expose.sourceId!==source.id){
+   raw+=2*effects.expose.stacks;effects.expose=null;
+  }
+  hit.rawDamage=raw;hit.damage=Math.max(1,raw-stats(target).defense);
+  const chained=mods.chain?state.units.filter(u=>u!==target&&u.hp>0&&u.owner!==source.owner&&
+   distance(u,target)<=95&&clearLine(target,u,state.arena)).sort((a,b)=>distance(a,target)-distance(b,target)||a.id-b.id)[0]:null;
+  const split=mods.chain?Math.min(.6,.2*mods.chain):0;
+  hit.damage*=1-split;
+  output.push(hit);
+  if(chained){
+   output.push({source,target:chained,rawDamage:raw*split,
+    damage:Math.max(0,raw*split-stats(chained).defense),secondary:true});
+   state.visualEvents.push({kind:'chain',x:target.x,y:target.y,toX:chained.x,toY:chained.y,owner:source.owner});
+  }
+  if(mods.sunder){effects.sunder=Math.min(3,mods.sunder);effects.sunderUntil=state.time+2}
+  if(mods.expose)effects.expose={owner:source.owner,sourceId:source.id,stacks:Math.min(4,mods.expose),until:state.time+1.5};
+  if(mods.disruption){
+   effects.slowStrength=Math.min(.45,.08*mods.disruption);
+   effects.slowUntil=state.time+.6;
+  }
+  if(mods.burning){
+   effects.burn={source,dps:Math.min(12,2*mods.burning),until:state.time+2};
+  }
+  if(mods.hazardous){
+   state.zones.push({x:target.x,y:target.y,owner:source.owner,source,
+    radius:18+Math.min(4,mods.hazardous)*3,dps:Math.min(10,2*mods.hazardous),until:state.time+2.5});
+  }
+  source.lastAttacked=target.id;source.lastAttackAt=state.time;
+ }
+ if(state.zones.length>60)state.zones.splice(0,state.zones.length-60);
+ return output;
+}
+function environmentalAttacks(state,dt){
+ const hits=[];
+ for(const u of state.units){
+  if(u.hp<=0)continue;
+  const burn=u.effects?.burn;
+  if(burn&&burn.until>state.time&&burn.source){
+   hits.push({source:burn.source,target:u,rawDamage:burn.dps*dt,
+    damage:burn.dps*dt,indirect:true});
+  }
+ }
+ state.zones=state.zones.filter(z=>z.until>state.time);
+ for(const z of state.zones)for(const u of state.units){
+  if(u.hp>0&&u.owner!==z.owner&&distance(u,z)<z.radius+CHASSIS[u.type].radius){
+   hits.push({source:z.source,target:u,rawDamage:z.dps*dt,damage:z.dps*dt,indirect:true});
+  }
+ }
+ return hits;
+}
 export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];
  // Snapshot intentions for all units before sequential movement begins.
  for(const unit of state.units){
@@ -720,11 +791,17 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  if(direction.x||direction.y){const step=activeStats.speed*dt*attackMovementMultiplier(u);u.move={x:direction.x,y:direction.y};u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
  if(u.attack){if(state.diagnostics&&u.attack.phase==='windup'&&u.attack.elapsed+dt>=ATTACK_TIMING[u.type].windup)state.diagnostics.units[u.id].shots++;advanceAttack(state,u,t,activeStats,dt,attacks)}}
  resolveCollision(state);
+ for(const u of state.units){
+  const path=u.motion||(u.motion=[]);
+  path.push({time:state.time,x:u.x,y:u.y});
+  while(path.length>2&&path[1].time<state.time-2)path.shift();
+ }
  if(state.diagnostics){for(const u of state.units){const record=state.diagnostics.units[u.id];if(!record?.before)continue;const before=record.before,actual=distance(before,u);record.actual+=actual;record.intended+=before.step*(record.lastDirection.x||record.lastDirection.y?1:0);if(before.step>0&&actual<before.step*.2&&(record.lastDirection.x||record.lastDirection.y))record.collisionLoss++;if(before.seeking&&before.step>0&&(record.lastDirection.x||record.lastDirection.y)&&actual<before.step*.2)record.pursuitStallFrames=(record.pursuitStallFrames||0)+1;else record.pursuitStallFrames=0;record.maxPursuitStallFrames=Math.max(record.maxPursuitStallFrames||0,record.pursuitStallFrames);if(before.waypointDistance!==null&&u.navigation?.path?.[0])record.routeProgress+=before.waypointDistance-distance(u,u.navigation.path[0]);delete record.before;
  if(state.tick%30===0&&record.samples.length<35)record.samples.push({t:Math.round(state.time),x:Math.round(u.x),y:Math.round(u.y),idle:record.idle,blocked:record.blocked,stuck:record.stuck});}}
  advanceProjectiles(state,dt,attacks);
+ const resolved=resolveAttackModules(state,attacks).concat(environmentalAttacks(state,dt));
  const totals=new Map();
- for(const a of attacks){
+ for(const a of resolved){
   if(a.target.evadingUntil>state.time){
    a.target.combatStats&&(a.target.combatStats.evaded++);
    continue;
@@ -749,13 +826,14 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   totals.set(a.target,prior+a.damage);
  }
  for(const [target,damage] of totals){
-  const applied=Math.min(target.hp,damage);target.hp=Math.max(0,target.hp-damage);
+  const applied=Math.min(target.hp,damage);
+  if(applied>0&&target.chassis.passives.includes('retaliation'))target.retaliationReady=state.time+4;target.hp=Math.max(0,target.hp-damage);
   target.combatStats&&(target.combatStats.damageTaken+=applied);
   if(applied>0)state.visualEvents.push({kind:'damage',x:target.x,y:target.y,value:applied,owner:target.owner});
  }// Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
  // Multiple simultaneous taunts resolve deterministically in attack processing order.
- for(const a of attacks){if(a.taunt>0&&a.source.hp>0&&a.target.hp>0){a.target.tauntedBy=a.source.id;a.target.tauntedUntil=state.time+.25*a.taunt}}
- for(const a of attacks){if(a.knockback&&a.target.hp>0){const d=Math.max(1,distance(a.source,a.target));a.target.x+=(a.target.x-a.source.x)/d*a.knockback*4;a.target.y+=(a.target.y-a.source.y)/d*a.knockback*4;bound(a.target,state.arena)}}
+ for(const a of resolved){if(a.taunt>0&&a.source.hp>0&&a.target.hp>0){a.target.tauntedBy=a.source.id;a.target.tauntedUntil=state.time+.25*a.taunt}}
+ for(const a of resolved){if(a.knockback&&a.target.hp>0){const d=Math.max(1,distance(a.source,a.target));a.target.x+=(a.target.x-a.source.x)/d*a.knockback*4;a.target.y+=(a.target.y-a.source.y)/d*a.knockback*4;bound(a.target,state.arena)}}
  for(const u of state.units)if(u.hp===0&&!u.reported){u.reported=true;state.events.push(state.players[u.owner].name+' '+CHASSIS[u.type].name+' defeated');}
  const nowAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const owner of wasAlive)if(!nowAlive.has(owner)){state.eliminations.push({owner,tick:state.tick});state.events.push(state.players[owner].name+' team eliminated')}
  if(nowAlive.size<=1||state.time>=DURATION)return [...nowAlive];return null}
