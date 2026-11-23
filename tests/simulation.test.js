@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
+import {DETAILS,SUMMARIES,cardDetail,cardSummary} from '../src/module-info.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
 test('chassis mutations are independent',()=>{const a=makeChassis('bruiser'),b=makeChassis('bruiser');a.mods.hp=2;assert.equal(stats({type:'bruiser',chassis:a}).hp,195);assert.equal(stats({type:'bruiser',chassis:b}).hp,155)});
 test('wall clamping for all archetypes',()=>{for(const type of Object.keys(CHASSIS)){const u={type,x:-100,y:900};bound(u);assert.ok(u.x>20&&u.y<500)}});
@@ -801,4 +802,34 @@ test('2.8 module bonuses are not diminished by squad-size penalties',()=>{
  assert.ok(Math.abs(one.hp-(CHASSIS.bruiser.hp+40))<1e-8);
  assert.ok(Math.abs(three.hp-(CHASSIS.bruiser.hp*.7+40))<1e-8);
  assert.ok(Math.abs(three.damage-(CHASSIS.bruiser.damage*.7+4))<1e-8);
+});
+
+test('2.8.1 every draft option has explicit readable summary and detail',()=>{
+ for(const card of catalog){
+  const key=card.kind+':'+card.key;
+  assert.ok(DETAILS[key],key+' missing detail');
+  assert.ok(SUMMARIES[key],key+' missing summary');
+  assert.ok(cardDetail(card).length>30,key+' detail too short');
+  assert.ok(cardSummary(card).length>12,key+' summary too short');
+  assert.ok(!/undefined|NaN|\[object Object\]/.test(cardSummary(card)+cardDetail(card)),key);
+  if(card.kind==='passive'||card.kind==='utility')assert.match(cardSummary(card),/^Utility · /);
+  if(card.kind==='attack')assert.match(cardSummary(card),/^Attack · /);
+  if(card.kind==='target')assert.match(cardSummary(card),/^Targeting · /);
+ }
+ assert.equal(Object.keys(DETAILS).length,catalog.length);
+ assert.equal(Object.keys(SUMMARIES).length,catalog.length);
+});
+test('2.8.1 descriptions capture key effects and module-slot stacking rules',()=>{
+ const by=(kind,key)=>({kind,key,name:key});
+ assert.match(cardDetail(by('attack','area')),/9 units of melee reach and 12°/);
+ assert.match(cardDetail(by('attack','range')),/8 units/);
+ assert.match(cardDetail(by('attack','chain')),/20%/);
+ assert.match(cardDetail(by('attack','chain')),/own defense/);
+ assert.match(cardDetail(by('attack','sunder')),/subsequent attacks/);
+ assert.match(cardDetail(by('attack','expose')),/DIFFERENT fighter/);
+ assert.match(cardDetail(by('attack','burning')),/2 damage per second per stack/);
+ assert.match(cardDetail(by('attack','hazardous')),/up to two patches/);
+ assert.match(cardDetail(by('passive','retaliation')),/direct melee hit/);
+ assert.match(cardDetail(by('utility','dash')),/halves the cooldown/);
+ assert.match(cardSummary(by('utility','dash')),/second copy halves cooldown/);
 });
