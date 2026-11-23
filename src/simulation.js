@@ -540,8 +540,8 @@ export function cooperativeEngagement(state,u,st,enemies){
     u.disengageUntil>state.time)return null;
  // No coordination override for a fighter already able to attack something.
  if(enemies.some(e=>clearLine(u,e,state.arena)&&
-    distance(u,e)<=st.range+CHASSIS[e.type].radius))return null;
- const wasIdle=u.holdingPosition||
+    distance(u,e)<=st.range))return null;
+ const wasIdle=u.previouslyHolding||u.holdingPosition||
   (!u.moveDecision?.x&&!u.moveDecision?.y)||
   recentMovement(u,state.time)<Math.max(2,st.speed*.08);
  if(!wasIdle)return null;
@@ -594,6 +594,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  u.navigationBlocked=routeBlocked;u.navigationActorPressure=actorPressure;
  let nav=u.navigation;
  const hasGoal=routeBlocked||distance(u,target)>Math.min(st.range*.85,st.range-5);
+ const teamSupport=cooperativeEngagement(state,u,st,enemies);
  // A direct attack position needs no terrain route. Tactical movement is free to
  // choose a preferred range, provided no terrain detour is being completed.
  if(nav&&!terrainBlocked&&distance(u,target)<=st.range){u.navigation=null;u.navProgress=null;nav=null;u.navNextPlanTime=state.time+.35}
@@ -652,8 +653,9 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  }
  // Independent collision-deadlock detector: route progress alone cannot
  // diagnose characters pushed back by teammates or enemies in open sightlines.
+ const supportingAtPosition=teamSupport&&distance(u,teamSupport.point)<Math.max(18,st.radius+10);
  const activeApproach=(distance(u,target)>st.range||terrainBlocked)&&
-  holdingOpportunity(state,u,target,st,enemies)===0;
+  !supportingAtPosition&&holdingOpportunity(state,u,target,st,enemies)===0;
  const motion=u.navMotion||(u.navMotion={x:u.x,y:u.y,time:state.time,stalls:0});
  if(state.time-motion.time>=.65){
   const displaced=distance(u,motion);
@@ -703,7 +705,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  // Idle teammates may position around a real ally engagement instead of
  // waiting at an unrelated location. Reuse the same terrain graph and local
  // collision-aware steering; do not teleport or force target selection.
- const support=cooperativeEngagement(state,u,st,enemies);
+ const support=teamSupport;
  if(support&&!u.localEscape){
   const goal=support.point;
   let route=u.supportNavigation;
