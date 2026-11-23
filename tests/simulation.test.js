@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,advanceFollowthrough,recentMovement,collisionStability,disengageDirection,resolveFollowthroughImpacts} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,holdingOpportunity,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,advanceFollowthrough,recentMovement,collisionStability,disengageDirection,resolveFollowthroughImpacts} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 import {DETAILS,SUMMARIES,cardDetail,cardSummary} from '../src/module-info.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
@@ -1133,4 +1133,61 @@ test('2.12 Follow Through movement never exceeds speed-scaled commitment budget 
  const cap=stats(u).speed*.5;
  assert.ok(u.x-start<=cap+2,'contact does not create a far-side teleport');
  assert.ok(enemy.x>205,'fighter yields space during committed contact');
+});
+
+test('2.12.1 an approaching enemy makes holding a useful tactical option',()=>{
+ const b=spawn(players(),ARENAS[0],6301),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.x=200;u.y=200;enemy.x=295;enemy.y=200;
+ b.time=1;enemy.moveDecision={x:-1,y:0};
+ assert.ok(holdingOpportunity(b,u,enemy,stats(u),[enemy])>0);
+ const dir=chooseMovement(b,u,enemy,stats(u),[enemy],STEP);
+ assert.equal(dir.x,0);assert.equal(dir.y,0);
+ assert.ok(u.holdingPosition);
+});
+test('2.12.1 a stationary enemy outside reach must still be pursued',()=>{
+ const b=spawn(players(),ARENAS[0],6302),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.x=200;u.y=200;enemy.x=295;enemy.y=200;
+ b.time=1;enemy.moveDecision={x:0,y:0};
+ assert.equal(holdingOpportunity(b,u,enemy,stats(u),[enemy]),0);
+ const dir=chooseMovement(b,u,enemy,stats(u),[enemy],STEP);
+ assert.ok(dir.x>0);assert.equal(u.holdingPosition,false);
+});
+test('2.12.1 clear attack positions may be held without disengaging from combat',()=>{
+ const p=players();p[0].squad=[makeChassis('ranged')];
+ const b=spawn(p,ARENAS[0],6303),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.x=200;u.y=200;enemy.x=335;enemy.y=200;
+ b.time=1;
+ assert.ok(holdingOpportunity(b,u,enemy,stats(u),[enemy])>0);
+ const dir=chooseMovement(b,u,enemy,stats(u),[enemy],STEP);
+ assert.deepEqual(dir,{x:0,y:0});assert.ok(u.holdingPosition);
+});
+test('2.12.1 ranged fighters should reposition when threatened at point blank range',()=>{
+ const p=players();p[0].squad=[makeChassis('ranged')];
+ const b=spawn(p,ARENAS[0],6304),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.x=200;u.y=200;enemy.x=240;enemy.y=200;
+ b.time=1;
+ assert.equal(holdingOpportunity(b,u,enemy,stats(u),[enemy]),0);
+ const dir=chooseMovement(b,u,enemy,stats(u),[enemy],STEP);
+ assert.ok(dir.x!==0||dir.y!==0);assert.equal(u.holdingPosition,false);
+});
+test('2.12.1 holding is distinct from stalled navigation and clears when no longer useful',()=>{
+ const b=spawn(players(),ARENAS[0],6305),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.x=200;u.y=200;enemy.x=295;enemy.y=200;
+ b.time=1;enemy.moveDecision={x:-1,y:0};
+ for(let i=0;i<5;i++){
+  b.time+=.7;chooseMovement(b,u,enemy,stats(u),[enemy],STEP);
+ }
+ assert.ok(u.holdingPosition);
+ assert.equal(u.navStuckCount||0,0,'deliberate hold must not be treated as stuck');
+ enemy.moveDecision={x:0,y:0};
+ b.time+=STEP;
+ const dir=chooseMovement(b,u,enemy,stats(u),[enemy],STEP);
+ assert.ok(dir.x>0);assert.equal(u.holdingPosition,false);
+});
+test('2.12.1 previously holding no longer claims an advancing intention',()=>{
+ const b=spawn(players(),ARENAS[0],6306),u=b.units[0],enemy=b.units[1];
+ b.units=[u,enemy];u.x=200;u.y=200;enemy.x=295;enemy.y=200;
+ enemy.moveDecision={x:-1,y:0};u.holdingPosition=true;u.moveDecision={x:0,y:0};
+ tick(b,STEP);
+ assert.deepEqual(u.intent,{x:0,y:0});
 });
