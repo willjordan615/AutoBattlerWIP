@@ -878,7 +878,7 @@ function reactToThreat(state,u,target,st,context){
     u.evadingUntil=now+.13;
     cds.dodge=now+utilityCooldown(5,st.dodge);
     u.combatStats&&(u.combatStats.dodges++);
-    state.visualEvents.push({kind:'mobility',ability:'dodge',owner:u.owner,x:old.x,y:old.y,toX:u.x,toY:u.y});
+    state.visualEvents.push({kind:'mobility',ability:'dodge',owner:u.owner,type:u.type,x:old.x,y:old.y,toX:u.x,toY:u.y});
    }
   }
  }
@@ -938,7 +938,7 @@ function utilityMove(state,u,target,st,dt,enemies,context){
  const ox=u.x,oy=u.y;u.x=best.p.x;u.y=best.p.y;bound(u,state.arena);
  cds[best.key]=now+utilityCooldown(best.cooldown,st[best.key]);
  if(best.options.evade)u.evadingUntil=now+best.options.evade;
- state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,ability:best.key});
+ state.visualEvents.push({kind:'mobility',x:ox,y:oy,toX:u.x,toY:u.y,owner:u.owner,type:u.type,ability:best.key});
  return true;
 }
 // The after-attack Disengage module temporarily replaces ordinary movement
