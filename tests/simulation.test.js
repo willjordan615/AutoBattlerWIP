@@ -1341,7 +1341,7 @@ test('2.12.3 fighters cannot mutually brace just outside actual attack reach',()
 test('2.12.4 movement utility tuning increases distance without affecting Follow Through',()=>{
  assert.equal(UTILITY_MOVE_SCALE,1.3);
  const sample=(type)=>{
-  const p=players();p[0].squad=[makeChassis(type)];const battle=spawn(p,ARENAS[0],9714);
+  const p=players();p[0].squad=[makeChassis(type)];p[1].squad=[makeChassis('bruiser')];const battle=spawn(p,ARENAS[0],9714);
   const unit=battle.units[0],target=battle.units[1];
   battle.units=[unit,target];unit.x=125;unit.y=200;target.x=315;target.y=200;
   unit.chassis.mods.dash=1;unit.cd=100;target.cd=100;
