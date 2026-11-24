@@ -9,12 +9,13 @@ class FakeNode{
  remove(){this.children=[]}
  get lastChild(){return this.children.at(-1)}
  addEventListener(){}
+ scrollIntoView(options){this.scrollOptions=options}
  getContext(){return new Proxy({},{get:()=>()=>{}})}
 }
 test('browser adapter shares headless draft and combat lifecycle',async()=>{
  const nodes=new Map();
  globalThis.document={getElementById(id){if(!nodes.has(id))nodes.set(id,new FakeNode(id));return nodes.get(id)},createElement:tag=>new FakeNode(tag)};
- globalThis.requestAnimationFrame=()=>1;
+ const callbacks=[];globalThis.requestAnimationFrame=fn=>{callbacks.push(fn);return callbacks.length};
  globalThis.cancelAnimationFrame=()=>{};
  globalThis.performance={now:()=>1000};
  await import('../src/game.js');
@@ -30,6 +31,9 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  $('advance').onclick();
  assert.equal($('phaseTitle').textContent,'Combat in progress');
  assert.equal($('layout')['data-phase'],'fight');
+ assert.equal($('fighterInfo').open,false);
+ callbacks.at(-1)();
+ assert.equal($('arena').scrollOptions.block,'start');
  assert.equal($('exportMatch').disabled,false);
  const during=$('choices').children.filter(x=>x.className.includes('draft-card'));
  assert.equal(during.length,6);
