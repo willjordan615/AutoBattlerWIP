@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {AFTERIMAGE_DURATION,isUtilityAfterimage,drawUtilityAfterimage} from '../src/mobility-visual.js';
+import {AFTERIMAGE_DURATION,isUtilityAfterimage,drawUtilityAfterimage,teamFill} from '../src/mobility-visual.js';
 
 const colors=['#64b3ff','#f58086'];
 const chassis={bruiser:{radius:15,fill:'#eeb878'},rogue:{radius:11,fill:'#c2a1fa'},ranged:{radius:11,fill:'#8ce7bd'}};
@@ -47,4 +47,10 @@ test('afterimage fades and never renders Follow Through, ordinary movement or ex
  assert.equal(drawUtilityAfterimage(end.ctx,{...base,ability:'followthrough'},0,colors,chassis),false);
  assert.equal(drawUtilityAfterimage(end.ctx,{...base,type:'unknown'},0,colors,chassis),false);
  assert.equal(end.ops.length,0);
+});
+
+test('team token interiors use darker matching colors',()=>{
+ assert.deepEqual(['#64b3ff','#f58086','#f4d16f','#d3a2ff'].map(teamFill),['#4e8cc7','#bf6469','#bea357','#a57ec7']);
+ const {ctx,ops}=mockCanvas();drawUtilityAfterimage(ctx,{kind:'mobility',ability:'dash',type:'bruiser',owner:0,x:1,y:2,toX:3,toY:4},0,colors,chassis);
+ assert.ok(ops.some(o=>Array.isArray(o)&&o[0]==='fillStyle'&&o[1]==='#4e8cc7'));
 });

@@ -2,6 +2,9 @@
 // Pure rendering: no timers, particles, allocations or simulation changes.
 export const AFTERIMAGE_ABILITIES=['dash','dodge','backstep','flank','intercept'];
 export const AFTERIMAGE_DURATION=.26;
+// Precomputed 22% darker versions of the arena team colors.
+const TEAM_FILLS={'#64b3ff':'#4e8cc7','#f58086':'#bf6469','#f4d16f':'#bea357','#d3a2ff':'#a57ec7'};
+export function teamFill(color){return TEAM_FILLS[color]||color;}
 export function isUtilityAfterimage(event){
  return event?.kind==='mobility'&&AFTERIMAGE_ABILITIES.includes(event.ability);
 }
@@ -24,7 +27,7 @@ export function drawUtilityAfterimage(ctx,event,progress,colors,chassis){
  ctx.fillStyle=teamColor;
  ctx.beginPath();ctx.arc(event.x,event.y,r+4,0,Math.PI*2);ctx.fill();
  ctx.globalAlpha=fade*.40;
- ctx.fillStyle=archetype.fill;
+ ctx.fillStyle=teamFill(teamColor);
  ctx.beginPath();ctx.arc(event.x,event.y,r-1,0,Math.PI*2);ctx.fill();
  ctx.globalAlpha=fade*.58;
  ctx.fillStyle='#ffffff';
