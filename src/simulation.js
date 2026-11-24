@@ -315,6 +315,8 @@ export function attackMovementMultiplier(u){
 
 // World-space projectile simulation. Every projectile is resolved in the
 // deterministic combat tick; rendering reads state.projectiles without inferring hits.
+// Utility movement only; attack-driven Follow Through remains unchanged.
+export const UTILITY_MOVE_SCALE=1.3;
 export const PROJECTILE_SPEED=320;
 export const PROJECTILE_RADIUS=3;
 function segmentCircleHit(a,b,center,radius){
@@ -847,7 +849,7 @@ function reactToThreat(state,u,target,st,context){
   if(threat){
    const heading=imminent.length?{x:threat.vx,y:threat.vy}:
     {x:(u.x-threat.x)/Math.max(1,distance(u,threat)),y:(u.y-threat.y)/Math.max(1,distance(u,threat))};
-   const travel=st.speed*.4*.85,r=CHASSIS[u.type].radius+3;
+   const travel=st.speed*.4*.85*UTILITY_MOVE_SCALE,r=CHASSIS[u.type].radius+3;
    const candidates=[1,-1].map(sign=>{
     const p={x:u.x-heading.y*sign*travel,y:u.y+heading.x*sign*travel};
     const valid=p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&
@@ -894,7 +896,7 @@ function reactToThreat(state,u,target,st,context){
 // Utility upgrades add a second use window, not a stronger teleport.
 export function utilityCooldown(base,copies){return base/Math.min(2,Math.max(1,copies||1))}
 function utilityMove(state,u,target,st,dt,enemies,context){
- const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time,burst=st.speed*.4;
+ const cds=u.mobilityCd||(u.mobilityCd={}),now=state.time,burst=st.speed*.4*UTILITY_MOVE_SCALE;
  // A second copy provides twice the use frequency without longer teleports.
  const ready=key=>(cds[key]||0)<=now;
  const strength=key=>Math.min(1,st[key]||0);
