@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,holdingOpportunity,cooperativeEngagement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,advanceFollowthrough,recentMovement,collisionStability,disengageDirection,resolveFollowthroughImpacts} from '../src/simulation.js';
+import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,holdingOpportunity,cooperativeEngagement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,advanceFollowthrough,UTILITY_MOVE_SCALE,recentMovement,collisionStability,disengageDirection,resolveFollowthroughImpacts} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 import {DETAILS,SUMMARIES,cardDetail,cardSummary} from '../src/module-info.js';
 const players=()=>Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(['bruiser','rogue','ranged','bruiser'][i])]}));
@@ -139,7 +139,7 @@ test('mobility distance scales with chassis speed and speed upgrades',()=>{
  };
  const bruiser=measure('bruiser'),rogue=measure('rogue'),boosted=measure('bruiser',1);
  assert.ok(bruiser<rogue);assert.ok(boosted>bruiser);
- assert.ok(bruiser<30,'a single Bruiser dash must be short');
+ assert.ok(bruiser<40,'a single Bruiser dash remains bounded after readability tuning');
 });
 
 test('movement decisions are weight-driven, not chassis hardcoded',()=>{
@@ -1336,4 +1336,34 @@ test('2.12.3 fighters cannot mutually brace just outside actual attack reach',()
  assert.equal(holdingOpportunity(b,enemy,a,stats(enemy),[a]),0);
  const dir=chooseMovement(b,a,enemy,stats(a),[enemy],STEP);
  assert.ok(dir.x>0,'must advance into actual attack access rather than hold in radius padding');
+});
+
+test('2.12.4 movement utility tuning increases distance without affecting Follow Through',()=>{
+ assert.equal(UTILITY_MOVE_SCALE,1.3);
+ const sample=(type)=>{
+  const p=players();p[0].squad=[makeChassis(type)];const battle=spawn(p,ARENAS[0],9714);
+  const unit=battle.units[0],target=battle.units[1];
+  battle.units=[unit,target];unit.x=125;unit.y=200;target.x=315;target.y=200;
+  unit.chassis.mods.dash=1;unit.cd=100;target.cd=100;
+  tick(battle,STEP);
+  const evt=battle.visualEvents.find(e=>e.kind==='mobility'&&e.ability==='dash');
+  return evt?Math.hypot(evt.toX-evt.x,evt.toY-evt.y):null;
+ };
+ const bruiser=sample('bruiser'),rogue=sample('rogue');
+ assert.ok(bruiser>0,'Dash still triggers');
+ assert.ok(rogue>bruiser,'travel remains chassis speed based');
+ assert.ok(bruiser<40&&rogue<65,'travel remains a bounded burst, not a teleport across the arena');
+ const battle=spawn(players(),ARENAS[0],9715),attacker=battle.units[0],target=battle.units[1];
+ battle.units=[attacker,target];attacker.x=200;attacker.y=200;target.x=245;target.y=200;
+ attacker.chassis.mods.followthrough=1;battle.time=.2;
+ assert.ok(applyFollowthrough(battle,{source:attacker,target,attackId:972,attackDirection:0}));
+ assert.equal(attacker.followthroughCommit.speedFactor,1,'Follow Through movement speed unaffected');
+});
+test('2.12.4 utility movement still rejects obstructed or out-of-bounds landing',()=>{
+ const battle=spawn(players(),ARENAS[1],9716),unit=battle.units[0],target=battle.units[1];
+ battle.units=[unit,target];unit.x=252;unit.y=220;target.x=360;target.y=220;
+ unit.chassis.mods.dash=1;unit.cd=target.cd=100;
+ tick(battle,STEP);
+ assert.ok(unit.x<=278-CHASSIS[unit.type].radius-2,'dash cannot enter Twin Pillars');
+ assert.ok(Number.isFinite(unit.x)&&Number.isFinite(unit.y));
 });
