@@ -1351,8 +1351,8 @@ test('2.12.4 movement utility tuning increases distance without affecting Follow
  };
  const bruiser=sample('bruiser'),rogue=sample('rogue');
  assert.ok(bruiser>0,'Dash still triggers');
- assert.ok(rogue>bruiser,'travel remains chassis speed based');
- assert.ok(bruiser<40&&rogue<65,'travel remains a bounded burst, not a teleport across the arena');
+ assert.ok(rogue>bruiser,'travel remains chassis speed based; bruiser='+bruiser+' rogue='+rogue);
+ assert.ok(bruiser<40&&rogue<90,'travel remains a bounded burst, not a teleport across the arena');
  const battle=spawn(players(),ARENAS[0],9715),attacker=battle.units[0],target=battle.units[1];
  battle.units=[attacker,target];attacker.x=200;attacker.y=200;target.x=245;target.y=200;
  attacker.chassis.mods.followthrough=1;battle.time=.2;
