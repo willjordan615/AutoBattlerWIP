@@ -140,6 +140,12 @@ test('mobility distance scales with chassis speed and speed upgrades',()=>{
  const bruiser=measure('bruiser'),rogue=measure('rogue'),boosted=measure('bruiser',1);
  assert.ok(bruiser<rogue);assert.ok(boosted>bruiser);
  assert.ok(bruiser<40,'a single Bruiser dash remains bounded after readability tuning');
+ const battle=spawn(players(),ARENAS[0],7810),a=battle.units[0],enemy=battle.units[1];
+ battle.units=[a,enemy];a.x=150;a.y=200;enemy.x=290;enemy.y=200;
+ a.chassis.mods.dash=1;a.cd=enemy.cd=100;
+ tick(battle,STEP);
+ const dash=battle.visualEvents.find(e=>e.kind==='mobility'&&e.ability==='dash');
+ if(dash)assert.equal(dash.type,'bruiser','Dash afterimage identifies its token');
 });
 
 test('movement decisions are weight-driven, not chassis hardcoded',()=>{
@@ -464,6 +470,8 @@ test('reactive dodge avoids a threatening projectile but does not react to a mis
  const direct=run(210);
  assert.equal(direct.defender.combatStats.dodges,1);
  assert.ok(direct.b.visualEvents.some(e=>e.kind==='mobility'&&e.ability==='dodge'));
+ assert.ok(direct.b.visualEvents.some(e=>e.kind==='mobility'&&e.ability==='dodge'&&e.type==='bruiser'),
+  'Dodge afterimage event identifies the original fighter chassis');
  const miss=run(100);
  assert.equal(miss.defender.combatStats.dodges,0);
 });
