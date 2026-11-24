@@ -1,25 +1,25 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=utility-afterimages-2125';
-import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=utility-afterimages-2125';
-import {cardDetail,cardSummary} from './module-info.js?v=utility-afterimages-2125';
-import {chooseCpuDraft} from './draft-ai.js?v=utility-afterimages-2125';
-import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION} from './mobility-visual.js?v=utility-afterimages-2125';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=human-playtest-300';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=human-playtest-300';
+import {cardDetail,cardSummary} from './module-info.js?v=human-playtest-300';
+import {chooseCpuDraft} from './draft-ai.js?v=human-playtest-300';
+import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION} from './mobility-visual.js?v=human-playtest-300';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
-let effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
+let initialTypes=[],draftArchive=[],advancedOpen=false,effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
 function log(s){const d=document.createElement('div');d.textContent=s;$('log').prepend(d);while($('log').children.length>60)$('log').lastChild.remove()}
 function button(text,detail,fn){const b=document.createElement('button');b.className='choice';const title=document.createElement('strong');title.textContent=text;const desc=document.createElement('span');desc.textContent=detail;b.append(title,desc);b.onclick=fn;return b}
-function reset(){$('roundSummary').replaceChildren();effects=[];dotReadouts.clear();cancelAnimationFrame(frame);match=null;battle=null;chosen=null;lastResult=null;completedDraft=null;inspected=null;view='start';paused=false;acc=0;$('log').replaceChildren();$('results').textContent='Choose a starting chassis.';$('pause').disabled=true;$('step').disabled=true;$('pause').textContent='Pause';$('timer').textContent='0.0s';render();draw()}
+function reset(){initialTypes=[];draftArchive=[];advancedOpen=false;$('resultHeadline').replaceChildren();$('roundSummary').replaceChildren();effects=[];dotReadouts.clear();cancelAnimationFrame(frame);match=null;battle=null;chosen=null;lastResult=null;completedDraft=null;inspected=null;view='start';paused=false;acc=0;$('log').replaceChildren();$('results').textContent='Choose a starting chassis.';$('pause').disabled=true;$('step').disabled=true;$('pause').textContent='Pause';$('timer').textContent='0.0s';render();draw()}
 function freshSeed(){if(globalThis.crypto?.getRandomValues){const values=new Uint32Array(1);globalThis.crypto.getRandomValues(values);return values[0]}return (Date.now()^Math.floor(Math.random()*0x100000000))>>>0}
-function create(type){$('roundSummary').replaceChildren();const seed=freshSeed(),random=rng(seed),bots=['bruiser','rogue','ranged'];for(let i=bots.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[bots[i],bots[j]]=[bots[j],bots[i]]}match=createMatch([type,...bots],seed);draftPool(match);view='draft';chosen=null;log('Match seed: '+seed+' · Bot chassis: '+bots.join(', '));log('Match created. First draft precedes combat.');processBots();render()}
+function create(type){$('roundSummary').replaceChildren();const seed=freshSeed(),random=rng(seed),bots=['bruiser','rogue','ranged'];for(let i=bots.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[bots[i],bots[j]]=[bots[j],bots[i]]}initialTypes=[type,...bots];match=createMatch(initialTypes,seed);draftPool(match);view='draft';chosen=null;log('Match seed: '+seed+' · Bot chassis: '+bots.join(', '));log('Match created. First draft precedes combat.');processBots();render()}
 function processBots(){while(match.phase==='draft'&&match.draft.order[match.draft.turn]!==0){const index=match.draft.order[match.draft.turn],choice=chooseCpuDraft(match,index);assign(match,index,choice.card.uid,choice.chassisIndex,choice.passiveSlot,choice);log(match.players[index].name+' drafts '+choice.card.name)}if(match.phase==='combat')startCombat()}
 function choose(card){chosen=card.uid;render()}
-function takePick(){if(!chosen)return;const card=match.draft.pool.find(c=>c.uid===chosen);if(!card)return;const chassis=Number($('slot')?.value||0),passive=Number($('passiveSlot')?.value||0);assign(match,0,card.uid,chassis,passive);log('You draft '+card.name);chosen=null;processBots();render()}
+function takePick(){if(!chosen)return;const card=match.draft.pool.find(c=>c.uid===chosen);if(!card)return;const chassis=Number($('slot')?.value||0),passive=Number($('passiveSlot')?.value||0);assign(match,0,card.uid,chassis,passive);match.draft.picks.at(-1).passiveSlot=passive;log('You draft '+card.name);chosen=null;processBots();render()}
 function startCombat(){effects=[];dotReadouts.clear();battle=beginCombat(match);view='fight';last=performance.now();acc=0;paused=false;$('pause').disabled=false;$('step').disabled=false;$('pause').textContent='Pause';log('Round '+match.round+' begins: '+battle.arena.name);renderInspector();cancelAnimationFrame(frame);frame=requestAnimationFrame(loop);render()}
 function endCombat(){
- completedDraft=match.draft;const result=completeCombat(match,battle);lastResult=result;
+ completedDraft=match.draft;draftArchive.push(JSON.parse(JSON.stringify(completedDraft)));const result=completeCombat(match,battle);lastResult=result;
  view=match.phase==='finished'?'over':'results';$('pause').disabled=true;$('step').disabled=true;
  const lines=result.ranking.map((i,rank)=>match.players[i].name+' #'+(rank+1)+' · -'+result.damage[i]+' HP'+(result.remaining[i]===0?' · Eliminated':''));
- $('results').textContent=lines.join(' | ');lines.forEach(log);
+ $('results').textContent=lines.join(' | ');lines.forEach(log);const headline=$('resultHeadline');headline.replaceChildren();const placement=result.ranking.indexOf(0);const h=document.createElement('strong');h.textContent=placement<0?'Spectating':(['1st','2nd','3rd','4th'][placement]+' place');const note=document.createElement('p');note.textContent='−'+result.damage[0]+' match HP · '+result.remaining[0]+' remaining';const reason=document.createElement('p');reason.className='muted';reason.textContent=result.time>=30-1e-6?'Time limit: surviving teams ranked by damage dealt, then remaining health.':'Combat ended with one or fewer surviving teams.';headline.append(h,note,reason);
  const summary=$('roundSummary');summary.replaceChildren();
  const header=document.createElement('strong');header.textContent='Your squad · combat breakdown';summary.append(header);
  const own=result.combatReport.filter(u=>u.owner===0);
@@ -39,7 +39,7 @@ function endCombat(){
    (u.focus?' · '+u.focus+' focus':'')+
    (u.bulwark?' · '+u.bulwark+' bulwark':'')+
    (u.followthrough?' · '+u.followthrough+' follow-through advances ('+fmt(u.followthroughDistance)+' units)':'');
-  row.append(heading,values);
+  const bar=document.createElement('div');bar.className='damage-bar';const fill=document.createElement('i');fill.style.width=(100*u.damage/Math.max(1,...own.map(x=>x.damage)))+'%';bar.append(fill);row.append(heading,bar,values);
   const bonus=Object.entries(u.moduleDamage||{}).filter(([,damage])=>damage>0.05).sort((a,b)=>b[1]-a[1]);
   if(bonus.length){
    const detail=document.createElement('small');detail.className='muted';
@@ -63,13 +63,13 @@ function endCombat(){
  render();renderInspector();
 }
 function next(){if(view!=='results')return;view='draft';chosen=null;processBots();render()}
-function render(){const root=$('choices');root.replaceChildren();$('round').textContent='Round '+(view==='results'&&lastResult?lastResult.round:match?.round||1);const phase=$('phaseTitle'),info=$('phaseInfo'),status=$('status'),advance=$('advance');advance.style.display='none';advance.disabled=true;
- if(view==='start'){status.textContent='Choose a chassis';phase.textContent='Choose your starting chassis';info.textContent='Your first chassis is free. All additional chassis are draft cards.';for(const [id,c] of Object.entries(CHASSIS))root.append(button(c.name,c.desc+' · HP '+c.hp+' · Damage '+c.damage,()=>create(id)))}
+function render(){$('layout').setAttribute('data-phase',view);$('seedInfo').textContent=match?'Seed: '+match.seed+' · Starting fighters: '+initialTypes.join(', '):'Start a match to see reproducibility data.';$('exportMatch').disabled=!match;const root=$('choices');root.replaceChildren();$('round').textContent='Round '+(view==='results'&&lastResult?lastResult.round:match?.round||1);const phase=$('phaseTitle'),info=$('phaseInfo'),status=$('status'),advance=$('advance');advance.style.display='none';advance.disabled=true;
+ if(view==='start'){status.textContent='Choose a chassis';phase.textContent='Choose your starting chassis';info.textContent='Choose a fighter, then draft one upgrade each round. Combat is automatic. Survive longer than the other teams to preserve match health.';for(const [id,c] of Object.entries(CHASSIS))root.append(button(c.name,c.desc+' · HP '+c.hp+' · Damage '+c.damage,()=>create(id)))}
  if(view==='draft'){status.textContent='Shared draft';phase.textContent='Round '+match.round+' draft';info.textContent='Pick '+(match.draft.turn+1)+' of '+match.draft.order.length+' · '+match.draft.pool.length+' cards remain. Claimed cards stay visible with their owner.';for(const card of match.draft.originalPool){
  const pick=match.draft.picks.find(p=>p.uid===card.uid);
  const available=match.draft.pool.some(p=>p.uid===card.uid);
  const allowed=available&&legal(match.players[0],card);
- const b=button(card.name,cardSummary(card),()=>{if(allowed)choose(card)});
+ const b=button(card.name,cardSummary(card),()=>{if(allowed)choose(card)});b.setAttribute('data-kind',card.kind);
  b.classList.add('draft-card');
  b.setAttribute('aria-pressed',String(chosen===card.uid));
  if(chosen===card.uid)b.classList.add('selected');
@@ -103,11 +103,7 @@ const card=match.draft.pool.find(c=>c.uid===chosen);if(card){const detail=docume
  root.append(slot);
  if(card.kind==='passive'||card.kind==='utility'){
   const passive=document.createElement('select');passive.id='passiveSlot';
-  for(let i=0;i<2;i++){
-   const opt=document.createElement('option');opt.value=i;
-   opt.textContent='Replace utility slot '+(i+1)+' if full';passive.append(opt);
-  }
-  root.append(passive);
+  const updateSlots=()=>{passive.replaceChildren();const u=match.players[0].squad[Number(slot.value)||0];const upgrade=card.kind==='utility'&&u.passives.includes(card.key);for(let i=0;i<2;i++){const opt=document.createElement('option');opt.value=i;opt.textContent=upgrade?'Upgrade existing '+card.key:u.passives.length<2?'Use empty utility slot':'Replace '+u.passives[i];passive.append(opt)}passive.disabled=upgrade||u.passives.length<2;};slot.onchange=updateSlots;updateSlots();root.append(passive);
  }
 }
 advance.style.display='';advance.disabled=!chosen;advance.textContent='Confirm draft pick'}
@@ -128,10 +124,10 @@ function renderInspector(){
  root.append(picker);
  if(!inspected)return;
  const player=match.players[inspected.owner],ch=player?.squad[inspected.slot];if(!ch)return;
- const live=battle?.units.find(u=>u.owner===inspected.owner&&u.id%100===inspected.slot);
+ const live=(view==='fight'||view==='results'||view==='over')&&battle?.units.find(u=>u.owner===inspected.owner&&u.id%100===inspected.slot);
  const st=stats({type:ch.type,chassis:ch,squadSize:player.squad.length});
- const line=(title,value)=>{const row=document.createElement('div');row.className='inspector-line';const k=document.createElement('span');k.textContent=title;const v=document.createElement('strong');v.textContent=String(value);row.append(k,v);root.append(row)};
- const section=title=>{const h=document.createElement('h3');h.textContent=title;root.append(h)};
+ let destination=root;const line=(title,value)=>{const row=document.createElement('div');row.className='inspector-line';const k=document.createElement('span');k.textContent=title;const v=document.createElement('strong');v.textContent=String(value);row.append(k,v);destination.append(row)};
+ const section=title=>{const h=document.createElement('h3');h.textContent=title;destination.append(h)};
  const format=n=>Number(n).toFixed(2).replace(/\\.00$/,'');
  section(player.name+' · '+CHASSIS[ch.type].name+' #'+(inspected.slot+1));
  line('State',live?(live.hp>0?'Active':'Defeated'):'Between rounds / not deployed');
@@ -143,12 +139,13 @@ function renderInspector(){
  line('Attack lanes / pierce',st.projectiles+' / '+st.piercing);
  line('Attack modules',Object.entries(ch.mods).filter(([key,v])=>v>0&&!UTILITY_COOLDOWNS[key]&&['range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','area','projectiles','piercing','knockback','taunt'].includes(key)).map(([key,v])=>key+' ×'+v).join(', ')||'None');
  line('Area / knockback / taunt',st.area+' / '+st.knockback+' / '+st.taunt);
- section('AI weights · exact values');
- for(const key of METRICS)line(LABELS[key]||key,format(ch.weights[key]||0));
  section('Draft upgrades');
  const mods=Object.entries(ch.mods).filter(([,v])=>v>0).map(([k,v])=>k+' ×'+v);
  line('Modules',mods.join(', ')||'None');
  line('Utility slots',ch.passives.join(', ')||'None');
+ const preferences=METRICS.filter(k=>ch.weights[k]>0).sort((a,b)=>ch.weights[b]-ch.weights[a]);line('Tactical preferences',preferences.slice(0,3).map(k=>LABELS[k]||k).join(' · ')||'Default');
+ const advanced=document.createElement('details');advanced.open=advancedOpen;advanced.ontoggle=()=>{advancedOpen=advanced.open};const summary=document.createElement('summary');summary.textContent='Advanced simulation data';advanced.append(summary);root.append(advanced);destination=advanced;
+ section('AI weights · exact values');for(const key of METRICS)line(LABELS[key]||key,format(ch.weights[key]||0));
  if(live&&battle){
   section('Combat decision · '+format(battle.time)+'s');
   const enemies=battle.units.filter(u=>u.hp>0&&u.owner!==live.owner);
@@ -184,7 +181,7 @@ canvas.addEventListener('click',event=>{
  if(closest)selectFighter(closest.owner,closest.id%100);
 });
 function renderDraftHistory(){const root=$('draftHistoryItems');root.replaceChildren();const draft=view==='results'||view==='over'?completedDraft:match?.draft;if(!draft)return;for(const card of draft.originalPool){const pick=draft.picks.find(p=>p.uid===card.uid),row=document.createElement('div');row.className='draft-history-row';const name=document.createElement('span');name.textContent=card.name;const owner=document.createElement('strong');owner.textContent=pick?match.players[pick.player].name:'Unpicked';if(pick)owner.style.color=COLORS[pick.player];row.append(name,owner);if(pick?.reasoning){const why=document.createElement('small');why.className='muted';why.textContent='Bot reasoning: '+pick.reasoning.reasons.join(' · ')+' (base '+pick.reasoning.baseScore+')';row.append(why)}root.append(row)}}
-function renderStandings(){const root=$('standings');root.replaceChildren();for(const [i,p] of (match?.players||[]).entries()){const d=document.createElement('div');d.className='stand';const label=document.createElement('span');label.textContent=p.name+(p.hp===0?' · OUT':'');label.style.color=COLORS[i];const value=document.createElement('span');value.textContent=p.hp+' HP';d.append(label,value);root.append(d)}}
+function renderStandings(){const root=$('standings');root.replaceChildren();for(const [i,p] of (match?.players||[]).entries()){const d=document.createElement('div');d.className='stand';const label=document.createElement('span');label.textContent=p.name+(p.hp===0?' · OUT':'');label.style.color=COLORS[i];const value=document.createElement('span');value.textContent=p.hp+' HP';const bar=document.createElement('div');bar.className='match-hp-bar';const fill=document.createElement('i');fill.style.width=Math.max(0,p.hp)+'%';fill.style.background=COLORS[i];bar.append(fill);d.append(label,value,bar);root.append(d)}}
 // Damage and impact animations are generated by authoritative combat events.
 // Live projectiles are rendered directly from the engine, never faked as hitscan.
 function collectEffects(){
@@ -291,7 +288,7 @@ function draw(){ctx.fillStyle='#19263a';ctx.fillRect(0,0,720,520);ctx.strokeStyl
  ctx.fillStyle='#f5a85d';ctx.beginPath();ctx.arc(z.x,z.y,z.radius,0,Math.PI*2);ctx.fill();
  ctx.restore();
 }
- for(const u of battle?.units||[]){if(u.hp<=0)continue;const c=CHASSIS[u.type],r=c.radius;ctx.fillStyle=COLORS[u.owner];ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.fill();if(inspected&&inspected.owner===u.owner&&inspected.slot===u.id%100){ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(u.x,u.y,r+8,0,Math.PI*2);ctx.stroke();}ctx.fillStyle=c.fill;ctx.beginPath();ctx.arc(u.x,u.y,r-1,0,Math.PI*2);ctx.fill();ctx.fillStyle='#0b1625';ctx.textAlign='center';ctx.font='bold 12px system-ui';ctx.fillText(u.type==='bruiser'?'B':u.type==='rogue'?'R':'A',u.x,u.y+4);ctx.fillStyle='#102033';ctx.fillRect(u.x-17,u.y-r-17,34,6);ctx.fillStyle='#77e7a3';ctx.fillRect(u.x-17,u.y-r-17,34*u.hp/u.maxHp,6)}drawEffects()}
+ for(const u of battle?.units||[]){if(u.hp<=0)continue;const c=CHASSIS[u.type],r=c.radius;ctx.fillStyle=COLORS[u.owner];ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.fill();if(inspected&&inspected.owner===u.owner&&inspected.slot===u.id%100){ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(u.x,u.y,r+8,0,Math.PI*2);ctx.stroke();}if(u.owner===0){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.stroke();}ctx.fillStyle=c.fill;ctx.beginPath();ctx.arc(u.x,u.y,r-1,0,Math.PI*2);ctx.fill();ctx.fillStyle='#0b1625';ctx.textAlign='center';ctx.font='bold 16px system-ui';ctx.fillText(u.type==='bruiser'?'B':u.type==='rogue'?'R':'A',u.x,u.y+4);ctx.fillStyle='#102033';ctx.fillRect(u.x-17,u.y-r-17,34,6);ctx.fillStyle='#77e7a3';ctx.fillRect(u.x-17,u.y-r-17,34*u.hp/u.maxHp,6)}drawEffects()}
 function step(){if(view!=='fight')return;const result=tick(battle,STEP);collectEffects();for(const event of battle.events.splice(0))log(event);$('timer').textContent=battle.time.toFixed(1)+'s';if(result!==null)endCombat();else if(inspected&&battle.tick%6===0)renderInspector()}
 function loop(now){const dt=Math.min(.08,(now-last)/1000);last=now;if(view==='fight'&&!paused){acc+=dt*Number($('speed').value||1);let count=0;while(acc>=STEP&&count++<12&&view==='fight'){step();acc-=STEP}}draw();if(view==='fight')frame=requestAnimationFrame(loop)}
-$('advance').onclick=()=>view==='draft'?takePick():next();$('restart').onclick=reset;$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';last=performance.now()};$('step').onclick=()=>{paused=true;$('pause').textContent='Resume';step();draw()};reset();
+$('exportMatch').onclick=()=>{if(!match)return;const data={version:'3.0',seed:match.seed,initialTypes,drafts:draftArchive, currentDraft:view==='draft'||view==='fight'?match.draft:null,results:match.history,players:match.players};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='autobattler-'+match.seed+'.json';link.click();URL.revokeObjectURL(url);};$('advance').onclick=()=>view==='draft'?takePick():next();$('restart').onclick=reset;$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';last=performance.now()};$('step').onclick=()=>{paused=true;$('pause').textContent='Resume';step();draw()};reset();

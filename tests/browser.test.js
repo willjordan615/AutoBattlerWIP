@@ -19,6 +19,7 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  await import('../src/game.js');
  const $=id=>document.getElementById(id);
  assert.equal($('phaseTitle').textContent,'Choose your starting chassis');
+ assert.equal($('layout')['data-phase'],'start');
  $('choices').children[0].onclick();
  assert.match($('phaseTitle').textContent,/draft/);
  assert.equal($('choices').children.length>=4,true);
@@ -27,9 +28,13 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  assert.ok($('choices').children.some(x=>x.className==='draft-detail'));
  $('advance').onclick();
  assert.equal($('phaseTitle').textContent,'Combat in progress');
+ assert.equal($('layout')['data-phase'],'fight');
+ assert.equal($('exportMatch').disabled,false);
  for(let i=0;i<901&&$('phaseTitle').textContent==='Combat in progress';i++)$('step').onclick();
  assert.match($('phaseTitle').textContent,/complete/);
  assert.match($('results').textContent,/#1/);
+ assert.equal($('layout')['data-phase'],'results');
+ assert.match($('resultHeadline').children[0].textContent,/place/);
  $('advance').onclick();
  assert.match($('phaseTitle').textContent,/draft/);
  const cards=$('choices').children.filter(x=>x.className.includes('draft-card'));
