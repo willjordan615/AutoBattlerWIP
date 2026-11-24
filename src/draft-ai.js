@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=human-playtest-300';
-import {legal,canEquip,TARGET_MODULES} from './headless.js?v=human-playtest-300';
+import {CHASSIS} from './simulation.js?v=compact-playtest-301';
+import {legal,canEquip,TARGET_MODULES} from './headless.js?v=compact-playtest-301';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];

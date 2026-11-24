@@ -136,3 +136,6 @@ Testing: pure Canvas renderer tests in `tests/mobility-visual.test.js` verify ev
 
 ## Prototype 3.0 — Human playtest interface
 Phase-aware mobile layout, persistent match health, category-colored draft cards, explicit utility replacement, round placement and damage bars, expandable exact fighter diagnostics and match history export. No simulation or draft rule changes. Browser adapter assertions cover phase and result headline. Build `2026-11-24-human-playtest-300`. Rendered mobile verification pending.
+
+## Prototype 3.0.1 — Compact interface
+Neutral module cards, owner-colored claimed labels, persistent completed draft during combat, compact team standings and placement rows. Browser regression covers all four picks after draft. No rule changes.
