@@ -2,6 +2,7 @@ import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDeta
 import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=movement-readability-2124';
 import {cardDetail,cardSummary} from './module-info.js?v=movement-readability-2124';
 import {chooseCpuDraft} from './draft-ai.js?v=movement-readability-2124';
+import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION} from './mobility-visual.js?v=mobility-afterimage-2125';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
@@ -197,7 +198,7 @@ function collectEffects(){
    entry.value+=e.value;entry.x=e.x;entry.y=e.y;
    dotReadouts.set(e.targetId,entry);
   }else if(e.kind==='damage')effects.push({...e,born:now,duration:1.1});
-  else if(e.kind==='mobility')effects.push({...e,born:now,duration:.3});
+  else if(e.kind==='mobility')effects.push({...e,born:now,duration:isUtilityAfterimage(e)?AFTERIMAGE_DURATION:.3});
   else if(e.kind==='impact')effects.push({...e,born:now,duration:.18});
   else if(e.kind==='wallImpact')effects.push({...e,born:now,duration:.16});
   else if(e.kind==='attackCommit')effects.push({...e,born:now,duration:.14});
@@ -220,9 +221,13 @@ function drawEffects(){
  for(const e of effects){
   const t=Math.max(0,Math.min(1,(now-e.born)/e.duration));
   if(e.kind==='mobility'){
-   ctx.save();ctx.globalAlpha=(1-t)*.7;ctx.strokeStyle=COLORS[e.owner];
-   ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(e.x,e.y);
-   ctx.lineTo(e.toX,e.toY);ctx.stroke();ctx.restore();
+   if(isUtilityAfterimage(e))drawUtilityAfterimage(ctx,e,t,COLORS,CHASSIS);
+   else{
+    // Follow Through retains its own continuous movement trace.
+    ctx.save();ctx.globalAlpha=(1-t)*.7;ctx.strokeStyle=COLORS[e.owner];
+    ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(e.x,e.y);
+    ctx.lineTo(e.toX,e.toY);ctx.stroke();ctx.restore();
+   }
   }else if(e.kind==='attackCommit'){
    // Compact, fading white attack cue; cosmetic only, with no stroke or particles.
    ctx.save();ctx.globalAlpha=(1-t)*.5;ctx.fillStyle='#ffffff';
