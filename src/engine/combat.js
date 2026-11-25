@@ -1,9 +1,9 @@
 // Engine subsystem: combat. See AGENTS.md for ownership and test routes.
-import {ATTACK_TIMING,CHASSIS} from './config.js?v=balance-312';
-import {clearLine,distance} from './geometry.js?v=balance-312';
-import {measure} from './telemetry.js?v=balance-312';
-import {spawnProjectileVolley} from './projectiles.js?v=balance-312';
-import {stats} from './stats.js?v=balance-312';
+import {ATTACK_TIMING,CHASSIS} from './config.js?v=engine-320';
+import {clearLine,distance} from './geometry.js?v=engine-320';
+import {measure} from './telemetry.js?v=engine-320';
+import {spawnProjectileVolley} from './projectiles.js?v=engine-320';
+import {stats} from './stats.js?v=engine-320';
 
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.

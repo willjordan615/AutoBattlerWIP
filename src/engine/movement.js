@@ -1,9 +1,9 @@
 // Engine subsystem: movement. See AGENTS.md for ownership and test routes.
-import {CHASSIS} from './config.js?v=balance-312';
-import {clearLine,distance,rectHit,clamp} from './geometry.js?v=balance-312';
-import {actorClearance,navigationPath} from './navigation.js?v=balance-312';
-import {cooperativeEngagement,positionScore,holdingOpportunity} from './positioning.js?v=balance-312';
-import {measure} from './telemetry.js?v=balance-312';
+import {CHASSIS} from './config.js?v=engine-320';
+import {clearLine,distance,rectHit,clamp} from './geometry.js?v=engine-320';
+import {actorClearance,navigationPath} from './navigation.js?v=engine-320';
+import {cooperativeEngagement,positionScore,holdingOpportunity} from './positioning.js?v=engine-320';
+import {measure} from './telemetry.js?v=engine-320';
 
 export function chooseMovement(state,u,target,st,enemies,dt){
  u.previouslyHolding=!!u.holdingPosition;u.holdingPosition=false;

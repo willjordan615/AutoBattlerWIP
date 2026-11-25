@@ -1,5 +1,5 @@
 // Engine subsystem: geometry. See AGENTS.md for ownership and test routes.
-import {ARENAS,CHASSIS} from './config.js?v=balance-312';
+import {ARENAS,CHASSIS} from './config.js?v=engine-320';
 
 export function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
 export function clamp(v,a,b){return Math.max(a,Math.min(b,v))}

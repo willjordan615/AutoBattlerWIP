@@ -1,7 +1,7 @@
 // Engine subsystem: navigation. See AGENTS.md for ownership and test routes.
-import {segmentRect,rectHit,clamp,clearLine,distance} from './geometry.js?v=balance-312';
-import {stats} from './stats.js?v=balance-312';
-import {CHASSIS} from './config.js?v=balance-312';
+import {segmentRect,rectHit,clamp,clearLine,distance} from './geometry.js?v=engine-320';
+import {stats} from './stats.js?v=engine-320';
+import {CHASSIS} from './config.js?v=engine-320';
 
 // Exact physical clearance is used only to connect a chassis already hugging
 // a corner to the stable terrain graph. Ordinary graph edges remain conservative.

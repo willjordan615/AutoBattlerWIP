@@ -1,6 +1,6 @@
-# Modular Arena Autobattler — 3.2 architecture branch
+# Modular Arena Autobattler — Prototype 3.2
 
-Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. The 3.2 refactor preserves 3.1.2 gameplay and balance; the playable release remains 3.1.2 until verification and promotion.
+Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. The 3.2 refactor preserves 3.1.2 gameplay and balance; the release candidate is verified before promotion.
 
 ## Run
 - Browser: serve the repository statically or open the GitHub Pages build. Do not open via file://.
@@ -17,4 +17,4 @@ src/simulation.js is the stable public facade; implementation lives in src/engin
 - Current balance values and module behavior are defined in the engine and tests. Historical release notes and original design decisions are preserved under docs/history/.
 
 ## Verification
-The structural parity command compares current engine state against a selected Git commit: npm run verify:parity -- <baseline SHA>. The original 3.1.2 baseline is 9416d7c130a7e40838822f5594800caaeb47dff4. CI and device performance must be checked independently; a structural move does not imply faster runtime or improved balance. See AGENTS.md for exact checks and reporting requirements.
+The structural parity command compares complete seeded matches and current engine state against a selected Git commit: npm run verify:parity -- <baseline SHA>. The original 3.1.2 baseline is 9416d7c130a7e40838822f5594800caaeb47dff4. CI and device performance must be checked independently; a structural move does not imply faster runtime or improved balance. See AGENTS.md for exact checks and reporting requirements.

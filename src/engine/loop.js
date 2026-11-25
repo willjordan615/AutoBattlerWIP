@@ -1,16 +1,16 @@
 // Engine subsystem: loop. See AGENTS.md for ownership and test routes.
-import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=balance-312';
-import {chooseTarget} from './targeting.js?v=balance-312';
-import {distance,clearLine,bound} from './geometry.js?v=balance-312';
-import {measure} from './telemetry.js?v=balance-312';
-import {stats,resolveResistance} from './stats.js?v=balance-312';
-import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=balance-312';
-import {startAttack,attackMovementMultiplier,advanceAttack} from './combat.js?v=balance-312';
-import {chooseMovement} from './movement.js?v=balance-312';
-import {advanceFollowthrough,resolveFollowthroughImpacts} from './followthrough.js?v=balance-312';
-import {resolveCollision} from './collision.js?v=balance-312';
-import {advanceProjectiles} from './projectiles.js?v=balance-312';
-import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=balance-312';
+import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-320';
+import {chooseTarget} from './targeting.js?v=engine-320';
+import {distance,clearLine,bound} from './geometry.js?v=engine-320';
+import {measure} from './telemetry.js?v=engine-320';
+import {stats,resolveResistance} from './stats.js?v=engine-320';
+import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-320';
+import {startAttack,attackMovementMultiplier,advanceAttack} from './combat.js?v=engine-320';
+import {chooseMovement} from './movement.js?v=engine-320';
+import {advanceFollowthrough,resolveFollowthroughImpacts} from './followthrough.js?v=engine-320';
+import {resolveCollision} from './collision.js?v=engine-320';
+import {advanceProjectiles} from './projectiles.js?v=engine-320';
+import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-320';
 
 export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];
  // Snapshot intentions for all units before sequential movement begins.

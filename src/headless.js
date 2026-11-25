@@ -1,6 +1,6 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=balance-312';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=engine-320';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS} from './engine/module-registry.js?v=balance-312';
+import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS} from './engine/module-registry.js?v=engine-320';
 export {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS};
 export function cooperativeWeight(players){const alive=players.filter(p=>p.hp>0);return alive.length?alive.filter(p=>p.squad.length>1).length/alive.length:0;}
 export const catalog=[
