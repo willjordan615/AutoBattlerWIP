@@ -19,7 +19,7 @@ export const DETAILS={
  "target:coordinated":"Favor enemies already targeted by an ally.",
  "target:independent":"Favor enemies not targeted by allies.",
  "target:opportunist":"Favor opponents whose attack is on cooldown.",
- "target:pursuer":"Favor retreating opponents.",
+ "target:pursuer":"Increase Pursuer targeting weight by 1. Prefer opponents that are retreating.",
  "target:challenger":"Favor opponents with higher remaining HP percentage.",
  'unit:bruiser':'Recruit a durable melee Bruiser (maximum three fighters per squad). Each additional fighter reduces EVERY squad member\'s base HP and damage by 15% from the next combat round.',
  'unit:rogue':'Recruit a fast melee Rogue (maximum three fighters per squad). Each additional fighter reduces EVERY squad member\'s base HP and damage by 15% from the next combat round.',

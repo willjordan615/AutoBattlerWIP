@@ -7,7 +7,7 @@ test('agent receives legal choices and can draft and inspect a battle',()=>{
  const before=game.state();
  assert.equal(before.phase,'draft');
  assert.ok(before.draft.choices.length>0);
- assert.equal(Object.keys(before.players[0].squad[0].weights).length,10);
+ assert.equal(Object.keys(before.players[0].squad[0].weights).length,15);
  const decision=cpuPolicy(before);
  const after=game.pick(decision.uid,decision.slot,decision.passiveSlot);
  assert.equal(after.phase,'combat');

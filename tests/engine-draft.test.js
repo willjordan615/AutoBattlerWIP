@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,holdingOpportunity,cooperativeEngagement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,advanceFollowthrough,UTILITY_MOVE_SCALE,recentMovement,collisionStability,disengageDirection,resolveFollowthroughImpacts} from '../src/simulation.js';
-import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
+import {COOPERATIVE_KEYS,ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 import {DETAILS,SUMMARIES,cardDetail,cardSummary} from '../src/module-info.js';
 import {players,projectileFixture,testShot} from './simulation-fixtures.js';
 
@@ -86,8 +86,9 @@ test('per-unit round report balances applied damage and damage received',()=>{
 
 test('shared draft preserves identical offers for competing players',()=>{
  const m=createMatch(['bruiser','bruiser','rogue','ranged'],7);
- const index=catalog.findIndex(c=>c.kind==='utility'&&c.key==='dash');
- m.random=()=>((index+.25)/catalog.length);
+ const soloOffers=catalog.filter(c=>!COOPERATIVE_KEYS.has(c.key));
+ const index=soloOffers.findIndex(c=>c.kind==='utility'&&c.key==='dash');
+ m.random=()=>((index+.25)/soloOffers.length);
  draftPool(m);
  assert.equal(m.draft.originalPool.length,6);
  assert.ok(m.draft.originalPool.every(card=>card.key==='dash'&&card.kind==='utility'));

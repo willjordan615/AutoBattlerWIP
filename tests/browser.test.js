@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 class FakeNode{
- constructor(id=''){this.id=id;this.children=[];this.style={};this.value='1';this.textContent='';this.disabled=false;this.className='';this.classList={add:(name)=>{this.className+=' '+name}}}
+ constructor(id=''){this.id=id;this.children=[];this.style={};this.value='0';this.textContent='';this.disabled=false;this.className='';this.classList={add:(name)=>{this.className+=' '+name}}}
  setAttribute(name,value){this[name]=value}
  append(...children){this.children.push(...children)}
  replaceChildren(...children){this.children=children}
@@ -14,10 +14,12 @@ class FakeNode{
 }
 test('browser adapter shares headless draft and combat lifecycle',async()=>{
  const nodes=new Map();
- globalThis.document={getElementById(id){if(!nodes.has(id))nodes.set(id,new FakeNode(id));return nodes.get(id)},createElement:tag=>new FakeNode(tag)};
+ const find=(node,id)=>node.id===id?node:node.children.map(child=>find(child,id)).find(Boolean);
+ globalThis.document={getElementById(id){for(const node of nodes.values()){const found=find(node,id);if(found)return found}if(!nodes.has(id))nodes.set(id,new FakeNode(id));return nodes.get(id)},createElement:tag=>new FakeNode(tag)};
  const callbacks=[];globalThis.requestAnimationFrame=fn=>{callbacks.push(fn);return callbacks.length};
  globalThis.cancelAnimationFrame=()=>{};
  globalThis.performance={now:()=>1000};
+ globalThis.crypto={getRandomValues(values){values[0]=20261121;return values}};
  await import('../src/game.js');
  const $=id=>document.getElementById(id);
  assert.equal($('phaseTitle').textContent,'Choose your starting chassis');
