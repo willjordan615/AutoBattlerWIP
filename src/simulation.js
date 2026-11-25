@@ -36,7 +36,7 @@ export const ATTACK_STAGES={
  hazardous:{stage:'aftermath',label:'Persistent ground',cooldown:1},
  disengage:{stage:'aftermath',label:'Post-attack retreat',duration:.5},
  restless:{stage:'targeting',label:'Recent-hit target avoidance'},
- velocity:{stage:'shape',label:'Delivery timing'},rally:{stage:'aftermath',label:'Ally movement'},resonance:{stage:'condition',label:'Ally hit synergy'},fortify:{stage:'aftermath',label:'Temporary defense'},siphon:{stage:'aftermath',label:'Health recovery'},steadfast:{stage:'aftermath',label:'Displacement resistance'},patience:{stage:'targeting',label:'Hold preference'},resolve:{stage:'condition',label:'Slow resistance and defense'},ricochet:{stage:'shape',label:'Terrain interaction'}
+ velocity:{stage:'shape',label:'Delivery timing'},rally:{stage:'aftermath',label:'Ally movement'},resonance:{stage:'condition',label:'Ally hit synergy'},fortify:{stage:'aftermath',label:'Temporary defense'},siphon:{stage:'aftermath',label:'Health recovery'},steadfast:{stage:'aftermath',label:'Displacement resistance'},patience:{stage:'targeting',label:'Hold preference'},resolve:{stage:'condition',label:'Slow resistance and defense'},ricochet:{stage:'shape',label:'Terrain bounce / lateral displacement'}
 };
 // Returns true for all targets struck by the SAME committed attack; other
 // attacks respect the independent cooldown. Projectile volleys can arrive
@@ -1067,6 +1067,43 @@ function traveledRecently(u,now){
 }
 // Credit directly measurable damage without pretending the engine can isolate the
 // counterfactual value of positioning, CC, attack range, target choice or mobility.
+// Melee Ricochet uses the committed attack footprint, not the actor's later facing.
+export function applyRicochetSlide(state,hit){
+ const {source,target}=hit;
+ const stacks=Math.min(4,source.chassis.mods.ricochet||0);
+ if(!stacks||source.type==='ranged'||hit.projectile||hit.secondary||hit.indirect||hit.damage<=0||target.hp<=0)return false;
+ const origin=hit.attackOrigin||source;
+ const heading=hit.attackDirection??Math.atan2(target.y-origin.y,target.x-origin.x);
+ const fx=Math.cos(heading),fy=Math.sin(heading),lx=-fy,ly=fx;
+ const side=(target.x-origin.x)*lx+(target.y-origin.y)*ly;
+ const sign=side< -1e-8?-1:1;
+ const stability=target.steadfastUntil>state.time?1+(target.steadfastStrength||0):1;
+ const lateral=16*stacks*(1-resolveResistance(target))/stability;
+ const radial=(hit.knockback||0)*4/stability;
+ const dx=lx*sign*lateral+fx*radial,dy=ly*sign*lateral+fy*radial;
+ const before={x:target.x,y:target.y},r=CHASSIS[target.type].radius+3;
+ const length=Math.hypot(dx,dy);
+ const steps=Math.max(1,Math.ceil(length/2));
+ for(let i=1;i<=steps;i++){
+  const point={x:before.x+dx*i/steps,y:before.y+dy*i/steps};
+  if(point.x<20+r||point.x>700-r||point.y<20+r||point.y>500-r||!physicalLineClear(target,point,state.arena,r))break;
+  if(state.units.some(other=>other!==target&&other.hp>0&&
+   distance(point,other)<CHASSIS[target.type].radius+CHASSIS[other.type].radius+5&&
+   distance(point,other)<distance(target,other)-1e-8))break;
+  target.x=point.x;target.y=point.y;
+ }
+ const moved=distance(before,target);
+ measure(state,source,'ricochet','meleeSlides');
+ measure(state,source,'ricochet','slideDistance',moved);
+ measure(state,source,'ricochet','nominalSlideDistance',length);
+ if(radial&&stability>1)measure(state,target,'steadfast','nominalKnockbackAvoided',hit.knockback*4-radial);
+ if(resolveResistance(target))measure(state,target,'resolve','nominalSlideDistanceAvoided',16*stacks*resolveResistance(target)/stability);
+ if(moved>1e-8){
+  target.navigation=null;target.navProgress=null;
+  state.visualEvents.push({kind:'mobility',ability:'ricochet',owner:target.owner,type:target.type,x:before.x,y:before.y,toX:target.x,toY:target.y});
+ }
+ return true;
+}
 export function resolveAttackModules(state,attacks){
  const output=[];
  for(const hit of attacks){
@@ -1129,7 +1166,6 @@ export function resolveAttackModules(state,attacks){
   target.lastAllyHit={owner:source.owner,sourceId:source.id,time:state.time};
   if(mods.fortify){measure(state,source,'fortify','landedHits');source.fortifyUntil=state.time+1;source.fortifyStrength=Math.min(4,mods.fortify);}
   if(mods.steadfast){measure(state,source,'steadfast','landedHits');source.steadfastUntil=state.time+1;source.steadfastStrength=Math.min(1,mods.steadfast*.25);}
-  if(mods.ricochet&&source.type!=='ranged'&&state.arena.obstacles.some(o=>Math.hypot(source.x-clamp(source.x,o.x,o.x+o.w),source.y-clamp(source.y,o.y,o.y+o.h))<45)){source.fortifyUntil=state.time+1;source.fortifyStrength=Math.max(source.fortifyStrength||0,Math.min(3,mods.ricochet));measure(state,source,'ricochet','meleeCoverHits');}
   source.lastAttacked=target.id;source.lastAttackAt=state.time;
  }
  if(state.zones.length>60)state.zones.splice(0,state.zones.length-60);
@@ -1332,7 +1368,8 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  // Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
  // Multiple simultaneous taunts resolve deterministically in attack processing order.
  for(const a of resolved){if(a.taunt>0&&a.source.hp>0&&a.target.hp>0){a.target.tauntedBy=a.source.id;a.target.tauntedUntil=state.time+.25*a.taunt}}
- for(const a of resolved){if(a.knockback&&a.target.hp>0){if(a.target.steadfastUntil>state.time)measure(state,a.target,'steadfast','nominalKnockbackAvoided',a.knockback*4*(1-1/(1+(a.target.steadfastStrength||0))));const d=Math.max(1,distance(a.source,a.target));a.target.x+=(a.target.x-a.source.x)/d*a.knockback*4/(a.target.steadfastUntil>state.time?1+(a.target.steadfastStrength||0):1);a.target.y+=(a.target.y-a.source.y)/d*a.knockback*4/(a.target.steadfastUntil>state.time?1+(a.target.steadfastStrength||0):1);bound(a.target,state.arena)}}
+ const slideContacts=new Set();
+ for(const a of resolved){const key=a.attackId==null?a:a.source.id+':'+a.attackId+':'+a.target.id;if(slideContacts.has(key))continue;if(applyRicochetSlide(state,a)){slideContacts.add(key);continue;}if(a.knockback&&a.target.hp>0){if(a.target.steadfastUntil>state.time)measure(state,a.target,'steadfast','nominalKnockbackAvoided',a.knockback*4*(1-1/(1+(a.target.steadfastStrength||0))));const d=Math.max(1,distance(a.source,a.target));a.target.x+=(a.target.x-a.source.x)/d*a.knockback*4/(a.target.steadfastUntil>state.time?1+(a.target.steadfastStrength||0):1);a.target.y+=(a.target.y-a.source.y)/d*a.knockback*4/(a.target.steadfastUntil>state.time?1+(a.target.steadfastStrength||0):1);bound(a.target,state.arena)}}
  for(const u of state.units)if(u.hp===0&&!u.reported){u.reported=true;state.events.push(state.players[u.owner].name+' '+CHASSIS[u.type].name+' defeated');}
  const nowAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const owner of wasAlive)if(!nowAlive.has(owner)){state.eliminations.push({owner,tick:state.tick});state.events.push(state.players[owner].name+' team eliminated')}
  if(nowAlive.size<=1||state.time>=DURATION)return [...nowAlive];return null}
