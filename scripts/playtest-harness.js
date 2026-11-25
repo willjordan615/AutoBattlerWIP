@@ -80,7 +80,7 @@ export function createPlaytest({seed=12345,types=['bruiser','rogue','ranged','br
   const battle=beginCombat(match),frames=[],events=[],samples=trace?Math.ceil(traceInterval/STEP):Infinity;
   const telemetry={targetSwitches:0,blockedUnitTicks:0,stationaryUnitTicks:0,aliveUnitTicks:0,outOfRangeUnitTicks:0,travelDistance:0,damageTaken:0,byOwner:{}};
   const previous=new Map(battle.units.map(u=>[u.id,{x:u.x,y:u.y,hp:u.hp,focus:null}]));
-  const statsForTrace=u=>({range:CHASSIS[u.type].range+u.chassis.mods.range*20});
+  const statsForTrace=u=>stats(u);
   let outcome=null;
   if(trace)frames.push(snapshot(battle));
   for(let i=0;i<900;i++){
