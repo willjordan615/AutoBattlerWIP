@@ -1084,18 +1084,31 @@ export function applyRicochetSlide(state,hit){
  const before={x:target.x,y:target.y},r=CHASSIS[target.type].radius+3;
  const length=Math.hypot(dx,dy);
  const steps=Math.max(1,Math.ceil(length/2));
+ let blocked=false;
  for(let i=1;i<=steps;i++){
   const point={x:before.x+dx*i/steps,y:before.y+dy*i/steps};
-  if(point.x<20+r||point.x>700-r||point.y<20+r||point.y>500-r||!physicalLineClear(target,point,state.arena,r))break;
+  if(point.x<20+r||point.x>700-r||point.y<20+r||point.y>500-r||!physicalLineClear(target,point,state.arena,r)){blocked=true;break;}
   if(state.units.some(other=>other!==target&&other.hp>0&&
    distance(point,other)<CHASSIS[target.type].radius+CHASSIS[other.type].radius+5&&
-   distance(point,other)<distance(target,other)-1e-8))break;
+   distance(point,other)<distance(target,other)-1e-8)){blocked=true;break;}
   target.x=point.x;target.y=point.y;
  }
  const moved=distance(before,target);
  measure(state,source,'ricochet','meleeSlides');
  measure(state,source,'ricochet','slideDistance',moved);
  measure(state,source,'ricochet','nominalSlideDistance',length);
+ if(blocked){
+  measure(state,source,'ricochet','slideCollisions');
+  if((target.ricochetImmuneUntil||0)<=state.time){
+   target.ricochetStunUntil=state.time+1;
+   target.ricochetImmuneUntil=state.time+5;
+   target.attack=null;target.followthroughCommit=null;target.navigation=null;target.navProgress=null;
+   target.moveDecision={x:0,y:0};target.intent={x:0,y:0};target.holdingPosition=false;
+   measure(state,source,'ricochet','collisionStuns');
+   measure(state,source,'ricochet','nominalStunSeconds',1);
+   state.visualEvents.push({kind:'reaction',ability:'ricochet',owner:target.owner,x:target.x,y:target.y});
+  }else measure(state,source,'ricochet','immuneCollisions');
+ }
  if(radial&&stability>1)measure(state,target,'steadfast','nominalKnockbackAvoided',hit.knockback*4-radial);
  if(resolveResistance(target))measure(state,target,'resolve','nominalSlideDistanceAvoided',16*stacks*resolveResistance(target)/stability);
  if(moved>1e-8){
@@ -1197,12 +1210,13 @@ export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.t
   const opponents=state.units.filter(e=>e.hp>0&&e.owner!==unit.owner);
   const target=opponents.length?chooseTarget(state,unit,opponents):null;
   unit.focus=target?.id??null;
+  if(unit.ricochetStunUntil>state.time){unit.intent={x:0,y:0};continue;}
   const prior=unit.moveDecision||{x:0,y:0};
   const norm=Math.hypot(prior.x,prior.y);
   unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:unit.holdingPosition?{x:0,y:0}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
  }
 for(const u of state.units){if(u.hp<=0)continue;if(u.chassis.passives.includes('inspiration'))for(const ally of state.units){if(ally===u||ally.hp<=0||ally.owner!==u.owner||distance(u,ally)>110)continue;for(const cds of [ally.mobilityCd,ally.reactionCd])for(const key of Object.keys(cds||{}))if(cds[key]>state.time){const before=cds[key];cds[key]=Math.max(state.time,cds[key]-dt*.35);measure(state,u,'inspiration','cooldownSecondsSaved',before-cds[key]);}}}
-const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);
+const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;if(u.ricochetStunUntil>state.time){u.moveDecision={x:0,y:0};u.intent={x:0,y:0};continue;}const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);
  reactToThreat(state,u,t,st,awareness);
  const activeStats=stats(u);
  if(state.moduleTelemetry){if(u.rallyUntil>state.time){const source=state.units.find(a=>a.id===u.rallySource);if(source)measure(state,source,'rally','allyBuffSeconds',dt);}if(u.chassis.mods.resolve&&u.effects?.slowUntil>state.time){measure(state,u,'resolve','slowActiveSeconds',dt);measure(state,u,'resolve','slowFractionSecondsAvoided',Math.min(.45,u.effects.slowStrength||0)*resolveResistance(u)*dt);}for(const key of ['fortify','steadfast','anchor'])if(u[key+'Until']>state.time)measure(state,u,key,'activeSeconds',dt);}
