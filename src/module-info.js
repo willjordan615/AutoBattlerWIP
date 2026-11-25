@@ -1,9 +1,9 @@
-import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-321';
+import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-321-hp40';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
- 'morphology:growth':'Move up one size tier: +12% radius, +15% HP, +10% damage, +12% melee or +6% ranged reach, -10% movement speed and attack frequency, +10% windup and recovery duration. Percentages are additive by net tier, from -3 to +3. Cancels Shrink; no utility slot required.',
- 'morphology:shrink':'Move down one size tier: -12% radius, -15% HP, -10% damage, -12% melee or -6% ranged reach, +10% movement speed and attack frequency, -10% windup and recovery duration. Percentages are additive by net tier, from -3 to +3. Cancels Growth; no utility slot required.',
+ 'morphology:growth':'Move up one size tier: +12% radius, ×1.4 HP per tier, +10% damage, +12% melee or +6% ranged reach, -10% movement speed and attack frequency, +10% windup and recovery duration. HP compounds; other percentages are additive by net tier, from -3 to +3. Cancels Shrink; no utility slot required.',
+ 'morphology:shrink':'Move down one size tier: -12% radius, ÷1.4 HP per tier (about -28.6%), -10% damage, -12% melee or -6% ranged reach, +10% movement speed and attack frequency, -10% windup and recovery duration. HP compounds; other percentages are additive by net tier, from -3 to +3. Cancels Growth; no utility slot required.',
  "attack:velocity":"Ranged: +25% projectile speed per stack. Melee: shorter windup with the saved time added to recovery and cooldown, preserving attack frequency.",
  "attack:rally":"On attack release, nearby allies within 110 units gain 8% movement speed per stack for 1.2s, capped at 30%.",
  "attack:resonance":"Gain 1.5 bonus raw damage per stack (max 4 stacks) if a different ally hit the target within 1.5s.",
@@ -62,8 +62,8 @@ export const DETAILS={
  'passive:retaliation':'Occupies one of two shared Utility slots. After receiving a direct melee hit, the next attack made within 4 seconds gains 4 raw damage. Does not affect attack timing. Unique per fighter.'
 };
 export const SUMMARIES={
- 'morphology:growth':'Larger, stronger, more reach · slower movement and attacks',
- 'morphology:shrink':'Smaller, quicker movement and attacks · less HP, damage and reach',
+ 'morphology:growth':'+40% HP per tier · larger, stronger, slower',
+ 'morphology:shrink':'÷1.4 HP per tier · smaller, quicker, less damage and reach',
  "attack:velocity":"Faster delivery, unchanged attack frequency",
  "attack:rally":"Attacking speeds nearby allies",
  "attack:resonance":"Bonus damage following an ally hit",

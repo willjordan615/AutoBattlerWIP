@@ -1,6 +1,6 @@
 // Engine subsystem: collision. See AGENTS.md for ownership and test routes.
-import {distance,bound} from './geometry.js?v=engine-321';
-import {CHASSIS,radiusOf} from './config.js?v=engine-321';
+import {distance,bound} from './geometry.js?v=engine-321-hp40';
+import {CHASSIS,radiusOf} from './config.js?v=engine-321-hp40';
 
 // A planted fighter braces; movement over the previous half second supplies
 // momentum. Max HP provides mass without making damage change physics mid-fight.

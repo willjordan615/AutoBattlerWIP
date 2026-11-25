@@ -1,9 +1,9 @@
 // Engine subsystem: projectiles. See AGENTS.md for ownership and test routes.
-import {measure} from './telemetry.js?v=engine-321';
-import {PROJECTILE_SPEED,PROJECTILE_RADIUS,CHASSIS,radiusOf,morphologyTier} from './config.js?v=engine-321';
-import {claimAttackEffect} from './effects.js?v=engine-321';
-import {distance,clearLine,segmentBoxHit,segmentCircleHit,inRearSector} from './geometry.js?v=engine-321';
-import {stats} from './stats.js?v=engine-321';
+import {measure} from './telemetry.js?v=engine-321-hp40';
+import {PROJECTILE_SPEED,PROJECTILE_RADIUS,CHASSIS,radiusOf,morphologyTier} from './config.js?v=engine-321-hp40';
+import {claimAttackEffect} from './effects.js?v=engine-321-hp40';
+import {distance,clearLine,segmentBoxHit,segmentCircleHit,inRearSector} from './geometry.js?v=engine-321-hp40';
+import {stats} from './stats.js?v=engine-321-hp40';
 
 // World-space projectile simulation. Every projectile is resolved in the
 // deterministic combat tick; rendering reads state.projectiles without inferring hits.

@@ -11,7 +11,7 @@ test('Morphology changes derived stats symmetrically by net size tier',()=>{
   for(const tier of [-3,-1,1,3]){
    const u=unit(type,tier),st=stats(u);
    near(st.radius,base.radius*(1+.12*tier));
-   near(st.hp,base.hp*(1+.15*tier));
+   near(st.hp,base.hp*Math.pow(1.4,tier));
    near(st.damage,base.damage*(1+.10*tier));
    near(st.range,base.range*(1+(type==='ranged'?.06:.12)*tier));
    near(st.speed,base.speed*(1-.10*tier));
@@ -37,5 +37,5 @@ test('Morphology radius controls boundaries, unit contact and starting HP',()=>{
  assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>=radiusOf(a)+radiusOf(b)+5-1e-6);
  const m=createMatch();m.players[0].squad[0].mods.growth=2;
  const state=spawn(m.players,ARENAS[0],1),live=state.units.find(x=>x.owner===0);
- near(live.hp,CHASSIS[live.type].hp*1.30);near(live.hp,live.maxHp);
+ near(live.hp,CHASSIS[live.type].hp*1.4**2);near(live.hp,live.maxHp);
 });

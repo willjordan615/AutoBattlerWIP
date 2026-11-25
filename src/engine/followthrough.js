@@ -1,7 +1,7 @@
 // Engine subsystem: followthrough. See AGENTS.md for ownership and test routes.
-import {resolveCollision} from './collision.js?v=engine-321';
-import {stats} from './stats.js?v=engine-321';
-import {bound,distance} from './geometry.js?v=engine-321';
+import {resolveCollision} from './collision.js?v=engine-321-hp40';
+import {stats} from './stats.js?v=engine-321-hp40';
+import {bound,distance} from './geometry.js?v=engine-321-hp40';
 
 // An Impact module: displace the attacker after the first landed hit of a
 // release. Phasing bypasses only that target's body blocking, never terrain.
