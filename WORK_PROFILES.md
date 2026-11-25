@@ -3,7 +3,7 @@
 These are independent workstreams. The game design document governs rules; numerical values are prototype defaults.
 
 ## Profile 1 — Combat AI & Navigation
-**Owns:** `src/simulation.js` (steering, waypoint navigation, collisions).
+**Owns:** `src/engine/navigation.js`, `src/engine/movement.js`, `src/engine/positioning.js`, `src/engine/collision.js`.
 
 **Problem:** Allies chase the same target, push into each other, and treat post-movement collision separation as their only avoidance.
 
@@ -14,7 +14,7 @@ These are independent workstreams. The game design document governs rules; numer
 **Further work:** Reciprocal velocity obstacles or reservation-based formation slots, better handling of narrow obstacle passages, quantitative jam-duration benchmarks, Android performance profiling.
 
 ## Profile 2 — Module Design & UI
-**Owns:** `src/module-info.js`, draft-card rendering in `src/game.js`.
+**Owns:** `src/engine/module-registry.js`, `src/module-info.js`, draft-card rendering in `src/game.js`.
 
 **Problem:** Card names conceal mechanics; Speed, Haste, and HP are ambiguous.
 
