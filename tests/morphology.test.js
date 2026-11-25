@@ -24,7 +24,7 @@ test('Growth and Shrink are draftable, cancel, cap and preserve utility slots',(
  const m=createMatch(),u=m.players[0].squad[0];u.passives=['regen','haste'];
  const g=catalog.find(c=>c.kind==='morphology'&&c.key==='growth'),s=catalog.find(c=>c.kind==='morphology'&&c.key==='shrink');
  assert.ok(g&&s&&cardDetail(g)&&cardSummary(s));
- draftPool(m);m.draft.pool=[{...g,uid:'growth'}];assign(m,0,'growth');
+ draftPool(m);m.draft.pool[0]={...g,uid:'growth'};assign(m,0,'growth');
  assert.equal(morphologyTier(u),1);assert.deepEqual(u.passives,['regen','haste']);
  u.mods.growth=3;assert.equal(canEquip(u,g),false);assert.equal(canEquip(u,s),true);
  u.mods.shrink=3;assert.equal(morphologyTier(u),0);assert.equal(canEquip(u,g),true);
