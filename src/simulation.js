@@ -361,7 +361,7 @@ function spawnProjectileVolley(state,u,t,st,aimAngle=null,attackId=null){
   state.projectiles.push({
    id:state.nextProjectileId++,owner:u.owner,source:u,aimedAtId:t.id,lane:i,landedCount:0,
    x:u.x,y:u.y,vx:Math.cos(heading),vy:Math.sin(heading),
-   speed:PROJECTILE_SPEED*(1+.25*(u.chassis.mods.velocity||0)),bounces:Math.min(2,u.chassis.mods.ricochet||0),remaining:st.range,distanceTraveled:0,radius:PROJECTILE_RADIUS+Math.max(0,st.area)*3,damage:st.damage,
+   speed:PROJECTILE_SPEED*(1+.25*(u.chassis.mods.velocity||0)),bounces:Math.min(2,u.chassis.mods.ricochet||0),remaining:st.range,originalRange:st.range,segmentDistance:0,distanceTraveled:0,radius:PROJECTILE_RADIUS+Math.max(0,st.area)*3,damage:st.damage,
    knockback:st.knockback,taunt:st.taunt,penetration:Math.max(0,st.piercing),
    hitIds:new Set(),volley
   });
@@ -369,11 +369,36 @@ function spawnProjectileVolley(state,u,t,st,aimAngle=null,attackId=null){
 }
 // Advance across the entire swept segment. Walls/arena bounds and hostile units
 // compete by earliest time of impact; each target can be hit once per volley.
+// At most one extra location activation of each compatible module per volley.
+function applyRicochetLocationEffects(state,shot,attacks){
+ const source=shot.source,mods=source.chassis.mods,volley=shot.volley;
+ if(mods.hazardous&&!volley.ricochetHazard&&claimAttackEffect(source,'hazardous',volley.attackId,state.time)){
+  volley.ricochetHazard=true;
+  const own=state.zones.filter(z=>z.source.id===source.id);
+  if(own.length>=2){const oldest=own.sort((a,b)=>a.until-b.until)[0];state.zones.splice(state.zones.indexOf(oldest),1);}
+  state.zones.push({x:shot.x,y:shot.y,owner:source.owner,source,radius:18+Math.min(4,mods.hazardous)*3,dps:Math.min(10,2*mods.hazardous),until:state.time+2.5});
+  measure(state,source,'ricochet','hazardActivations');
+ }
+ if(mods.chain&&!volley.ricochetChain){
+  const target=state.units.filter(u=>u.hp>0&&u.owner!==source.owner&&!volley.hitIds.has(u.id)&&distance(u,shot)<=95&&clearLine(shot,u,state.arena)).sort((a,b)=>distance(a,shot)-distance(b,shot)||a.id-b.id)[0];
+  if(target){
+   volley.ricochetChain=true;volley.hitIds.add(target.id);
+   const redirected=shot.damage*Math.min(.6,.2*mods.chain);
+   shot.damage-=redirected;
+   const damage=Math.max(0,redirected-stats(target).defense);
+   attacks.push({source,target,rawDamage:redirected,damage,secondary:true,attackId:volley.attackId,moduleDamage:{chain:damage}});
+   state.visualEvents.push({kind:'chain',x:shot.x,y:shot.y,toX:target.x,toY:target.y,owner:source.owner});
+   measure(state,source,'ricochet','chainActivations');
+   measure(state,source,'ricochet','chainRedirectedRaw',redirected);
+  }
+ }
+}
 export function advanceProjectiles(state,dt,attacks=[]){
  if(!state.projectiles?.length||dt<=0)return attacks;
  const remaining=[];
  for(const shot of state.projectiles){
-  let travel=Math.min(shot.speed*dt,shot.remaining);
+  let frameTravel=shot.speed*dt;
+  let travel=Math.min(frameTravel,shot.remaining);
   let active=true,iterations=0;
   while(active&&travel>1e-7&&iterations++<state.units.length+state.arena.obstacles.length+3){
    const from={x:shot.x,y:shot.y};
@@ -398,12 +423,26 @@ export function advanceProjectiles(state,dt,attacks=[]){
    const fraction=collision?collision.time:1;
    const moved=travel*fraction;
    shot.x=from.x+shot.vx*moved;shot.y=from.y+shot.vy*moved;
-   shot.remaining-=moved;shot.distanceTraveled=(shot.distanceTraveled||0)+moved;travel-=moved;
+   shot.remaining-=moved;shot.distanceTraveled=(shot.distanceTraveled||0)+moved;shot.segmentDistance=(shot.segmentDistance||0)+moved;frameTravel-=moved;travel-=moved;
    if(!collision){active=shot.remaining>1e-7;break}
    if(collision.kind==='wall'){
     shot.source.combatStats&&(shot.source.combatStats.wallHits++);
     state.visualEvents.push({kind:'wallImpact',x:shot.x,y:shot.y,owner:shot.owner});
-    if(shot.bounces>0&&collision.wall&&shot.remaining>1e-5){const o=collision.wall,p=collision.pad;const sides=[{d:Math.abs(shot.x-(o.x-p)),axis:'x'},{d:Math.abs(shot.x-(o.x+o.w+p)),axis:'x'},{d:Math.abs(shot.y-(o.y-p)),axis:'y'},{d:Math.abs(shot.y-(o.y+o.h+p)),axis:'y'}].sort((a,b)=>a.d-b.d);if(sides[0].axis==='x')shot.vx*=-1;else shot.vy*=-1;shot.bounces--;measure(state,shot.source,'ricochet','bounces');if(state.moduleTelemetry)shot.bounced=true;const epsilon=Math.min(.001,travel,shot.remaining);shot.x+=shot.vx*epsilon;shot.y+=shot.vy*epsilon;travel-=epsilon;shot.remaining-=epsilon;continue;}
+    if(shot.bounces>0&&collision.wall){
+     const o=collision.wall,p=collision.pad;
+     const sides=[{d:Math.abs(shot.x-(o.x-p)),axis:'x'},{d:Math.abs(shot.x-(o.x+o.w+p)),axis:'x'},{d:Math.abs(shot.y-(o.y-p)),axis:'y'},{d:Math.abs(shot.y-(o.y+o.h+p)),axis:'y'}].sort((a,b)=>a.d-b.d);
+     if(sides[0].axis==='x')shot.vx*=-1;else shot.vy*=-1;
+     shot.bounces--;
+     const renewed=shot.originalRange??stats(shot.source).range;
+     measure(state,shot.source,'ricochet','bounces');
+     measure(state,shot.source,'ricochet','renewedTravelAllowance',Math.max(0,renewed-shot.remaining));
+     shot.remaining=renewed;shot.segmentDistance=0;shot.bounced=true;
+     applyRicochetLocationEffects(state,shot,attacks);
+     const epsilon=Math.min(.001,shot.remaining);
+     shot.x+=shot.vx*epsilon;shot.y+=shot.vy*epsilon;shot.remaining-=epsilon;shot.segmentDistance+=epsilon;
+     frameTravel=Math.max(0,frameTravel-epsilon);travel=Math.min(frameTravel,shot.remaining);
+     continue;
+    }
     active=false;break;
    }
    const victim=collision.unit;
@@ -412,7 +451,7 @@ export function advanceProjectiles(state,dt,attacks=[]){
     shot.volley.hitIds.add(victim.id);
     const deliveredBy=[];
     if(shot.source.chassis.mods.range>0&&
-       shot.distanceTraveled>CHASSIS[shot.source.type].range)deliveredBy.push('range');
+       shot.segmentDistance>CHASSIS[shot.source.type].range)deliveredBy.push('range');
     if(shot.source.chassis.mods.area>0&&
        distance(shot,victim)>CHASSIS[victim.type].radius+PROJECTILE_RADIUS+1e-6)deliveredBy.push('area');
     if(shot.lane>0)deliveredBy.push('projectiles');
@@ -420,7 +459,7 @@ export function advanceProjectiles(state,dt,attacks=[]){
     shot.landedCount++;if(shot.bounced)measure(state,shot.source,'ricochet','postBounceContacts');if(shot.source.chassis.mods.velocity){measure(state,shot.source,'velocity','projectileContacts');measure(state,shot.source,'velocity','nominalTravelSecondsSaved',shot.distanceTraveled/PROJECTILE_SPEED-shot.distanceTraveled/shot.speed);}
     if(shot.source.combatStats&&victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
     attacks.push({source:shot.source,target:victim,projectile:true,attackId:shot.volley.attackId,
-     attackOrigin:shot.volley.origin,attackDirection:shot.volley.direction,
+     attackOrigin:shot.volley.origin,attackDirection:shot.volley.direction,postBounce:!!shot.bounced,
      rawDamage:shot.damage,damage:Math.max(1,shot.damage-stats(victim).defense),
      knockback:shot.knockback,taunt:shot.taunt,deliveredBy});
    }
@@ -1338,7 +1377,8 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   const prior=totals.get(a.target)||0;
   const dealt=Math.max(0,Math.min(a.damage,a.target.hp-prior));
   if(dealt>0){
-   if(a.moduleDamage?.resonance)measure(state,a.source,'resonance','creditedDamage',Math.min(dealt,a.moduleDamage.resonance*dealt/Math.max(1e-9,a.damage)));
+   if(a.postBounce)measure(state,a.source,'ricochet','postBounceActualDamage',dealt);
+    if(a.moduleDamage?.resonance)measure(state,a.source,'resonance','creditedDamage',Math.min(dealt,a.moduleDamage.resonance*dealt/Math.max(1e-9,a.damage)));
    const combat=a.source.combatStats;
    if(combat){
     combat.moduleDamage||={};
