@@ -1,4 +1,4 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=arena-focus-303';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=utility-slots-304';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
 export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','followthrough','disengage'];
 export const UTILITY_MODULES=['dash','dodge','backstep','flank','intercept'];

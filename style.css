@@ -104,3 +104,6 @@ header{flex-direction:row;align-items:center;margin:0 0 8px;gap:8px}h1{font-size
 
 /* Keep combat in view when the draft control disappears. */
 #arena{scroll-margin-top:8px}#fighterInfo>summary{font-size:13px;padding:9px 0}#fighterInfo:not([open]){padding-bottom:4px}#layout{overflow-anchor:none}#inspector{min-width:0}
+
+/* Compact squad history: distinguish the two occupied or empty utility slots. */
+.fighter-name{font-weight:650;color:#e8eef9}.fighter-slots{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin-top:5px}.slot-label{font-size:11px;color:#a4b5ce;margin-right:2px}.utility-slot{border:1px solid #566579;border-radius:4px;padding:2px 6px;font-size:11px;color:#e8eef9;background:#213149}.utility-slot.empty{border-style:dashed;color:#8998ad;background:transparent}

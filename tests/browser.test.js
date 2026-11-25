@@ -24,6 +24,7 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  assert.equal($('layout')['data-phase'],'start');
  $('choices').children[0].onclick();
  assert.match($('phaseTitle').textContent,/draft/);
+ const fighter=$('squad').children[1];const slots=fighter.children.find(x=>x.className==='fighter-slots');assert.equal(slots.children.length,3);assert.equal(slots.children[1].textContent,'Empty');assert.equal(slots.children[2].textContent,'Empty');
  assert.equal($('choices').children.length>=4,true);
  const choice=$('choices').children.find(x=>x.onclick);
  choice.onclick();

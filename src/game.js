@@ -1,8 +1,8 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=arena-focus-303';
-import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=arena-focus-303';
-import {cardDetail,cardSummary} from './module-info.js?v=arena-focus-303';
-import {chooseCpuDraft} from './draft-ai.js?v=arena-focus-303';
-import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION,teamFill} from './mobility-visual.js?v=arena-focus-303';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=utility-slots-304';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=utility-slots-304';
+import {cardDetail,cardSummary} from './module-info.js?v=utility-slots-304';
+import {chooseCpuDraft} from './draft-ai.js?v=utility-slots-304';
+import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION,teamFill} from './mobility-visual.js?v=utility-slots-304';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let initialTypes=[],draftArchive=[],advancedOpen=false,effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
@@ -110,7 +110,7 @@ if(view==='draft'){advance.style.display='';advance.disabled=!chosen;advance.tex
  if(view==='fight'){status.textContent='Combat running';phase.textContent='Combat in progress';info.textContent='Round picks'}
  if(view==='results'){status.textContent='Round complete';phase.textContent='Round '+lastResult.round+' complete';info.textContent='';advance.style.display='';advance.disabled=false;advance.textContent='Next draft'}
  if(view==='over'){status.textContent='Match complete';phase.textContent='Match complete';info.textContent=match.players.find(p=>p.hp>0)?.name+' wins the match!'}
- const squad=$('squad');squad.replaceChildren();const heading=document.createElement('strong');heading.textContent='Your squad · '+(match?.players[0].squad.length||0)+'/3';heading.style.color=COLORS[0];squad.append(heading);for(const [i,u] of (match?.players[0].squad||[]).entries()){const row=document.createElement('div');row.className='fighter';row.textContent=(i+1)+'. '+CHASSIS[u.type].name+(u.modules.length?' · '+u.modules.map(m=>m.name.replace(/^(Attack|Targeting|Utility): /,'')).join(', '):'');squad.append(row)}renderStandings();renderDraftHistory();renderInspector()}
+ const squad=$('squad');squad.replaceChildren();const heading=document.createElement('strong');heading.textContent='Your squad · '+(match?.players[0].squad.length||0)+'/3';heading.style.color=COLORS[0];squad.append(heading);for(const [i,u] of (match?.players[0].squad||[]).entries()){const row=document.createElement('div');row.className='fighter';const name=document.createElement('strong');name.className='fighter-name';name.textContent=(i+1)+'. '+CHASSIS[u.type].name;row.append(name);const upgrades=u.modules.filter(m=>!m.passiveSlot&&m.kind!=='utility'&&m.kind!=='passive').map(m=>m.name.replace(/^(Attack|Targeting|Utility): /,''));if(upgrades.length){const list=document.createElement('span');list.className='fighter-upgrades';list.textContent=' · '+upgrades.join(', ');row.append(list)}const slots=document.createElement('div');slots.className='fighter-slots';const label=document.createElement('span');label.className='slot-label';label.textContent='Utility';slots.append(label);for(let j=0;j<2;j++){const chip=document.createElement('span');const key=u.passives[j];chip.className='utility-slot'+(key?'':' empty');const module=u.modules.find(m=>m.passiveSlot===j+1);chip.textContent=key?(module?.name.replace(/^Utility: /,'')||key):'Empty';chip.setAttribute('aria-label','Utility slot '+(j+1)+': '+chip.textContent);slots.append(chip)}row.append(slots);squad.append(row)}renderStandings();renderDraftHistory();renderInspector()}
 const LABELS={kill:'Kill Opportunity',damage:'Damage Opportunity',threat:'Threat',distance:'Target Distance',allyProximity:'Ally Proximity',safety:'Safety',protection:'Protection',ability:'Ability Readiness',isolation:'Isolation',preferredRange:'Preferred Range'};
 const UTILITY_COOLDOWNS={dash:5,dodge:5,backstep:4.5,flank:4,intercept:5};
 function selectFighter(owner,slot){$('fighterInfo').open=true;inspected={owner,slot};renderInspector();draw()}

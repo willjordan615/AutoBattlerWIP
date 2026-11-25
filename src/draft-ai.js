@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=arena-focus-303';
-import {legal,canEquip,TARGET_MODULES} from './headless.js?v=arena-focus-303';
+import {CHASSIS} from './simulation.js?v=utility-slots-304';
+import {legal,canEquip,TARGET_MODULES} from './headless.js?v=utility-slots-304';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];

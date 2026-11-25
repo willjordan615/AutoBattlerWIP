@@ -1,4 +1,4 @@
-import {ATTACK_STAGES} from './simulation.js?v=arena-focus-303';
+import {ATTACK_STAGES} from './simulation.js?v=utility-slots-304';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
