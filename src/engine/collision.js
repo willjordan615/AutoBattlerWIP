@@ -23,6 +23,9 @@ export function resolveCollision(state){
   const a=units[i],b=units[j],min=CHASSIS[a.type].radius+CHASSIS[b.type].radius+5;
   let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
   if(d>=min-1e-6)continue;
+  const phases=(u,other)=>u.followthroughCommit?.phaseTargetId===other.id&&
+   (u.followthroughCommit.until>state.time||!!u.followthroughStepStart);
+  if(phases(a,b)||phases(b,a))continue;
   if(d<.001){dx=a.id<b.id?1:-1;dy=0;d=1}
   const overlap=min-d,ax=dx/d,ay=dy/d;
   const sa=collisionStability(a,state.time),sb=collisionStability(b,state.time);

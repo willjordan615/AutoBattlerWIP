@@ -15,15 +15,15 @@ export function applyFollowthrough(state,hit){
  const origin=hit.attackOrigin||{x:u.x,y:u.y};
  const heading=hit.attackDirection??Math.atan2(target.y-origin.y,target.x-origin.x);
  const stacks=Math.min(3,Math.max(0,u.chassis.mods.followthrough-1));
- const duration=.5;
+ const duration=.5+stacks*.25;
  u.followthroughCommit={x:Math.cos(heading),y:Math.sin(heading),
   until:state.time+duration,started:state.time,attackId:hit.attackId,
-  speedFactor:1+stacks*.12};
+  speedFactor:1+stacks*.30,phaseTargetId:stacks>0?target.id:null};
  // If both attack effects are equipped, complete the space-claim first,
  // then give Disengage its full independent retreat window.
  if(u.chassis.mods.disengage&&u.disengageUntil>state.time)
   u.disengageUntil=state.time+duration+.5;
- u.followthroughAt=state.time+.75;
+ u.followthroughAt=state.time+Math.max(.75,duration);
  u.lastFollowthroughAttackId=hit.attackId;
  u.navigation=null;u.navProgress=null;
  u.combatStats&&(u.combatStats.followthrough=(u.combatStats.followthrough||0)+1);

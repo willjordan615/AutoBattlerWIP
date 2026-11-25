@@ -2,6 +2,12 @@
 import {ARENAS,CHASSIS} from './config.js?v=engine-320';
 
 export function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+// Game-token rear sector: 70 degrees centered opposite facing.
+export function inRearSector(target,dx,dy){
+ if(!Number.isFinite(target.facing)||Math.hypot(dx,dy)<1e-8)return false;
+ const delta=Math.atan2(Math.sin(Math.atan2(dy,dx)-target.facing-Math.PI),Math.cos(Math.atan2(dy,dx)-target.facing-Math.PI));
+ return Math.abs(delta)<=35*Math.PI/180+1e-9;
+}
 export function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 export function rectHit(x,y,r,o){return Math.hypot(x-clamp(x,o.x,o.x+o.w),y-clamp(y,o.y,o.y+o.h))<r}
 export function bound(u,arena=ARENAS[0]){const r=CHASSIS[u.type].radius+3;u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r);for(const o of arena.obstacles){if(!rectHit(u.x,u.y,r,o))continue;const cx=clamp(u.x,o.x,o.x+o.w),cy=clamp(u.y,o.y,o.y+o.h);let dx=u.x-cx,dy=u.y-cy,d=Math.hypot(dx,dy);if(d<.0001){const sides=[{v:Math.abs(u.x-o.x),x:o.x-r,y:u.y},{v:Math.abs(u.x-(o.x+o.w)),x:o.x+o.w+r,y:u.y},{v:Math.abs(u.y-o.y),x:u.x,y:o.y-r},{v:Math.abs(u.y-(o.y+o.h)),x:u.x,y:o.y+o.h+r}].sort((a,b)=>a.v-b.v);u.x=sides[0].x;u.y=sides[0].y}else{u.x=cx+dx/d*(r+.01);u.y=cy+dy/d*(r+.01)}u.x=clamp(u.x,20+r,700-r);u.y=clamp(u.y,20+r,500-r)}}

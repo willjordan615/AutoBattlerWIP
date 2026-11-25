@@ -92,7 +92,7 @@ test('2.12 Follow Through stacks scale movement speed rather than teleport dista
  u.chassis.mods.followthrough=3;
  assert.ok(applyFollowthrough(b,{source:u,target,attackId:51,attackDirection:0}));
  b.time=.1+STEP;advanceFollowthrough(b,u,STEP);
- assert.ok(Math.abs((u.x-100)-stats(u).speed*(1+.24)*STEP)<1e-6);
+ assert.ok(Math.abs((u.x-100)-stats(u).speed*(1+.60)*STEP)<1e-6);
 });
 test('2.12 a Follow Through push shares displacement with a braced fighter',()=>{
  const b=spawn(players(),ARENAS[0],4514),u=b.units[0],target=b.units[1];
@@ -164,4 +164,16 @@ test('2.12 Follow Through movement never exceeds speed-scaled commitment budget 
  const cap=stats(u).speed*.5;
  assert.ok(u.x-start<=cap+2,'contact does not create a far-side teleport');
  assert.ok(enemy.x>205,'fighter yields space during committed contact');
+});
+
+test('3.2 two Follow Through copies let a full-speed rogue clear a stationary bruiser from normal reach',()=>{
+ const b=spawn(players(),ARENAS[0],4520),u=b.units.find(u=>u.type==='rogue'),target=b.units.find(u=>u.type==='bruiser');
+ b.units=[u,target];u.x=150;u.y=220;target.x=210;target.y=220;b.time=.1;
+ u.chassis.mods.followthrough=2;
+ assert.ok(applyFollowthrough(b,{source:u,target,attackId:72,attackDirection:0}));
+ for(let i=1;i<=24;i++){
+  b.time=.1+i*STEP;advanceFollowthrough(b,u,STEP);resolveCollision(b);delete u.followthroughStepStart;
+ }
+ assert.ok(u.x>=target.x+CHASSIS.rogue.radius+CHASSIS.bruiser.radius+5-1e-6);
+ assert.equal(target.x,210);
 });

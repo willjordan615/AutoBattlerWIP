@@ -2,7 +2,7 @@
 import {measure} from './telemetry.js?v=engine-320';
 import {PROJECTILE_SPEED,PROJECTILE_RADIUS,CHASSIS} from './config.js?v=engine-320';
 import {claimAttackEffect} from './effects.js?v=engine-320';
-import {distance,clearLine,segmentBoxHit,segmentCircleHit} from './geometry.js?v=engine-320';
+import {distance,clearLine,segmentBoxHit,segmentCircleHit,inRearSector} from './geometry.js?v=engine-320';
 import {stats} from './stats.js?v=engine-320';
 
 // World-space projectile simulation. Every projectile is resolved in the
@@ -119,7 +119,8 @@ export function advanceProjectiles(state,dt,attacks=[]){
     if(shot.source.combatStats&&victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
     attacks.push({source:shot.source,target:victim,projectile:true,attackId:shot.volley.attackId,
      attackOrigin:shot.volley.origin,attackDirection:shot.volley.direction,postBounce:!!shot.bounced,
-     rawDamage:shot.damage,damage:Math.max(1,shot.damage-stats(victim).defense),
+     rearHit:inRearSector(victim,-shot.vx,-shot.vy),
+      rawDamage:shot.damage,damage:Math.max(1,shot.damage-stats(victim).defense),
      knockback:shot.knockback,taunt:shot.taunt,deliveredBy});
    }
    state.visualEvents.push({kind:'impact',x:shot.x,y:shot.y,owner:shot.owner});

@@ -177,3 +177,20 @@ test('2.8.1 descriptions capture key effects and module-slot stacking rules',()=
  assert.match(cardDetail(by('utility','dash')),/halves the cooldown/);
  assert.match(cardSummary(by('utility','dash')),/second copy halves cooldown/);
 });
+
+test('3.2 direct rear-sector hits gain 15% final damage; secondary and indirect hits do not',()=>{
+ const b=spawn(players(),ARENAS[0],952),source=b.units[0],target=b.units[1];
+ b.units=[source,target];
+ const makeHit=(extra={})=>({source,target,rawDamage:20,damage:20,...extra});
+ const baseline=resolveAttackModules(b,[makeHit()])[0].damage;
+ assert.ok(Math.abs(resolveAttackModules(b,[makeHit({rearHit:true})])[0].damage-baseline*1.15)<1e-8);
+ for(const flag of ['secondary','indirect'])assert.equal(resolveAttackModules(b,[makeHit({rearHit:true,[flag]:true})])[0].damage,20);
+});
+test('3.2 rear-sector boundary is 35 degrees either side of the token rear',async()=>{
+ const {inRearSector}=await import('../src/engine/geometry.js');
+ const token={facing:.4};
+ for(const degrees of [0,34.9,35,-35,35.1,-35.1,90,180]){
+  const a=token.facing+Math.PI+degrees*Math.PI/180;
+  assert.equal(inRearSector(token,Math.cos(a),Math.sin(a)),Math.abs(degrees)<=35);
+ }
+});

@@ -1,6 +1,6 @@
 // Engine subsystem: combat. See AGENTS.md for ownership and test routes.
 import {ATTACK_TIMING,CHASSIS} from './config.js?v=engine-320';
-import {clearLine,distance} from './geometry.js?v=engine-320';
+import {clearLine,distance,inRearSector} from './geometry.js?v=engine-320';
 import {measure} from './telemetry.js?v=engine-320';
 import {spawnProjectileVolley} from './projectiles.js?v=engine-320';
 import {stats} from './stats.js?v=engine-320';
@@ -76,6 +76,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
     if(st.area>0&&(diff>baseArc||dist>st.range+radius))deliveredBy.push('area');
     if(st.range>CHASSIS[u.type].range&&dist>CHASSIS[u.type].range+st.area*9+radius)deliveredBy.push('range');
     attacks.push({source:u,target:victim,attackId,attackOrigin:{x:u.x,y:u.y},attackDirection:attack.direction,rawDamage:st.damage,
+     rearHit:inRearSector(victim,u.x-victim.x,u.y-victim.y),
      damage:Math.max(1,st.damage-stats(victim).defense),
      knockback:st.knockback,taunt:st.taunt,deliveredBy});
    }

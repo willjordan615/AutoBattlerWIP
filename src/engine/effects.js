@@ -113,7 +113,9 @@ export function resolveAttackModules(state,attacks){
   const split=mods.chain?Math.min(.6,.2*mods.chain):0;
   hit.chainRedirected=hit.damage*split;
   hit.damage*=1-split;
-  hit.moduleDamage=Object.fromEntries(Object.entries(contributions).map(([key,value])=>[key,value*(1-split)]));
+  const rearMultiplier=hit.rearHit?1.15:1;
+  hit.damage*=rearMultiplier;
+  hit.moduleDamage=Object.fromEntries(Object.entries(contributions).map(([key,value])=>[key,value*(1-split)*rearMultiplier]));
   output.push(hit);
   if(chained){
    const damage=Math.max(0,raw*split-stats(chained).defense);
