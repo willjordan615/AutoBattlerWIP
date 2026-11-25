@@ -1,16 +1,16 @@
 // Engine subsystem: loop. See AGENTS.md for ownership and test routes.
-import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-320';
-import {chooseTarget} from './targeting.js?v=engine-320';
-import {distance,clearLine,bound} from './geometry.js?v=engine-320';
-import {measure} from './telemetry.js?v=engine-320';
-import {stats,resolveResistance} from './stats.js?v=engine-320';
-import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-320';
-import {startAttack,attackMovementMultiplier,advanceAttack} from './combat.js?v=engine-320';
-import {chooseMovement} from './movement.js?v=engine-320';
-import {advanceFollowthrough,resolveFollowthroughImpacts} from './followthrough.js?v=engine-320';
-import {resolveCollision} from './collision.js?v=engine-320';
-import {advanceProjectiles} from './projectiles.js?v=engine-320';
-import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-320';
+import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-321';
+import {chooseTarget} from './targeting.js?v=engine-321';
+import {distance,clearLine,bound} from './geometry.js?v=engine-321';
+import {measure} from './telemetry.js?v=engine-321';
+import {stats,resolveResistance} from './stats.js?v=engine-321';
+import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-321';
+import {startAttack,attackMovementMultiplier,advanceAttack,attackWindup} from './combat.js?v=engine-321';
+import {chooseMovement} from './movement.js?v=engine-321';
+import {advanceFollowthrough,resolveFollowthroughImpacts} from './followthrough.js?v=engine-321';
+import {resolveCollision} from './collision.js?v=engine-321';
+import {advanceProjectiles} from './projectiles.js?v=engine-321';
+import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-321';
 
 export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];
  // Snapshot intentions for all units before sequential movement begins.
@@ -74,7 +74,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   else{const step=activeStats.speed*dt*(retreating?1+Math.min(.35,Math.max(0,u.chassis.mods.disengage-1)*.1):attackMovementMultiplier(u));u.x+=direction.x*step;u.y+=direction.y*step;bound(u,state.arena)}
   u.move=direction;
  }
- if(u.attack){if(state.diagnostics&&u.attack.phase==='windup'&&u.attack.elapsed+dt>=ATTACK_TIMING[u.type].windup)state.diagnostics.units[u.id].shots++;advanceAttack(state,u,t,activeStats,dt,attacks)}}
+ if(u.attack){if(state.diagnostics&&u.attack.phase==='windup'&&u.attack.elapsed+dt>=attackWindup(u))state.diagnostics.units[u.id].shots++;advanceAttack(state,u,t,activeStats,dt,attacks)}}
  resolveCollision(state);
  for(const u of state.units){
   if(u.followthroughStepStart){

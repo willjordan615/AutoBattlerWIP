@@ -1,7 +1,7 @@
 // Engine subsystem: navigation. See AGENTS.md for ownership and test routes.
-import {segmentRect,rectHit,clamp,clearLine,distance} from './geometry.js?v=engine-320';
-import {stats} from './stats.js?v=engine-320';
-import {CHASSIS} from './config.js?v=engine-320';
+import {segmentRect,rectHit,clamp,clearLine,distance} from './geometry.js?v=engine-321';
+import {stats} from './stats.js?v=engine-321';
+import {CHASSIS,radiusOf} from './config.js?v=engine-321';
 
 // Exact physical clearance is used only to connect a chassis already hugging
 // a corner to the stable terrain graph. Ordinary graph edges remain conservative.
@@ -50,7 +50,7 @@ export function actorClearance(state,u,point,seconds=0){
   if(other===u||other.hp<=0)continue;
   const intent=other.intent||{x:0,y:0},speed=stats(other).speed;
   const projected={x:other.x+intent.x*speed*seconds,y:other.y+intent.y*speed*seconds};
-  const gap=distance(point,projected)-CHASSIS[u.type].radius-CHASSIS[other.type].radius-5;
+  const gap=distance(point,projected)-radiusOf(u)-radiusOf(other)-5;
   if(gap<25)pressure+=Math.max(0,25-gap)*(other.owner===u.owner?1.3:1);
  }
  return pressure;
@@ -65,7 +65,7 @@ export function steerAroundAllies(state,u,desired,step){
  let best={x:Math.cos(base),y:Math.sin(base)},bestScore=-Infinity;
  for(const offset of angles){const dir={x:Math.cos(base+offset),y:Math.sin(base+offset)};
  const next={x:u.x+dir.x*step,y:u.y+dir.y*step};let score=dir.x*desired.x+dir.y*desired.y;
- for(const ally of allies){const radius=CHASSIS[u.type].radius+CHASSIS[ally.type].radius+9;
+ for(const ally of allies){const radius=radiusOf(u)+radiusOf(ally)+9;
  const current=distance(u,ally),future=distance(next,ally);
  if(future<radius+18)score-=Math.max(0,radius+18-future)*.14;
  if(future<radius)score-=(radius-future)*4;

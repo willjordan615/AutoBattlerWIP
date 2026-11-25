@@ -1,10 +1,10 @@
 // Engine subsystem: effects. See AGENTS.md for ownership and test routes.
-import {ATTACK_STAGES} from './module-registry.js?v=engine-320';
-import {distance,clearLine} from './geometry.js?v=engine-320';
-import {resolveResistance,stats} from './stats.js?v=engine-320';
-import {CHASSIS} from './config.js?v=engine-320';
-import {physicalLineClear} from './navigation.js?v=engine-320';
-import {measure} from './telemetry.js?v=engine-320';
+import {ATTACK_STAGES} from './module-registry.js?v=engine-321';
+import {distance,clearLine} from './geometry.js?v=engine-321';
+import {resolveResistance,stats} from './stats.js?v=engine-321';
+import {CHASSIS,radiusOf} from './config.js?v=engine-321';
+import {physicalLineClear} from './navigation.js?v=engine-321';
+import {measure} from './telemetry.js?v=engine-321';
 
 // Returns true for all targets struck by the SAME committed attack; other
 // attacks respect the independent cooldown. Projectile volleys can arrive
@@ -43,7 +43,7 @@ export function applyRicochetSlide(state,hit){
  const lateral=16*stacks*(1-resolveResistance(target))/stability;
  const radial=(hit.knockback||0)*4/stability;
  const dx=lx*sign*lateral+fx*radial,dy=ly*sign*lateral+fy*radial;
- const before={x:target.x,y:target.y},r=CHASSIS[target.type].radius+3;
+ const before={x:target.x,y:target.y},r=radiusOf(target)+3;
  const length=Math.hypot(dx,dy);
  const steps=Math.max(1,Math.ceil(length/2));
  let blocked=false;
@@ -51,7 +51,7 @@ export function applyRicochetSlide(state,hit){
   const point={x:before.x+dx*i/steps,y:before.y+dy*i/steps};
   if(point.x<20+r||point.x>700-r||point.y<20+r||point.y>500-r||!physicalLineClear(target,point,state.arena,r)){blocked=true;break;}
   if(state.units.some(other=>other!==target&&other.hp>0&&
-   distance(point,other)<CHASSIS[target.type].radius+CHASSIS[other.type].radius+5&&
+   distance(point,other)<radiusOf(target)+radiusOf(other)+5&&
    distance(point,other)<distance(target,other)-1e-8)){blocked=true;break;}
   target.x=point.x;target.y=point.y;
  }
@@ -160,7 +160,7 @@ export function environmentalAttacks(state,dt){
  }
  state.zones=state.zones.filter(z=>z.until>state.time);
  for(const z of state.zones)for(const u of state.units){
-  if(u.hp>0&&u.owner!==z.owner&&distance(u,z)<z.radius+CHASSIS[u.type].radius){
+  if(u.hp>0&&u.owner!==z.owner&&distance(u,z)<z.radius+radiusOf(u)){
    if(z.slow){measure(state,z.source,'wake','enemyPatchSeconds',dt);u.effects||={};if(!(u.effects.slowUntil>state.time&&u.effects.slowStrength>.18)){u.effects.slowStrength=.18;u.effects.slowUntil=state.time+.15;}continue;}
    hits.push({source:z.source,target:u,rawDamage:z.dps*dt,damage:z.dps*dt,indirect:true,moduleDamage:{hazardous:z.dps*dt}});
   }

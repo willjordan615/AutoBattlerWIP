@@ -1,6 +1,6 @@
-# Modular Arena Autobattler — Prototype 3.2
+# Modular Arena Autobattler — Prototype 3.2.1
 
-Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. The 3.2 refactor preserves 3.1.2 gameplay and balance; the release candidate passed verification and is ready for promotion.
+Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. The 3.2.1 gameplay update adds Morphology draft modules, extended Follow Through, and a rear-sector direct damage bonus. The 3.2 refactor verification below is historical, not verification of this balance update.
 
 ## Run
 - Browser: serve the repository statically or open the GitHub Pages build. Do not open via file://.
@@ -15,6 +15,8 @@ src/simulation.js is the stable public facade; implementation lives in src/engin
 - Shared draft before first combat and between rounds, active players + 2 offers, maximum three chassis per player. Three initial chassis: Bruiser, Rogue, Ranged. Extra chassis and upgrades are draft choices.
 - Continuous 2D movement, obstacle navigation, targeting weights, deterministic attack cycles, cooperative positioning, and 30-second rounds. Player HP is depleted by placement, with streak scaling; last surviving player wins.
 - Current balance values and module behavior are defined in the engine and tests. Historical release notes and original design decisions are preserved under docs/history/.
+
+- Morphology: Growth and Shrink are opposing, stackable trade-offs (net tiers -3 to +3), separate from utility slots. Each growth tier adds 12% radius, 15% HP, 10% damage, 12% melee/6% ranged reach, reduces movement speed and attack frequency by 10%, and adds 10% windup and recovery duration. Shrink reverses these modifiers.
 
 ## Verification
 The structural parity command compares complete seeded matches and current engine state against a selected Git commit: npm run verify:parity -- <baseline SHA>. The original 3.1.2 baseline is 9416d7c130a7e40838822f5594800caaeb47dff4. CI and device performance must be checked independently; a structural move does not imply faster runtime or improved balance. See AGENTS.md for exact checks and reporting requirements.

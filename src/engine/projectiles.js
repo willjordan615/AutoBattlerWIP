@@ -1,9 +1,9 @@
 // Engine subsystem: projectiles. See AGENTS.md for ownership and test routes.
-import {measure} from './telemetry.js?v=engine-320';
-import {PROJECTILE_SPEED,PROJECTILE_RADIUS,CHASSIS} from './config.js?v=engine-320';
-import {claimAttackEffect} from './effects.js?v=engine-320';
-import {distance,clearLine,segmentBoxHit,segmentCircleHit,inRearSector} from './geometry.js?v=engine-320';
-import {stats} from './stats.js?v=engine-320';
+import {measure} from './telemetry.js?v=engine-321';
+import {PROJECTILE_SPEED,PROJECTILE_RADIUS,CHASSIS,radiusOf,morphologyTier} from './config.js?v=engine-321';
+import {claimAttackEffect} from './effects.js?v=engine-321';
+import {distance,clearLine,segmentBoxHit,segmentCircleHit,inRearSector} from './geometry.js?v=engine-321';
+import {stats} from './stats.js?v=engine-321';
 
 // World-space projectile simulation. Every projectile is resolved in the
 // deterministic combat tick; rendering reads state.projectiles without inferring hits.
@@ -77,7 +77,7 @@ export function advanceProjectiles(state,dt,attacks=[]){
    for(const o of limits)consider(segmentBoxHit(from,to,o,0),'wall',null,o,0);
    for(const enemy of state.units){
     if(enemy.hp<=0||enemy.owner===shot.owner||shot.hitIds.has(enemy.id))continue;
-    consider(segmentCircleHit(from,to,enemy,CHASSIS[enemy.type].radius+shot.radius),'unit',enemy);
+    consider(segmentCircleHit(from,to,enemy,radiusOf(enemy)+shot.radius),'unit',enemy);
    }
    const fraction=collision?collision.time:1;
    const moved=travel*fraction;
@@ -110,9 +110,9 @@ export function advanceProjectiles(state,dt,attacks=[]){
     shot.volley.hitIds.add(victim.id);
     const deliveredBy=[];
     if(shot.source.chassis.mods.range>0&&
-       shot.segmentDistance>CHASSIS[shot.source.type].range)deliveredBy.push('range');
+       shot.segmentDistance>CHASSIS[shot.source.type].range*(1+.06*morphologyTier(shot.source)))deliveredBy.push('range');
     if(shot.source.chassis.mods.area>0&&
-       distance(shot,victim)>CHASSIS[victim.type].radius+PROJECTILE_RADIUS+1e-6)deliveredBy.push('area');
+       distance(shot,victim)>radiusOf(victim)+PROJECTILE_RADIUS+1e-6)deliveredBy.push('area');
     if(shot.lane>0)deliveredBy.push('projectiles');
     if(shot.landedCount>0&&shot.source.chassis.mods.piercing>0)deliveredBy.push('piercing');
     shot.landedCount++;if(shot.bounced)measure(state,shot.source,'ricochet','postBounceContacts');if(shot.source.chassis.mods.velocity){measure(state,shot.source,'velocity','projectileContacts');measure(state,shot.source,'velocity','nominalTravelSecondsSaved',shot.distanceTraveled/PROJECTILE_SPEED-shot.distanceTraveled/shot.speed);}

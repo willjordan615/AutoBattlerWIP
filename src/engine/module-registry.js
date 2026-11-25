@@ -1,5 +1,5 @@
 // Engine subsystem: module-registry. See AGENTS.md for ownership and test routes.
-import {distance} from './geometry.js?v=engine-320';
+import {distance} from './geometry.js?v=engine-321';
 
 // Attack modules are composed by stage, not treated as interchangeable procs.
 // Geometric/conditional effects work per hit; persistent aftermath has an
@@ -34,3 +34,5 @@ export const TARGET_MODULES={
 };
 export const PASSIVE_MODULES=['regen','bulwark','haste','focus','retaliation','aegis','inspiration','anchor','wake','repulsion'];
 export const COOPERATIVE_KEYS=new Set(['expose','guardian','intercept','rally','resonance','aegis','inspiration','coordinated','independent']);
+
+export const MORPHOLOGY_MODULES=['growth','shrink'];

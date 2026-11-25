@@ -1,15 +1,15 @@
 // Engine subsystem: utilities. See AGENTS.md for ownership and test routes.
-import {CHASSIS,PROJECTILE_RADIUS,ATTACK_TIMING,UTILITY_MOVE_SCALE,STEP} from './config.js?v=engine-320';
-import {segmentCircleHit,clearLine,distance,rectHit,bound} from './geometry.js?v=engine-320';
-import {stats} from './stats.js?v=engine-320';
-import {measure} from './telemetry.js?v=engine-320';
-import {healthFraction} from './targeting.js?v=engine-320';
-import {holdingOpportunity,positionScore} from './positioning.js?v=engine-320';
+import {CHASSIS,PROJECTILE_RADIUS,ATTACK_TIMING,UTILITY_MOVE_SCALE,STEP,radiusOf} from './config.js?v=engine-321';
+import {segmentCircleHit,clearLine,distance,rectHit,bound} from './geometry.js?v=engine-321';
+import {stats} from './stats.js?v=engine-321';
+import {measure} from './telemetry.js?v=engine-321';
+import {healthFraction} from './targeting.js?v=engine-321';
+import {holdingOpportunity,positionScore} from './positioning.js?v=engine-321';
 
 // One small deterministic threat/opportunity assessment per fighter per tick.
 // Projectile risk uses projected swept motion; melee risk uses attack readiness.
 export function tacticalAssessment(state,u,target,st,enemies){
- const now=state.time,lookahead=.26,radius=CHASSIS[u.type].radius+PROJECTILE_RADIUS+2;
+ const now=state.time,lookahead=.26,radius=radiusOf(u)+PROJECTILE_RADIUS+2;
  const shots=[];
  for(const shot of state.projectiles||[]){
   if(shot.owner===u.owner)continue;
@@ -26,7 +26,7 @@ export function tacticalAssessment(state,u,target,st,enemies){
  }
  shots.sort((a,b)=>a.when-b.when||a.shot.id-b.shot.id);
  const melee=enemies.filter(e=>e.type!=='ranged'&&
-  distance(e,u)<stats(e).range+CHASSIS[u.type].radius+8&&clearLine(e,u,state.arena)&&
+  distance(e,u)<stats(e).range+radiusOf(u)+8&&clearLine(e,u,state.arena)&&
   e.attack?.phase==='windup'&&e.attack.locked&&
   Math.abs(Math.atan2(Math.sin(Math.atan2(u.y-e.y,u.x-e.x)-e.attack.direction),
     Math.cos(Math.atan2(u.y-e.y,u.x-e.x)-e.attack.direction)))<
@@ -63,7 +63,7 @@ export function reactToThreat(state,u,target,st,context){
   if(threat){
    const heading=imminent.length?{x:threat.vx,y:threat.vy}:
     {x:(u.x-threat.x)/Math.max(1,distance(u,threat)),y:(u.y-threat.y)/Math.max(1,distance(u,threat))};
-   const travel=st.speed*.4*.85*UTILITY_MOVE_SCALE,r=CHASSIS[u.type].radius+3;
+   const travel=st.speed*.4*.85*UTILITY_MOVE_SCALE,r=radiusOf(u)+3;
    const candidates=[1,-1].map(sign=>{
     const p={x:u.x-heading.y*sign*travel,y:u.y+heading.x*sign*travel};
     const valid=p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&
@@ -72,9 +72,9 @@ export function reactToThreat(state,u,target,st,context){
     const projectileRisk=context.shots.filter(({shot})=>{
      const horizon=Math.min(.26,shot.remaining/Math.max(1,shot.speed));
      const end={x:shot.x+shot.vx*shot.speed*horizon,y:shot.y+shot.vy*shot.speed*horizon};
-     return segmentCircleHit(shot,end,p,CHASSIS[u.type].radius+(shot.radius||3))!==null;
+     return segmentCircleHit(shot,end,p,radiusOf(u)+(shot.radius||3))!==null;
     }).length;
-    const meleeRisk=context.melee.filter(e=>distance(e,p)<stats(e).range+CHASSIS[u.type].radius+2).length;
+    const meleeRisk=context.melee.filter(e=>distance(e,p)<stats(e).range+radiusOf(u)+2).length;
     // Prefer a genuine escape from the path; don't roll sideways into another attacker.
     return {p,valid:true,score:-projectileRisk*10-meleeRisk*3+
      (context.melee.length?Math.min(...context.melee.map(e=>distance(e,p)))*.008:0)};
@@ -126,7 +126,7 @@ export function utilityMove(state,u,target,st,dt,enemies,context){
   if(length<1)return;
   const step=Math.min(dist,length);
   const p={x:u.x+(point.x-u.x)/length*step,y:u.y+(point.y-u.y)/length*step};
-  if(!clearLine(u,p,state.arena,CHASSIS[u.type].radius+3))return;
+  if(!clearLine(u,p,state.arena,radiusOf(u)+3))return;
   const score=positionScore(state,u,target,p,st,enemies);
   proposals.push({key,p,score,cooldown,options});
  };
@@ -170,7 +170,7 @@ export function disengageDirection(state,u,enemies){
   const dir={x:Math.cos(away+offset),y:Math.sin(away+offset)};
   const step=stats(u).speed*STEP*(1+Math.min(.35,Math.max(0,u.chassis.mods.disengage-1)*.1));
   const end={x:u.x+dir.x*step,y:u.y+dir.y*step};
-  const r=CHASSIS[u.type].radius+3;
+  const r=radiusOf(u)+3;
   if(end.x<20+r||end.x>700-r||end.y<20+r||end.y>500-r)continue;
   if(!clearLine(u,end,state.arena,r))continue;
   if(state.arena.obstacles.some(o=>rectHit(end.x,end.y,r,o)))continue;
@@ -179,7 +179,7 @@ export function disengageDirection(state,u,enemies){
    return value+(next-d)/(Math.max(35,d)*Math.max(1,Math.sqrt(d/65)));
   },0);
   const collision=state.units.filter(v=>v!==u&&v.hp>0).reduce((p,v)=>{
-   const distanceTo=distance(end,v),buffer=CHASSIS[u.type].radius+CHASSIS[v.type].radius+8;
+   const distanceTo=distance(end,v),buffer=radiusOf(u)+radiusOf(v)+8;
    return p+Math.max(0,buffer-distanceTo)*.04;
   },0);
   candidates.push({dir,score:pressure-collision+Math.cos(offset)*.001});

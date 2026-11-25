@@ -14,7 +14,7 @@ export function drawUtilityAfterimage(ctx,event,progress,colors,chassis){
  if(!archetype)return false;
  const fade=Math.max(0,1-Math.min(1,progress));
  if(fade<=0)return false;
- const r=archetype.radius,teamColor=colors[event.owner]||'#ffffff';
+ const r=event.radius??archetype.radius,teamColor=colors[event.owner]||'#ffffff';
  ctx.save();
  // Small motion cue connects the afterimage to its new position.
  ctx.globalAlpha=fade*.19;

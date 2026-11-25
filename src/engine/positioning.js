@@ -1,9 +1,9 @@
 // Engine subsystem: positioning. See AGENTS.md for ownership and test routes.
-import {stats} from './stats.js?v=engine-320';
-import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-320';
-import {healthFraction} from './targeting.js?v=engine-320';
-import {METRICS,STEP,CHASSIS} from './config.js?v=engine-320';
-import {recentMovement} from './collision.js?v=engine-320';
+import {stats} from './stats.js?v=engine-321';
+import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-321';
+import {healthFraction} from './targeting.js?v=engine-321';
+import {METRICS,STEP,CHASSIS,radiusOf} from './config.js?v=engine-321';
+import {recentMovement} from './collision.js?v=engine-321';
 
 // Utility movement is deterministic, shares the existing targeting weights, and
 // consumes its own cooldown. Terrain still blocks every movement technique.
@@ -71,7 +71,7 @@ export function positionScore(state,u,target,point,st,enemies){
 export function holdingOpportunity(state,u,target,st,enemies){
  const d=distance(u,target),visible=clearLine(u,target,state.arena);
  if(!visible)return 0;
- const targetRadius=CHASSIS[target.type].radius;
+ const targetRadius=radiusOf(target);
  // An enemy's collision radius is not attack access: attack initiation in
  // tick() requires center distance <= st.range. Otherwise two melee fighters
  // can both 'hold' a position where neither is actually able to attack.
@@ -80,7 +80,7 @@ export function holdingOpportunity(state,u,target,st,enemies){
  // Standing in melee range is useful; ranged fighters threatened at point
  // blank range must remain free to seek a safer firing position.
  const tooClose=u.type==='ranged'&&d<desired*.65;
- const incoming=enemies.some(e=>e.hp>0&&e!==target&&distance(u,e)<stats(e).range+CHASSIS[u.type].radius+12);
+ const incoming=enemies.some(e=>e.hp>0&&e!==target&&distance(u,e)<stats(e).range+radiusOf(u)+12);
  if(tooClose||incoming)return 0;
  let approach=0;
  if(!striking&&d<st.range+targetRadius+110){
@@ -101,13 +101,13 @@ export function holdingOpportunity(state,u,target,st,enemies){
  }
  if(!striking&&!approach)return 0;
  const exposed=enemies.some(e=>e.hp>0&&e!==target&&
-  clearLine(e,u,state.arena)&&distance(e,u)<=stats(e).range+CHASSIS[u.type].radius);
+  clearLine(e,u,state.arena)&&distance(e,u)<=stats(e).range+radiusOf(u));
  const exposedPenalty=exposed?.2:0;
  const inRangeBonus=striking?.23:0;
  const incomingBonus=approach*.5;
  const stableBonus=(u.previouslyHolding? .12:0);
  // Standing in the wrong range isn't a good defensive position.
- const tooNear=striking&&d<Math.min(desired*.55,CHASSIS[u.type].radius+targetRadius+5);
+ const tooNear=striking&&d<Math.min(desired*.55,radiusOf(u)+targetRadius+5);
  // Holding must not override deliberately extreme targeting weights: a
  // distance-focused fighter can press forward, a safety-focused one retreat.
  const w=u.chassis.weights;
@@ -136,7 +136,7 @@ export function cooperativeEngagement(state,u,st,enemies){
   const ast=stats(ally),d=distance(ally,enemy);
   const visible=clearLine(ally,enemy,state.arena);
   const attacking=!!ally.attack||(ally.lastAttackAt!=null&&state.time-ally.lastAttackAt<1.1);
-  const inReach=visible&&d<=ast.range+CHASSIS[enemy.type].radius+10;
+  const inReach=visible&&d<=ast.range+radiusOf(enemy)+10;
   const intent=ally.moveDecision||{x:0,y:0};
   const pursuit=(enemy.x-ally.x)*intent.x+(enemy.y-ally.y)*intent.y;
   const activelyClosing=visible&&d<290&&pursuit>Math.max(8,d*.2);
@@ -149,7 +149,7 @@ export function cooperativeEngagement(state,u,st,enemies){
    const forward=Math.min(85,Math.max(34,d*.45));
    point={x:ally.x+dx*forward,y:ally.y+dy*forward};
   }else{
-   const reach=Math.max(st.radius+CHASSIS[enemy.type].radius+7,st.range*.78);
+   const reach=Math.max(st.radius+radiusOf(enemy)+7,st.range*.78);
    const flank=Math.min(42,Math.max(23,st.radius+ast.radius+5));
    point={x:enemy.x-dx*reach-dy*side*flank,
     y:enemy.y-dy*reach+dx*side*flank};

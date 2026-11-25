@@ -1,14 +1,14 @@
 // Engine subsystem: movement. See AGENTS.md for ownership and test routes.
-import {CHASSIS} from './config.js?v=engine-320';
-import {clearLine,distance,rectHit,clamp} from './geometry.js?v=engine-320';
-import {actorClearance,navigationPath} from './navigation.js?v=engine-320';
-import {cooperativeEngagement,positionScore,holdingOpportunity} from './positioning.js?v=engine-320';
-import {measure} from './telemetry.js?v=engine-320';
+import {CHASSIS,radiusOf} from './config.js?v=engine-321';
+import {clearLine,distance,rectHit,clamp} from './geometry.js?v=engine-321';
+import {actorClearance,navigationPath} from './navigation.js?v=engine-321';
+import {cooperativeEngagement,positionScore,holdingOpportunity} from './positioning.js?v=engine-321';
+import {measure} from './telemetry.js?v=engine-321';
 
 export function chooseMovement(state,u,target,st,enemies,dt){
  u.previouslyHolding=!!u.holdingPosition;u.holdingPosition=false;
  u.supportingAlly=null;u.supportMode=null;
- const arena=state.arena,step=st.speed*dt,r=CHASSIS[u.type].radius+3;
+ const arena=state.arena,step=st.speed*dt,r=radiusOf(u)+3;
  const terrainBlocked=!clearLine(u,target,arena,0);
  const routeBlocked=terrainBlocked||(distance(u,target)>st.range&&!clearLine(u,target,arena,r));
  const actorPressure=actorClearance(state,u,u,dt);
@@ -49,7 +49,7 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  // change the side of the obstacle being traversed.
  if(!nav&&routeBlocked&&hasGoal&&state.time>=(u.navNextPlanTime||0)){
   u.navNextPlanTime=state.time+.4;
-  const ideal=Math.max(st.radius+CHASSIS[target.type].radius+4,st.range*.78);
+  const ideal=Math.max(st.radius+radiusOf(target)+4,st.range*.78);
   const points=[];
   for(let i=0;i<16;i++){
    const angle=i*Math.PI/8;

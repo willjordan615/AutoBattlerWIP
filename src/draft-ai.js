@@ -1,9 +1,10 @@
-import {CHASSIS} from './simulation.js?v=engine-320';
-import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-320';
+import {CHASSIS} from './simulation.js?v=engine-321';
+import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-321';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];
 const TRAITS_BY_CARD={
+ 'morphology:growth':{survival:.9,control:.6},'morphology:shrink':{mobility:1,coverage:.4},
  'attack:projectiles':{coverage:1,control:.3},'attack:piercing':{coverage:.9},
  'attack:area':{coverage:.85,control:.35},'attack:knockback':{survival:.65,control:.8},
  'attack:taunt':{teamwork:.8,control:.5},'attack:range':{survival:.5,coverage:.2},
@@ -25,6 +26,7 @@ const TRAITS_BY_CARD={
  'target:aggressor':{focusFire:1}
 };
 const BASE={
+ morphology:{growth:21,shrink:21},
  attack:{projectiles:23,piercing:16,area:21,knockback:18,taunt:21,range:22,
   sunder:22,precision:21,expose:21,disruption:23,momentum:21,chain:22,
   burning:22,hazardous:22,restless:20,followthrough:16,disengage:22},
@@ -90,7 +92,12 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
   const movement=w.safety+w.isolation*.5+w.preferredRange*.35;
   const pursue=w.distance+w.kill*.4;
   const mobile=clamp((movement+pursue)/4,0,2);
-  if(card.kind==='attack'){
+  if(card.kind==='morphology'){
+    const growth=card.key==='growth',tier=stack('growth')-stack('shrink');
+    add(parts,'Chassis specialization',growth?(type==='bruiser'?3:type==='ranged'?1:0):(type==='rogue'?3:type==='ranged'?1:0));
+    add(parts,'Existing specialization',Math.abs(tier)*(Math.sign(tier)===(growth?1:-1)?-1.5:-2));
+   }
+   if(card.kind==='attack'){
    if(card.key==='momentum')add(parts,'Movement-based combat style',(mobile-1)*3+(type==='rogue'?3:0));
    if(card.key==='burning')add(parts,'Hit-and-retreat potential',clamp(w.safety-.5,0,2)*2);
    if(card.key==='restless')add(parts,'Target-switching tendency',clamp(w.safety+w.isolation-1,0,2)*2);

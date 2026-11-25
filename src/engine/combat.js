@@ -1,9 +1,9 @@
 // Engine subsystem: combat. See AGENTS.md for ownership and test routes.
-import {ATTACK_TIMING,CHASSIS} from './config.js?v=engine-320';
-import {clearLine,distance,inRearSector} from './geometry.js?v=engine-320';
-import {measure} from './telemetry.js?v=engine-320';
-import {spawnProjectileVolley} from './projectiles.js?v=engine-320';
-import {stats} from './stats.js?v=engine-320';
+import {ATTACK_TIMING,CHASSIS,radiusOf,attackTimeScale,morphologyTier} from './config.js?v=engine-321';
+import {clearLine,distance,inRearSector} from './geometry.js?v=engine-321';
+import {measure} from './telemetry.js?v=engine-321';
+import {spawnProjectileVolley} from './projectiles.js?v=engine-321';
+import {stats} from './stats.js?v=engine-321';
 
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
@@ -16,18 +16,18 @@ export function meleeAttackTargets(state,u,angle,st){
  const candidates=[];
  for(const enemy of state.units){
   if(enemy.owner===u.owner||enemy.hp<=0||!clearLine(u,enemy,state.arena))continue;
-  const d=distance(u,enemy),reach=st.range+st.area*9+CHASSIS[enemy.type].radius;
+  const d=distance(u,enemy),reach=st.range+st.area*9+radiusOf(enemy);
   if(d>reach||d<1e-7)continue;
   const bearing=Math.atan2(enemy.y-u.y,enemy.x-u.x);
   const within=lanes.some(lane=>Math.abs(Math.atan2(Math.sin(bearing-lane),Math.cos(bearing-lane)))<=
-   wide/2+Math.asin(Math.min(.98,CHASSIS[enemy.type].radius/Math.max(1,d))));
+   wide/2+Math.asin(Math.min(.98,radiusOf(enemy)/Math.max(1,d))));
   if(within)candidates.push({enemy,d});
  }
  candidates.sort((a,b)=>a.d-b.d||a.enemy.id-b.enemy.id);
  return candidates.slice(0,1+Math.max(0,st.piercing)).map(c=>c.enemy);
 }
 
-export function attackWindup(u){const base=ATTACK_TIMING[u.type].windup;return u.type==='ranged'?base:base/ (1+.176470588*(u.chassis.mods.velocity||0));}
+export function attackWindup(u){const base=ATTACK_TIMING[u.type].windup*attackTimeScale(u);return u.type==='ranged'?base:base/ (1+.176470588*(u.chassis.mods.velocity||0));}
 export function startAttack(state,u,target){
  if(u.attack||u.cd>0||!target||target.hp<=0)return false;
  const angle=Math.atan2(target.y-u.y,target.x-u.x);
@@ -39,7 +39,7 @@ export function startAttack(state,u,target){
 export function advanceAttack(state,u,target,st,dt,attacks){
  const attack=u.attack;
  if(!attack)return;
- const profile=ATTACK_TIMING[u.type];
+ const profile=ATTACK_TIMING[u.type],timing=attackTimeScale(u);
  attack.elapsed+=dt;
  if(attack.phase==='windup'){
   if(!attack.locked){
@@ -53,7 +53,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
   }
   if(attack.elapsed+1e-8<attackWindup(u))return;
   attack.phase='recovery';attack.elapsed=0;
-  if(u.chassis.mods.velocity){measure(state,u,'velocity','releases');measure(state,u,'velocity','nominalWindupSecondsSaved',profile.windup-attackWindup(u));}
+  if(u.chassis.mods.velocity){measure(state,u,'velocity','releases');measure(state,u,'velocity','nominalWindupSecondsSaved',profile.windup*timing-attackWindup(u));}
   u.combatStats&&(u.combatStats.attacks++);
   // Only enemies inside the locked attack shape at release can be hit.
   const attackId=state.nextAttackId++;
@@ -66,7 +66,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
     const victim=victims[i];
     const bearing=Math.atan2(victim.y-u.y,victim.x-u.x);
     const diff=Math.abs(Math.atan2(Math.sin(bearing-attack.direction),Math.cos(bearing-attack.direction)));
-    const radius=CHASSIS[victim.type].radius,dist=Math.max(1,distance(u,victim));
+    const radius=radiusOf(victim),dist=Math.max(1,distance(u,victim));
     const baseArc=ATTACK_TIMING[u.type].arc*Math.PI/360+
      Math.asin(Math.min(.98,radius/dist));
     const deliveredBy=[];
@@ -74,7 +74,8 @@ export function advanceAttack(state,u,target,st,dt,attacks){
     // A spread lane can reach outside the original, unmodified attack cone.
     if(st.projectiles>1&&diff>baseArc&&st.area===0)deliveredBy.push('projectiles');
     if(st.area>0&&(diff>baseArc||dist>st.range+radius))deliveredBy.push('area');
-    if(st.range>CHASSIS[u.type].range&&dist>CHASSIS[u.type].range+st.area*9+radius)deliveredBy.push('range');
+    const naturalRange=CHASSIS[u.type].range*(1+.12*morphologyTier(u));
+    if(st.range>naturalRange&&dist>naturalRange+st.area*9+radius)deliveredBy.push('range');
     attacks.push({source:u,target:victim,attackId,attackOrigin:{x:u.x,y:u.y},attackDirection:attack.direction,rawDamage:st.damage,
      rearHit:inRearSector(victim,u.x-victim.x,u.y-victim.y),
      damage:Math.max(1,st.damage-stats(victim).defense),
@@ -82,7 +83,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
    }
   }
   if(u.chassis.mods.rally)for(const ally of state.units){if(ally!==u&&ally.hp>0&&ally.owner===u.owner&&distance(u,ally)<=110){ally.rallyUntil=state.time+1.2;ally.rallyStrength=Math.min(.3,.08*u.chassis.mods.rally);if(state.moduleTelemetry)ally.rallySource=u.id;measure(state,u,'rally','allyApplications');}}
-  u.cd+=st.rate+profile.windup-attackWindup(u);
+  u.cd+=st.rate+profile.windup*timing-attackWindup(u);
   if(u.chassis.mods.disengage){
    u.disengageUntil=state.time+.5;
    u.navigation=null;u.navProgress=null;
@@ -90,7 +91,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
   }
   return;
  }
- if(attack.phase==='recovery'&&attack.elapsed+1e-8>=profile.recovery+profile.windup-attackWindup(u))u.attack=null;
+ if(attack.phase==='recovery'&&attack.elapsed+1e-8>=profile.recovery*timing+profile.windup*timing-attackWindup(u))u.attack=null;
 }
 export function attackMovementMultiplier(u){
  if(!u.attack)return 1;

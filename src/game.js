@@ -1,8 +1,8 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails} from './simulation.js?v=engine-320';
-import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=engine-320';
-import {cardDetail,cardSummary} from './module-info.js?v=engine-320';
-import {chooseCpuDraft} from './draft-ai.js?v=engine-320';
-import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION,teamFill} from './mobility-visual.js?v=engine-320';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails,radiusOf,morphologyTier} from './simulation.js?v=engine-321';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=engine-321';
+import {cardDetail,cardSummary} from './module-info.js?v=engine-321';
+import {chooseCpuDraft} from './draft-ai.js?v=engine-321';
+import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION,teamFill} from './mobility-visual.js?v=engine-321';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let initialTypes=[],draftArchive=[],advancedOpen=false,effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;
@@ -69,7 +69,7 @@ function render(){$('layout').setAttribute('data-phase',view);$('seedInfo').text
  const pick=draft.picks.find(p=>p.uid===card.uid);
  const available=draft.pool.some(p=>p.uid===card.uid);
  const allowed=view==='draft'&&available&&legal(match.players[0],card);
- const b=button(card.name.replace(/^(Attack|Targeting|Utility): /,''),cardSummary(card),()=>{if(allowed)choose(card)});b.setAttribute('data-kind',card.kind);const kind=document.createElement('small');kind.className='card-kind';kind.textContent=({attack:'Attack',target:'Targeting',utility:'Utility',passive:'Passive',unit:'Recruit'})[card.kind];b.append(kind);
+ const b=button(card.name.replace(/^(Attack|Targeting|Utility|Morphology): /,''),cardSummary(card),()=>{if(allowed)choose(card)});b.setAttribute('data-kind',card.kind);const kind=document.createElement('small');kind.className='card-kind';kind.textContent=({attack:'Attack',target:'Targeting',utility:'Utility',passive:'Passive',morphology:'Morphology',unit:'Recruit'})[card.kind];b.append(kind);
  b.classList.add('draft-card');
  b.setAttribute('aria-pressed',String(chosen===card.uid));
  if(chosen===card.uid)b.classList.add('selected');
@@ -110,7 +110,7 @@ if(view==='draft'){advance.style.display='';advance.disabled=!chosen;advance.tex
  if(view==='fight'){status.textContent='Combat running';phase.textContent='Combat in progress';info.textContent='Round picks'}
  if(view==='results'){status.textContent='Round complete';phase.textContent='Round '+lastResult.round+' complete';info.textContent='';advance.style.display='';advance.disabled=false;advance.textContent='Next draft'}
  if(view==='over'){status.textContent='Match complete';phase.textContent='Match complete';info.textContent=match.players.find(p=>p.hp>0)?.name+' wins the match!'}
- const squad=$('squad');squad.replaceChildren();const heading=document.createElement('strong');heading.textContent='Your squad · '+(match?.players[0].squad.length||0)+'/3';heading.style.color=COLORS[0];squad.append(heading);for(const [i,u] of (match?.players[0].squad||[]).entries()){const row=document.createElement('div');row.className='fighter';const name=document.createElement('strong');name.className='fighter-name';name.textContent=(i+1)+'. '+CHASSIS[u.type].name;row.append(name);const upgrades=u.modules.filter(m=>!m.passiveSlot&&m.kind!=='utility'&&m.kind!=='passive').map(m=>m.name.replace(/^(Attack|Targeting|Utility): /,''));if(upgrades.length){const list=document.createElement('span');list.className='fighter-upgrades';list.textContent=' · '+upgrades.join(', ');row.append(list)}const slots=document.createElement('div');slots.className='fighter-slots';const label=document.createElement('span');label.className='slot-label';label.textContent='Utility';slots.append(label);for(let j=0;j<2;j++){const chip=document.createElement('span');const key=u.passives[j];chip.className='utility-slot'+(key?'':' empty');const module=u.modules.find(m=>m.passiveSlot===j+1);chip.textContent=key?(module?.name.replace(/^Utility: /,'')||key):'Empty';chip.setAttribute('aria-label','Utility slot '+(j+1)+': '+chip.textContent);slots.append(chip)}row.append(slots);squad.append(row)}renderStandings();renderDraftHistory();renderInspector()}
+ const squad=$('squad');squad.replaceChildren();const heading=document.createElement('strong');heading.textContent='Your squad · '+(match?.players[0].squad.length||0)+'/3';heading.style.color=COLORS[0];squad.append(heading);for(const [i,u] of (match?.players[0].squad||[]).entries()){const row=document.createElement('div');row.className='fighter';const name=document.createElement('strong');name.className='fighter-name';name.textContent=(i+1)+'. '+CHASSIS[u.type].name;row.append(name);const upgrades=u.modules.filter(m=>!m.passiveSlot&&m.kind!=='utility'&&m.kind!=='passive').map(m=>m.name.replace(/^(Attack|Targeting|Utility|Morphology): /,''));if(upgrades.length){const list=document.createElement('span');list.className='fighter-upgrades';list.textContent=' · '+upgrades.join(', ');row.append(list)}const slots=document.createElement('div');slots.className='fighter-slots';const label=document.createElement('span');label.className='slot-label';label.textContent='Utility';slots.append(label);for(let j=0;j<2;j++){const chip=document.createElement('span');const key=u.passives[j];chip.className='utility-slot'+(key?'':' empty');const module=u.modules.find(m=>m.passiveSlot===j+1);chip.textContent=key?(module?.name.replace(/^Utility: /,'')||key):'Empty';chip.setAttribute('aria-label','Utility slot '+(j+1)+': '+chip.textContent);slots.append(chip)}row.append(slots);squad.append(row)}renderStandings();renderDraftHistory();renderInspector()}
 const LABELS={kill:'Kill Opportunity',damage:'Damage Opportunity',threat:'Threat',distance:'Target Distance',allyProximity:'Ally Proximity',safety:'Safety',protection:'Protection',ability:'Ability Readiness',isolation:'Isolation',preferredRange:'Preferred Range',coordinated:'Coordinated',independent:'Independent',opportunist:'Opportunist',pursuer:'Pursuer',challenger:'Challenger'};
 const UTILITY_COOLDOWNS={dash:5,dodge:5,backstep:4.5,flank:4,intercept:5};
 function selectFighter(owner,slot){$('fighterInfo').open=true;inspected={owner,slot};renderInspector();draw()}
@@ -136,6 +136,7 @@ function renderInspector(){
  line('Damage / Defense',format(st.damage)+' / '+st.defense);
  line('Attack range / interval',st.range+' / '+format(st.rate)+'s');
  line('Movement speed',format(st.speed));
+ line('Size / radius',(morphologyTier(ch)>0?'+':'')+morphologyTier(ch)+' / '+format(st.radius));
  line('Attack lanes / pierce',st.projectiles+' / '+st.piercing);
  line('Attack modules',Object.entries(ch.mods).filter(([key,v])=>v>0&&!UTILITY_COOLDOWNS[key]&&['range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','area','projectiles','piercing','knockback','taunt','velocity','rally','resonance','fortify','siphon','steadfast','patience','resolve','ricochet'].includes(key)).map(([key,v])=>key+' ×'+v).join(', ')||'None');
  line('Area / knockback / taunt',st.area+' / '+st.knockback+' / '+st.taunt);
@@ -177,7 +178,7 @@ canvas.addEventListener('click',event=>{
  if(!battle||!match)return;
  const bounds=canvas.getBoundingClientRect(),x=(event.clientX-bounds.left)*canvas.width/bounds.width,y=(event.clientY-bounds.top)*canvas.height/bounds.height;
  let closest=null,d=Infinity;
- for(const u of battle.units){const r=CHASSIS[u.type].radius+13,dist=Math.hypot(u.x-x,u.y-y);if(dist<=r&&dist<d){closest=u;d=dist}}
+ for(const u of battle.units){const r=radiusOf(u)+13,dist=Math.hypot(u.x-x,u.y-y);if(dist<=r&&dist<d){closest=u;d=dist}}
  if(closest)selectFighter(closest.owner,closest.id%100);
 });
 function renderDraftHistory(){const root=$('draftHistoryItems');root.replaceChildren();const draft=view==='results'||view==='over'?completedDraft:match?.draft;if(!draft)return;for(const card of draft.originalPool){const pick=draft.picks.find(p=>p.uid===card.uid),row=document.createElement('div');row.className='draft-history-row';const name=document.createElement('span');name.textContent=card.name;const owner=document.createElement('strong');owner.textContent=pick?match.players[pick.player].name:'Unpicked';if(pick)owner.style.color=COLORS[pick.player];row.append(name,owner);if(pick?.reasoning){const why=document.createElement('small');why.className='muted';why.textContent='Bot reasoning: '+pick.reasoning.reasons.join(' · ')+' (base '+pick.reasoning.baseScore+')';row.append(why)}root.append(row)}}
@@ -266,7 +267,7 @@ function drawEffects(){
    ctx.lineWidth=2;ctx.beginPath();ctx.arc(e.x,e.y,3+t*9,0,Math.PI*2);
    ctx.stroke();ctx.restore();
   }else{
-   ctx.save();ctx.globalAlpha=Math.max(0,1-t);ctx.font='bold 16px system-ui';
+   ctx.save();ctx.globalAlpha=Math.max(0,1-t);ctx.font='bold '+Math.round(16*(1+.12*morphologyTier(u)))+'px system-ui';
    ctx.textAlign='center';ctx.lineWidth=4;ctx.strokeStyle='#142034';
    const x=e.x,y=e.y-26-t*26;
    const label='-'+(e.dot||e.value<.5?(e.value<.1?e.value.toFixed(2):e.value.toFixed(1)):Math.round(e.value));
@@ -288,7 +289,7 @@ function draw(){ctx.fillStyle='#19263a';ctx.fillRect(0,0,720,520);ctx.strokeStyl
  ctx.fillStyle='#f5a85d';ctx.beginPath();ctx.arc(z.x,z.y,z.radius,0,Math.PI*2);ctx.fill();
  ctx.restore();
 }
- for(const u of battle?.units||[]){if(u.hp<=0)continue;const c=CHASSIS[u.type],r=c.radius;ctx.fillStyle=COLORS[u.owner];ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.fill();if(inspected&&inspected.owner===u.owner&&inspected.slot===u.id%100){ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(u.x,u.y,r+8,0,Math.PI*2);ctx.stroke();}if(u.owner===0){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.stroke();}ctx.fillStyle=teamFill(COLORS[u.owner]);ctx.beginPath();ctx.arc(u.x,u.y,r-1,0,Math.PI*2);ctx.fill();ctx.fillStyle='#0b1625';ctx.textAlign='center';ctx.font='bold 16px system-ui';ctx.fillText(u.type==='bruiser'?'B':u.type==='rogue'?'R':'A',u.x,u.y+4);ctx.fillStyle='#102033';ctx.fillRect(u.x-17,u.y-r-17,34,6);ctx.fillStyle='#77e7a3';ctx.fillRect(u.x-17,u.y-r-17,34*u.hp/u.maxHp,6)}drawEffects()}
+ for(const u of battle?.units||[]){if(u.hp<=0)continue;const r=radiusOf(u);ctx.fillStyle=COLORS[u.owner];ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.fill();if(inspected&&inspected.owner===u.owner&&inspected.slot===u.id%100){ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(u.x,u.y,r+8,0,Math.PI*2);ctx.stroke();}if(u.owner===0){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.stroke();}ctx.fillStyle=teamFill(COLORS[u.owner]);ctx.beginPath();ctx.arc(u.x,u.y,r-1,0,Math.PI*2);ctx.fill();ctx.fillStyle='#0b1625';ctx.textAlign='center';ctx.font='bold 16px system-ui';ctx.fillText(u.type==='bruiser'?'B':u.type==='rogue'?'R':'A',u.x,u.y+4);ctx.fillStyle='#102033';ctx.fillRect(u.x-17,u.y-r-17,34,6);ctx.fillStyle='#77e7a3';ctx.fillRect(u.x-17,u.y-r-17,34*u.hp/u.maxHp,6)}drawEffects()}
 function step(){if(view!=='fight')return;const result=tick(battle,STEP);collectEffects();for(const event of battle.events.splice(0))log(event);$('timer').textContent=battle.time.toFixed(1)+'s';if(result!==null)endCombat();else if($('fighterInfo').open&&inspected&&battle.tick%6===0)renderInspector()}
 function loop(now){const dt=Math.min(.08,(now-last)/1000);last=now;if(view==='fight'&&!paused){acc+=dt*Number($('speed').value||1);let count=0;while(acc>=STEP&&count++<12&&view==='fight'){step();acc-=STEP}}draw();if(view==='fight')frame=requestAnimationFrame(loop)}
-$('exportMatch').onclick=()=>{if(!match)return;const data={version:'3.2',seed:match.seed,initialTypes,drafts:draftArchive, currentDraft:view==='draft'||view==='fight'?match.draft:null,results:match.history,players:match.players};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='autobattler-'+match.seed+'.json';link.click();URL.revokeObjectURL(url);};$('advance').onclick=()=>view==='draft'?takePick():next();$('restart').onclick=reset;$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';last=performance.now()};$('step').onclick=()=>{paused=true;$('pause').textContent='Resume';step();draw()};reset();
+$('exportMatch').onclick=()=>{if(!match)return;const data={version:'3.2.1',seed:match.seed,initialTypes,drafts:draftArchive, currentDraft:view==='draft'||view==='fight'?match.draft:null,results:match.history,players:match.players};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='autobattler-'+match.seed+'.json';link.click();URL.revokeObjectURL(url);};$('advance').onclick=()=>view==='draft'?takePick():next();$('restart').onclick=reset;$('pause').onclick=()=>{paused=!paused;$('pause').textContent=paused?'Resume':'Pause';last=performance.now()};$('step').onclick=()=>{paused=true;$('pause').textContent='Resume';step();draw()};reset();

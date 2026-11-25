@@ -1,6 +1,6 @@
 // Engine subsystem: collision. See AGENTS.md for ownership and test routes.
-import {distance,bound} from './geometry.js?v=engine-320';
-import {CHASSIS} from './config.js?v=engine-320';
+import {distance,bound} from './geometry.js?v=engine-321';
+import {CHASSIS,radiusOf} from './config.js?v=engine-321';
 
 // A planted fighter braces; movement over the previous half second supplies
 // momentum. Max HP provides mass without making damage change physics mid-fight.
@@ -20,7 +20,7 @@ export function collisionStability(u,now){
 export function resolveCollision(state){
  const units=state.units.filter(u=>u.hp>0);
  for(let pass=0;pass<2;pass++)for(let i=0;i<units.length;i++)for(let j=i+1;j<units.length;j++){
-  const a=units[i],b=units[j],min=CHASSIS[a.type].radius+CHASSIS[b.type].radius+5;
+  const a=units[i],b=units[j],min=radiusOf(a)+radiusOf(b)+5;
   let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
   if(d>=min-1e-6)continue;
   const phases=(u,other)=>u.followthroughCommit?.phaseTargetId===other.id&&
