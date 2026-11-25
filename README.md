@@ -1,6 +1,6 @@
 # Modular Arena Autobattler — Prototype 3.2
 
-Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. The 3.2 refactor preserves 3.1.2 gameplay and balance; the release candidate is verified before promotion.
+Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. The 3.2 refactor preserves 3.1.2 gameplay and balance; the release candidate passed verification and is ready for promotion.
 
 ## Run
 - Browser: serve the repository statically or open the GitHub Pages build. Do not open via file://.
@@ -18,3 +18,5 @@ src/simulation.js is the stable public facade; implementation lives in src/engin
 
 ## Verification
 The structural parity command compares complete seeded matches and current engine state against a selected Git commit: npm run verify:parity -- <baseline SHA>. The original 3.1.2 baseline is 9416d7c130a7e40838822f5594800caaeb47dff4. CI and device performance must be checked independently; a structural move does not imply faster runtime or improved balance. See AGENTS.md for exact checks and reporting requirements.
+
+Release verification (commit 5c0b9c6): 180/180 tests, four combat fixtures and eight full-match parity checks (seeds 1–4, random and strategic; 96 total match rounds), 12/12 scripted player matches (5/138 timeouts), and navigation diagnostics (4/96 timeouts). Routine CI now runs standard tests only; extended harnesses are opt-in. Prototype 3.3 focuses on balance and strategic diversity.

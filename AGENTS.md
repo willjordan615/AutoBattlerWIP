@@ -5,7 +5,7 @@ Repository: https://github.com/willjordan615/AutoBattlerWIP. Default branch: mai
 - Prefer direct GitHub connector reads/writes. Fetch current branch head and relevant files before editing; do not clone by default. Access and execution depend on session tools. If GitHub calls unexpectedly fail, check https://www.githubstatus.com/ before diagnosing code or retrying writes.
 - Read this guide and the relevant subsystem/test only. Read historical notes under docs/history only when investigating past behavior. Do not load every engine file into context for a small change.
 - Batch related edits in one commit. Preserve seeded RNG, event order, module/draft ordering and fixed 30 Hz stepping unless explicitly changing a rule. Never mix structural refactors with balance changes.
-- Prefer a short branch and an atomic commit for cross-file changes; do not overwrite concurrent work. Verify CI before merging. Report actual results and any failures or unverified work.
+- Prefer a short branch and an atomic commit for cross-file changes; do not overwrite concurrent work. Favor rapid prototype iteration over exhaustive release gates. Commit useful coherent changes without waiting on unrelated CI; fix regressions promptly or roll back. Report actual results and any failures or unverified work. Make reasonable implementation decisions independently; only ask when a material design choice cannot be inferred.
 
 ## File ownership and focused tests
 | Concern | Source | Tests (under tests/) |
@@ -35,10 +35,10 @@ Engine modules import their direct dependencies, never the facade. Keep new file
 - Low-end Android: no runtime dependencies or heavy assets; measure CPU and allocations before optimizing. Do not minify maintained source. Keep historical details in docs/history, current behavior in code and tests.
 
 ## Verification
-- Focused: node --test tests/engine-navigation.test.js (choose owning suite).
-- Full: npm test (Node 22+, GitHub Actions). Agent-vs-bots: node scripts/agent-playtest.js 12 1; this is strategic scripted seat 0, not a browser-driving LLM.
-- Balance: npm run balance:report -- 100 strategic 1; random: npm run balance:report -- 100 random 1. Navigation: npm run diagnose:navigation -- 8 1 (add --json for per-unit traces). Report match counts, seeds, timeouts, failures and actual commands.
-- Structural parity: npm run verify:parity -- <baseline commit SHA> (requires accessible Git history; no extra dependency). Compare full seeded round state, not just winners.
+- Default: run the smallest relevant check when execution is available. For module/behavior changes use the owning suite (e.g. node --test tests/engine-navigation.test.js); for UI changes use browser tests. For balance changes use a small headless sample and report seeds. Do not block routine iteration on exhaustive testing.
+- Milestones and substantial changes: npm test (Node 22+, GitHub Actions). Routine CI runs the standard tests only, not parity, playtest or navigation batches. Agent-vs-bots: node scripts/agent-playtest.js 12 1; this is strategic scripted seat 0, not a browser-driving LLM.
+- Balance baseline or deliberate audit: npm run balance:report -- 100 strategic 1; random: npm run balance:report -- 100 random 1. Use smaller batches for ordinary tuning. Navigation: npm run diagnose:navigation -- 8 1 (add --json for per-unit traces). Report match counts, seeds, timeouts, failures and actual commands.
+- Structural parity (opt-in for major refactors, not routine CI): npm run verify:parity -- <baseline commit SHA> (requires accessible Git history; no extra dependency). Compare seeded round and full-match state, not just winners. Only require parity for changes intended to preserve behavior.
 - If only isolated JavaScript evaluation is possible, call it isolated smoke/parity testing, not Node CI. Never claim tests ran when they did not.
 - On a playable release, update the visible prototype label, build.json and all browser module/cache query versions together; do not claim Pages is live without verification.
 
