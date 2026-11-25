@@ -95,3 +95,16 @@ test('2.9 full draft records explainable reasons without breaking chosen card as
  assert.deepEqual(pick.reasoning.reasons,choice.reasons);
  assert.ok(m.players[index].squad.length>=oldSquadSize);
 });
+
+test('3.1.2 draft valuation reduces unconditional premium while preserving piercing synergy',()=>{
+ for(const type of ['bruiser','rogue','ranged']){
+  const p=createMatch([type,'rogue','ranged','bruiser'],42).players[0];
+  p.squad.push(makeChassis('ranged'));
+  const card=(kind,key)=>({kind,key});
+  assert.equal(scoreDraft(p,card('attack','followthrough')),type==='rogue'?18:16);
+  assert.equal(scoreDraft(p,card('attack','piercing')),16);
+  assert.equal(scoreDraft(p,card('target','coordinated')),20);
+  p.squad[0].mods.projectiles=2;
+  assert.ok(scoreDraft(p,card('attack','piercing'))>16);
+ }
+});
