@@ -25,12 +25,12 @@ const TRAITS_BY_CARD={
  'target:aggressor':{focusFire:1}
 };
 const BASE={
- attack:{projectiles:23,piercing:21,area:21,knockback:18,taunt:21,range:22,
+ attack:{projectiles:23,piercing:16,area:21,knockback:18,taunt:21,range:22,
   sunder:22,precision:21,expose:21,disruption:23,momentum:21,chain:22,
-  burning:22,hazardous:22,restless:20,followthrough:22,disengage:22},
+  burning:22,hazardous:22,restless:20,followthrough:16,disengage:22},
  utility:{dash:22,dodge:24,backstep:21,flank:22,intercept:21},
  passive:{regen:23,bulwark:24,haste:23,focus:23,retaliation:21},
- target:{executioner:22,guardian:21,skirmisher:21,coward:20,duelist:21,hunter:20,aggressor:21}
+ target:{executioner:22,guardian:21,skirmisher:21,coward:20,duelist:21,hunter:20,aggressor:21,coordinated:15}
 };
 const TARGET_KEYS={executioner:'kill',guardian:'protection',skirmisher:'preferredRange',
  coward:'safety',duelist:'isolation',hunter:'distance',aggressor:'damage'};
@@ -105,7 +105,7 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
    if(card.key==='chain'&&count===1)add(parts,'Spreads pressure across enemies',1.5);
    if(card.key==='hazardous'&&w.safety>1)add(parts,'Control while staying distant',2);
    if(card.key==='disengage')add(parts,'Safer after-attack retreat',clamp(w.safety-.4,0,3)*2+(type==='ranged'?2:0));
-   if(card.key==='followthrough')add(parts,'Hit-triggered repositioning',type==='rogue'?5:type==='bruiser'?2:2);
+   if(card.key==='followthrough')add(parts,'Hit-triggered repositioning',type==='rogue'?2:0);
    if(card.key==='projectiles'&&type==='ranged')add(parts,'Projectile spread',2);
    if(card.key==='area'&&type==='bruiser')add(parts,'Melee sweep reach',2);
    // Multiple stacks still work; their marginal value should be earned.
