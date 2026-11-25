@@ -19,7 +19,7 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  const callbacks=[];globalThis.requestAnimationFrame=fn=>{callbacks.push(fn);return callbacks.length};
  globalThis.cancelAnimationFrame=()=>{};
  globalThis.performance={now:()=>1000};
- globalThis.crypto={getRandomValues(values){values[0]=20261121;return values}};
+ Object.defineProperty(globalThis,'crypto',{configurable:true,value:{getRandomValues(values){values[0]=20261121;return values}}});
  await import('../src/game.js');
  const $=id=>document.getElementById(id);
  assert.equal($('phaseTitle').textContent,'Choose your starting chassis');
