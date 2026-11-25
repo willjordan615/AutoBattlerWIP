@@ -1,12 +1,14 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=utility-slots-304';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=module-expansion-310';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','followthrough','disengage'];
+export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','followthrough','disengage','velocity','rally','resonance','fortify','siphon','steadfast','patience','resolve','ricochet'];
 export const UTILITY_MODULES=['dash','dodge','backstep','flank','intercept'];
 export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
- coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1}
+ coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1},coordinated:{coordinated:1},independent:{independent:1},opportunist:{opportunist:1},pursuer:{pursuer:1},challenger:{challenger:1}
 };
-export const PASSIVE_MODULES=['regen','bulwark','haste','focus','retaliation'];
+export const PASSIVE_MODULES=['regen','bulwark','haste','focus','retaliation','aegis','inspiration','anchor','wake','repulsion'];
+export const COOPERATIVE_KEYS=new Set(['expose','guardian','intercept','rally','resonance','aegis','inspiration','coordinated','independent']);
+export function cooperativeWeight(players){const alive=players.filter(p=>p.hp>0);return alive.length?alive.filter(p=>p.squad.length>1).length/alive.length:0;}
 export const catalog=[
  ...Object.keys(CHASSIS).map(type=>({kind:'unit',key:type,name:'Recruit '+CHASSIS[type].name})),
  ...UTILITY_MODULES.map(key=>({kind:'utility',key,name:'Utility: '+key[0].toUpperCase()+key.slice(1)})),
@@ -42,12 +44,13 @@ export function ensureDraftChoice(match){
  const original=d.originalPool.findIndex(card=>card.uid===fallback.uid);
  if(original>=0)d.originalPool[original]={...fallback};
 }
+export function sampleOffer(match,allowUnit=true){const weight=cooperativeWeight(match.players);const offers=catalog.filter(c=>allowUnit||c.kind!=='unit');let total=offers.reduce((n,c)=>n+(COOPERATIVE_KEYS.has(c.key)?weight:1),0);let roll=match.random()*total;for(const c of offers){const w=COOPERATIVE_KEYS.has(c.key)?weight:1;if(w>0&&roll<w)return c;roll-=w;}return offers.find(c=>!COOPERATIVE_KEYS.has(c.key));}
 export function draftPool(match){
  const active=match.players.map((p,i)=>p.hp>0?i:-1).filter(i=>i>=0);
- const pool=Array.from({length:active.length+2},(_,i)=>({...catalog[Math.floor(match.random()*catalog.length)],uid:match.round+'-'+i}));
+ const pool=Array.from({length:active.length+2},(_,i)=>({...sampleOffer(match),uid:match.round+'-'+i}));
  const full=active.length;
  let available=pool.filter(x=>x.kind!=='unit').length;
- for(let i=pool.length-1;i>=0&&available<full;i--)if(pool[i].kind==='unit'){pool[i]={...catalog.filter(x=>x.kind!=='unit')[Math.floor(match.random()*(catalog.length-3))],uid:pool[i].uid};available++}
+ for(let i=pool.length-1;i>=0&&available<full;i--)if(pool[i].kind==='unit'){pool[i]={...sampleOffer(match,false),uid:pool[i].uid};available++}
  const order=match.lastRanking.length?match.lastRanking.filter(i=>match.players[i].hp>0).reverse():active;
  match.draft={pool,originalPool:pool.map(card=>({...card})),order,turn:0,picks:[]};match.phase='draft';ensureDraftChoice(match);return match.draft
 }

@@ -1,7 +1,26 @@
-import {ATTACK_STAGES} from './simulation.js?v=utility-slots-304';
+import {ATTACK_STAGES} from './simulation.js?v=module-expansion-310';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
+ "attack:velocity":"Ranged: +25% projectile speed per stack. Melee: shorter windup with the saved time added to recovery and cooldown, preserving attack frequency.",
+ "attack:rally":"On attack release, nearby allies within 110 units gain 8% movement speed per stack for 1.2s, capped at 30%.",
+ "attack:resonance":"Gain 1.5 bonus raw damage per stack (max 4 stacks) if a different ally hit the target within 1.5s.",
+ "attack:fortify":"Landed attacks grant 1 defense per stack (max 4) for 1s.",
+ "attack:siphon":"Restore 6% of actual direct damage as combat HP per stack, capped at 24%.",
+ "attack:steadfast":"Landed attacks grant 25% displacement stability per stack, max 100%, for 1s.",
+ "attack:patience":"Increase the existing valid holding-position preference by 30% per stack, max 100%. Does not reward idle time or add damage.",
+ "attack:resolve":"Resist slows increasingly as HP falls, up to 20% per stack at zero HP (max 80%).",
+ "attack:ricochet":"Ranged projectiles can bounce off terrain or boundaries once per stack (max 2), within original travel range. Melee hits near terrain grant temporary defense.",
+ "passive:aegis":"Grant a threatened nearby ally a 12 HP temporary shield for 2s. Cooldown 6s.",
+ "passive:inspiration":"Nearby allies within 110 units recover utility cooldowns 15% faster.",
+ "passive:anchor":"When threatened in a valid holding position, gain 4 defense for 1.5s. Cooldown 6s.",
+ "passive:wake":"Movement leaves short-lived slowing patches, 18% movement slow. One patch per 0.5s, lasts 1.2s.",
+ "passive:repulsion":"When threatened, push nearby opponents away. Cooldown 6s.",
+ "target:coordinated":"Favor enemies already targeted by an ally.",
+ "target:independent":"Favor enemies not targeted by allies.",
+ "target:opportunist":"Favor opponents whose attack is on cooldown.",
+ "target:pursuer":"Favor retreating opponents.",
+ "target:challenger":"Favor opponents with higher remaining HP percentage.",
  'unit:bruiser':'Recruit a durable melee Bruiser (maximum three fighters per squad). Each additional fighter reduces EVERY squad member\'s base HP and damage by 15% from the next combat round.',
  'unit:rogue':'Recruit a fast melee Rogue (maximum three fighters per squad). Each additional fighter reduces EVERY squad member\'s base HP and damage by 15% from the next combat round.',
  'unit:ranged':'Recruit a long-range projectile fighter (maximum three fighters per squad). Each additional fighter reduces EVERY squad member\'s base HP and damage by 15% from the next combat round.',
@@ -41,6 +60,25 @@ export const DETAILS={
  'passive:retaliation':'Occupies one of two shared Utility slots. After receiving a direct melee hit, the next attack made within 4 seconds gains 4 raw damage. Does not affect attack timing. Unique per fighter.'
 };
 export const SUMMARIES={
+ "attack:velocity":"Faster delivery, unchanged attack frequency",
+ "attack:rally":"Attacking speeds nearby allies",
+ "attack:resonance":"Bonus damage following an ally hit",
+ "attack:fortify":"Temporary defense after a hit",
+ "attack:siphon":"Recover HP from landed attacks",
+ "attack:steadfast":"Resist displacement after hitting",
+ "attack:patience":"Favor advantageous holds",
+ "attack:resolve":"Low HP improves slow resistance",
+ "attack:ricochet":"Terrain bounce / melee cover defense",
+ "passive:aegis":"Shield threatened ally",
+ "passive:inspiration":"Nearby ally cooldown recovery",
+ "passive:anchor":"Defend an advantageous position",
+ "passive:wake":"Leave slowing patches while moving",
+ "passive:repulsion":"Reactive space creation",
+ "target:coordinated":"Favor ally targets",
+ "target:independent":"Diversify ally targets",
+ "target:opportunist":"Favor recovering enemies",
+ "target:pursuer":"Favor retreating targets",
+ "target:challenger":"Favor healthy opponents",
  'unit:bruiser':'Recruit Bruiser · each extra fighter lowers squad base HP/damage by 15%',
  'unit:rogue':'Recruit Rogue · each extra fighter lowers squad base HP/damage by 15%',
  'unit:ranged':'Recruit Ranged · each extra fighter lowers squad base HP/damage by 15%',

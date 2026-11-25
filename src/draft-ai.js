@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=utility-slots-304';
-import {legal,canEquip,TARGET_MODULES} from './headless.js?v=utility-slots-304';
+import {CHASSIS} from './simulation.js?v=module-expansion-310';
+import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=module-expansion-310';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];
@@ -61,7 +61,11 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
  }else{
   const type=unit.type,m=unit.mods,w=unit.weights,slots=unit.passives;
   const has=k=>slots.includes(k),stack=k=>m[k]||0;
-  add(parts,'Base usefulness',BASE[card.kind]?.[card.key]??19);
+  add(parts,'Base usefulness',BASE[card.kind]?.[card.key]??21);
+  if(COOPERATIVE_KEYS.has(card.key))add(parts,'Available allies',count>1?3:-8);
+  if(['fortify','siphon','steadfast','resolve','anchor','repulsion'].includes(card.key))add(parts,'Survival preference',Math.max(0,w.safety||0)*1.5);
+  if(card.key==='velocity')add(parts,'Delivery reliability',type==='ranged'?3:1);
+  if(card.key==='patience')add(parts,'Holding preference',type==='ranged'?2:0);
   const profile=TRAITS_BY_CARD[card.kind+':'+card.key]||{};
   for(const trait of TRAITS)if(profile[trait])add(parts,'Tactical preference: '+trait,(preferences[trait]||0)*profile[trait]*3.5);
   // Directional module pairings. Each side of a relationship is evaluated, and
@@ -111,7 +115,7 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
    if(card.key==='sunder'&&n>=3)add(parts,'Defense reduction capped',-6);
   }
   if(card.kind==='target'){
-   const key=TARGET_KEYS[card.key],current=w[key];
+   const key=Object.keys(TARGET_MODULES[card.key]||{})[0]||TARGET_KEYS[card.key],current=w[key]||0;
    add(parts,'Existing targeting emphasis',current<=1?2:clamp(2-current,-5,0));
    if(card.key==='guardian'&&count>1)add(parts,'Protect teammates',3);
    if(card.key==='coward'&&stack('burning'))add(parts,'Safety complements burning',3);

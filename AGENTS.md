@@ -139,3 +139,6 @@ Phase-aware mobile layout, persistent match health, category-colored draft cards
 
 ## Prototype 3.0.1 — Compact interface
 Neutral module cards, owner-colored claimed labels, persistent completed draft during combat, compact team standings and placement rows. Browser regression covers all four picks after draft. No rule changes.
+
+## Prototype 3.1 — Module expansion
+New attack, passive and target modules; cooperative offers sampled by fraction of surviving teams with multiple fighters. No Rhythm or Persistence. Initial numerical values provisional. Full regression and balance verification pending.
