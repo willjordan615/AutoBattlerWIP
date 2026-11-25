@@ -1,13 +1,7 @@
 import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=balance-312';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','followthrough','disengage','velocity','rally','resonance','fortify','siphon','steadfast','patience','resolve','ricochet'];
-export const UTILITY_MODULES=['dash','dodge','backstep','flank','intercept'];
-export const TARGET_MODULES={
- executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
- coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1},coordinated:{coordinated:1},independent:{independent:1},opportunist:{opportunist:1},pursuer:{pursuer:1},challenger:{challenger:1}
-};
-export const PASSIVE_MODULES=['regen','bulwark','haste','focus','retaliation','aegis','inspiration','anchor','wake','repulsion'];
-export const COOPERATIVE_KEYS=new Set(['expose','guardian','intercept','rally','resonance','aegis','inspiration','coordinated','independent']);
+import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS} from './engine/module-registry.js?v=balance-312';
+export {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS};
 export function cooperativeWeight(players){const alive=players.filter(p=>p.hp>0);return alive.length?alive.filter(p=>p.squad.length>1).length/alive.length:0;}
 export const catalog=[
  ...Object.keys(CHASSIS).map(type=>({kind:'unit',key:type,name:'Recruit '+CHASSIS[type].name})),
