@@ -142,3 +142,6 @@ Neutral module cards, owner-colored claimed labels, persistent completed draft d
 
 ## Prototype 3.1 — Module expansion
 New attack, passive and target modules; cooperative offers sampled by fraction of surviving teams with multiple fighters. No Rhythm or Persistence. Initial numerical values provisional. Full regression and balance verification pending.
+
+## 3.1.1 — Opt-in module telemetry
+Set battle.moduleTelemetry={} before ticking for per-fighter counters; build-audit aggregates them and completeCombat returns them only when enabled. `npm run balance:modules -- velocity,siphon 3 3101` runs paired round comparisons stratified by chassis, squad size, team count, stacks and background upgrades. `npm run balance:audit -- 12 3101 --json` aggregates organic mechanical events. `balance:report` adds pick-weighted round-band/roster contexts (not causal). Nominal prevention/time savings are modeled estimates; projectile contacts precede evasion; patch exposure can overlap; paired round wins are not match wins. Targeting effects evaluated via paired outcomes, not exact decision attribution. Full suite pending.

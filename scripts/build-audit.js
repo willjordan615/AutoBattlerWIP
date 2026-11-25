@@ -26,7 +26,7 @@ export function runBuildAudit({matches=12,seed=2101,maxRounds=100}={}){
  const results={config:{matches,seed,maxRounds},completed:0,combats:0,timeouts:0,
   rounds:[],draftPicks:{},pickCategories:{},sizeAtFinish:{},startingWins:{},
   pairOccurrences:{},chassis:{},standouts:[],matchWinners:[],
-  moduleDamage:{},moduleHits:{},chainRedirected:0,
+  moduleDamage:{},moduleHits:{},chainRedirected:0,moduleTelemetry:{},
   personalityWinners:{},personalityPlayers:{}};
  for(let trial=0;trial<matches;trial++){
   const matchSeed=(seed+trial)>>>0,types=Object.keys(CHASSIS);
@@ -41,12 +41,13 @@ export function runBuildAudit({matches=12,seed=2101,maxRounds=100}={}){
     bump(results.pickCategories,choice.card.kind);
     assign(match,seat,choice.card.uid,choice.chassisIndex,choice.passiveSlot,choice);
    }
-   const battle=beginCombat(match);
+   const battle=beginCombat(match);battle.moduleTelemetry={};
    for(let step=0;step<900;step++)if(tick(battle,STEP)!==null)break;
    results.combats++;rounds++;
    if(battle.time>=30-1e-6)results.timeouts++;
    for(const unit of battle.units){
     const chassis=match.players[unit.owner].squad[unit.id%100];
+    for(const [key,metrics] of Object.entries(battle.moduleTelemetry[unit.id]||{})){const row=results.moduleTelemetry[key]||={};for(const [metric,value] of Object.entries(metrics))bump(row,metric,value);}
     let record=fighters.get(unit.id);
     if(!record){
      record={seat:unit.owner,slot:unit.id%100,type:unit.type,
@@ -134,6 +135,7 @@ export function formatBuildAudit(r){
   'Attributable damage by module: '+JSON.stringify(r.moduleDamage),
   'Damage from delivery-enabled hits (overlapping): '+JSON.stringify(r.moduleHits),
   'Primary damage redirected by Chain (not a bonus): '+r.chainRedirected,
+  'Opt-in mechanical counters: '+JSON.stringify(r.moduleTelemetry),
   'Top cumulative-performance fighters (min 3 combat rounds):'];
  for(const f of r.standouts.slice(0,10)){
   lines.push('  seed '+f.seed+' seat '+f.seat+' '+f.type+' · '+f.dps+' damage/sec over '+f.combatRounds+

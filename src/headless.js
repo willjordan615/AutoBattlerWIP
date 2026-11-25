@@ -1,4 +1,4 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=module-expansion-310';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng} from './simulation.js?v=module-telemetry-311';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
 export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','followthrough','disengage','velocity','rally','resonance','fortify','siphon','steadfast','patience','resolve','ricochet'];
 export const UTILITY_MODULES=['dash','dodge','backstep','flank','intercept'];
@@ -111,6 +111,7 @@ export function rankRound(match,battle){
  const ranking=[];for(const group of groups){if(group.length===1){ranking.push(group[0]);continue}const wins=new Map(group.map(i=>[i,0]));for(let i=0;i<group.length;i++)for(let j=i+1;j<group.length;j++){const winner=duel(match,group[i],group[j]);wins.set(winner,wins.get(winner)+1)}ranking.push(...group.sort((a,b)=>wins.get(b)-wins.get(a)||a-b))}return ranking}
 export function beginCombat(match){if(match.phase!=='combat')throw Error('Complete the draft first');const battle=spawn(match.players,ARENAS[(match.round-1)%ARENAS.length],match.seed+match.round*991,match.round,match.lastSpawnSlots);match.lastSpawnSlots=battle.spawnSlots.slice();return battle}
 export function completeCombat(match,battle){if(match.phase!=='combat')throw Error('Combat already resolved');const ranking=rankRound(match,battle);const before=match.players.map(p=>p.hp);resolvePlayerHP(match.players,ranking,match.round);match.lastRanking=ranking;const result={round:match.round,ranking,damage:before.map((hp,i)=>hp-match.players[i].hp),remaining:match.players.map(p=>p.hp),time:battle.time,eliminations:battle.eliminations,
+ ...(battle.moduleTelemetry?{moduleTelemetry:battle.moduleTelemetry}:{}),
  combatReport:battle.units.map(u=>({id:u.id,owner:u.owner,type:u.type,
   damage:Math.round((u.combatStats?.damage||0)*10)/10,
   moduleDamage:Object.fromEntries(Object.entries(u.combatStats?.moduleDamage||{}).map(([k,v])=>[k,Math.round(v*100)/100])),

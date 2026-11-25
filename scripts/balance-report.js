@@ -17,7 +17,7 @@ export function runBalance({matches=100,seed=1,mode='strategic',maxRounds=250}={
  const chassis=Object.fromEntries(TYPES.map(t=>[t,{games:0,wins:0,placements:[0,0,0,0]}]));
  const offers=new Map(),picks=new Map(),pickedWins=new Map(),pickedGames=new Map(),pickedByKind=new Map();
  const matchRounds=[],combatDurations=[],roundDamage=[[],[],[],[]],timeouts=new Map(),arenas=new Map(),rosterSizes=new Map();
- const firstPick=new Map(),firstPickWins=new Map(),unresolved=[];
+ const firstPick=new Map(),firstPickWins=new Map(),unresolved=[],draftContexts={};
  let totalRounds=0,totalCombat=0,combatTimeouts=0,completed=0;
  for(let trial=0;trial<matches;trial++){
   // Rotating seats removes the built-in fixed-position advantage from chassis comparisons.
@@ -27,7 +27,7 @@ export function runBalance({matches=100,seed=1,mode='strategic',maxRounds=250}={
   const types=Array.from({length:4},(_,seat)=>initial[(seat+rotation)%4]);
   const matchSeed=(seed+Math.imul(trial+1,2654435761))>>>0;
   const match=createMatch(types,matchSeed);
-  const matchPicks=Array.from({length:4},()=>new Set());
+  const matchPicks=Array.from({length:4},()=>new Set()),contexts=[];
   const firstPicks=Array(4).fill(null);
   draftPool(match);
   while(match.phase!=='finished'&&match.round<=maxRounds){
@@ -43,7 +43,7 @@ export function runBalance({matches=100,seed=1,mode='strategic',maxRounds=250}={
     if(!card)throw Error('Draft pick missing original card');
     const key=card.kind+':'+card.key;
     increment(picks,key);increment(pickedByKind,card.kind);
-    matchPicks[pick.player].add(key);
+    matchPicks[pick.player].add(key);contexts.push({key,seat:pick.player,roundBand:match.round<=3?'early':match.round<=7?'middle':'late',squadSize:match.players[pick.player].squad.length});
     if(match.round===1)firstPicks[pick.player]=key;
    }
    const battle=beginCombat(match);
@@ -59,6 +59,7 @@ export function runBalance({matches=100,seed=1,mode='strategic',maxRounds=250}={
   if(match.phase!=='finished'){unresolved.push(matchSeed);continue}
   completed++;matchRounds.push(match.history.length);totalRounds+=match.history.length;
   const winner=match.players.findIndex(p=>p.hp>0);
+  for(const c of contexts){const k=c.key+'|'+c.roundBand+'|'+c.squadSize;const row=draftContexts[k]||={picks:0,winningPicks:0};row.picks++;row.winningPicks+=Number(c.seat===winner);}
   const finalOrder=[winner,...match.lastRanking.filter(i=>i!==winner)];
   // Final rank after elimination: survivor first, then reverse order of permanent elimination.
   const eliminated=match.players.map((p,i)=>({i,death:match.history.findIndex(h=>h.remaining[i]===0)})).filter(x=>x.i!==winner).sort((a,b)=>b.death-a.death||a.i-b.i);
@@ -79,7 +80,7 @@ export function runBalance({matches=100,seed=1,mode='strategic',maxRounds=250}={
  for(const [seat,v] of seats.entries())if(v.games>=20&&Math.abs(pct(v.wins,v.games)-25)>=10)flags.push({kind:'seat-win-rate',item:'seat '+seat,rate:pct(v.wins,v.games),baseline:25,n:v.games});
  if(totalCombat>=20&&pct(combatTimeouts,totalCombat)>=20)flags.push({kind:'combat-timeout',rate:pct(combatTimeouts,totalCombat),threshold:20,n:totalCombat});
  for(const v of pickStats)if(v.playersDrafting>=30&&Math.abs(v.winRateWhenDrafted-baseline)>=15)flags.push({kind:'module-correlation',item:v.module,rate:v.winRateWhenDrafted,baseline,n:v.playersDrafting,note:'Correlation, not causal module strength'});
- return {config:{matches,seed,mode,maxRounds},completed,unresolved:unresolved.slice(0,20),averageRounds:rounded(avg(matchRounds)),minRounds:Math.min(...matchRounds),maxRoundsObserved:Math.max(...matchRounds),combat:{battles:totalCombat,averageSeconds:rounded(avg(combatDurations)),timeoutCount:combatTimeouts,timeoutPct:pct(combatTimeouts,totalCombat),arenas:entries(arenas),timeoutsByArena:entries(timeouts),averageDamageByPlacement:roundDamage.map(xs=>rounded(avg(xs)))},seats:seats.map((v,i)=>({seat:i,games:v.games,wins:v.wins,winRate:pct(v.wins,v.games),placements:v.placements})),startingChassis:Object.fromEntries(Object.entries(chassis).map(([k,v])=>[k,{...v,winRate:pct(v.wins,v.games)}])),modules:pickStats,rosterSizes:entries(rosterSizes),picksByKind:entries(pickedByKind),flags};
+ return {config:{matches,seed,mode,maxRounds},completed,unresolved:unresolved.slice(0,20),averageRounds:rounded(avg(matchRounds)),minRounds:Math.min(...matchRounds),maxRoundsObserved:Math.max(...matchRounds),combat:{battles:totalCombat,averageSeconds:rounded(avg(combatDurations)),timeoutCount:combatTimeouts,timeoutPct:pct(combatTimeouts,totalCombat),arenas:entries(arenas),timeoutsByArena:entries(timeouts),averageDamageByPlacement:roundDamage.map(xs=>rounded(avg(xs)))},seats:seats.map((v,i)=>({seat:i,games:v.games,wins:v.wins,winRate:pct(v.wins,v.games),placements:v.placements})),startingChassis:Object.fromEntries(Object.entries(chassis).map(([k,v])=>[k,{...v,winRate:pct(v.wins,v.games)}])),modules:pickStats,draftContexts,rosterSizes:entries(rosterSizes),picksByKind:entries(pickedByKind),flags};
 }
 export function formatBalance(report){
  const lines=[`BALANCE · ${report.config.mode} · ${report.completed}/${report.config.matches} finished · seed ${report.config.seed}`,`Match length: ${report.averageRounds} rounds avg · ${report.minRounds}-${report.maxRoundsObserved}`,`Combat: ${report.combat.averageSeconds}s avg · ${report.combat.timeoutPct}% timeout (${report.combat.timeoutCount}/${report.combat.battles})`,'Starting chassis (win %, sample):'];

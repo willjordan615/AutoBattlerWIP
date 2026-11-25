@@ -7,6 +7,8 @@
     "balance": "node scripts/balance.js",
     "balance:report": "node scripts/balance-report.js",
     "balance:random": "node scripts/balance-report.js 100 random",
-    "diagnose:navigation": "node scripts/navigation-diagnostics.js"
+    "diagnose:navigation": "node scripts/navigation-diagnostics.js",
+    "balance:modules": "node scripts/module-comparison.js",
+    "balance:audit": "node scripts/build-audit.js"
   }
 }
