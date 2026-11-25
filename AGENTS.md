@@ -7,6 +7,13 @@ Repository: https://github.com/willjordan615/AutoBattlerWIP. Default branch: mai
 - Batch related edits in one commit. Preserve seeded RNG, event order, module/draft ordering and fixed 30 Hz stepping unless explicitly changing a rule. Never mix structural refactors with balance changes.
 - Prefer a short branch and an atomic commit for cross-file changes; do not overwrite concurrent work. Favor rapid prototype iteration over exhaustive release gates. Commit useful coherent changes without waiting on unrelated CI; fix regressions promptly or roll back. Report actual results and any failures or unverified work. Make reasonable implementation decisions independently; only ask when a material design choice cannot be inferred.
 
+## Execution and failure recovery
+- Implementation requests authorize the relevant edits and commits unless the user explicitly requests planning or review only. A plan is not a completed change: proceed from inspection to edits to a verified commit in the same session whenever the tools permit.
+- Use the contents API with the current blob SHA for single-file edits; use blob/tree/commit/ref operations for coherent multi-file changes. Verify the resulting commit and branch head. If a write fails, inspect the actual response and current head; retry a transient failure once or use another supported write method when appropriate. Never overwrite concurrent changes or bypass access controls.
+- Keep routine updates moving. Missing local execution or pending CI is not a reason to withhold a coherent prototype commit; state which checks are unverified and distinguish a committed change from a passing test or deployed build.
+- If blocked, report the exact failed operation, returned error/status (redact secrets), last successful step, whether a write was attempted, and any existing commit SHA/branch. If no error was returned or no write was attempted, say so plainly. Do not infer a permissions issue, service outage, file-size limit or other technical cause without evidence.
+- Favor completing independent, useful parts of an update over stopping the entire task. Do not repeatedly ask for authorization already given, narrate routine intermediate steps, or claim that changes were implemented without verifying the repository.
+
 ## File ownership and focused tests
 | Concern | Source | Tests (under tests/) |
 | --- | --- | --- |
