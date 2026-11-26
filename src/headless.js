@@ -1,6 +1,6 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng,morphologyTier} from './simulation.js?v=engine-323-final';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng,morphologyTier} from './simulation.js?v=engine-323-r1';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-323-final';
+import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-323-r1';
 export {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES};
 export function cooperativeWeight(players){const alive=players.filter(p=>p.hp>0);return alive.length?alive.filter(p=>p.squad.length>1).length/alive.length:0;}
 export const catalog=[
@@ -19,6 +19,7 @@ export function canEquip(unit,card){
  if(card.kind==='morphology')return MORPHOLOGY_MODULES.includes(card.key)&&(card.key==='growth'?morphologyTier(unit)!==1:morphologyTier(unit)!==-1);
   if(card.kind==='utility')return (unit.mods[card.key]||0)<(card.key==='coordinated'?1:2);
  if(card.kind==='passive')return !unit.passives.includes(card.key);
+ if(card.kind==='attack'&&card.key==='resolve')return !(unit.mods.resolve>0);
  return true;
 }
 export function legal(player,card){

@@ -114,3 +114,9 @@ test('Coordinated is a unique utility and replacement clears its stat modifier',
  pick('coordinated','utility');assert.equal(u.mods.coordinated,1);assert.deepEqual(u.passives,['coordinated']);assert.throws(()=>pick('coordinated','utility'));
  pick('regen','passive');pick('bulwark','passive');assert.equal(u.mods.coordinated,0);assert.deepEqual(u.passives,['bulwark','regen']);
 });
+
+test('Resolve is a unique attack module, not a utility, and may be equipped by each fighter',()=>{
+ const m=createMatch(),p=m.players[0];p.squad.push(makeChassis('rogue'));const card={uid:'resolve',kind:'attack',key:'resolve',name:'Resolve'};
+ const pick=index=>{m.phase='draft';m.draft={pool:[card],originalPool:[card],order:[0],turn:0,picks:[]};return assign(m,0,card.uid,index);};
+ pick(0);assert.equal(p.squad[0].mods.resolve,1);assert.deepEqual(p.squad[0].passives,[]);assert.throws(()=>pick(0));assert.ok(legal(p,card));pick(1);assert.equal(p.squad[1].mods.resolve,1);assert.equal(legal(p,card),false);
+});

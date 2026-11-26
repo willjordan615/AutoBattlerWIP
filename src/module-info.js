@@ -1,4 +1,4 @@
-import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-323-final';
+import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-323-r1';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
@@ -11,7 +11,7 @@ export const DETAILS={
  "attack:siphon":"Restore 6% of actual direct damage as combat HP per stack, capped at 24%.",
  "attack:steadfast":"Landed attacks grant 25% displacement stability per stack, max 100%, for 1s.",
  "attack:patience":"Increase the existing valid holding-position preference by 30% per stack, max 100%. Does not reward idle time or add damage.",
- "attack:resolve":"Reduce movement slows by 80% at any HP. Each stack also grants +1 defense (total defense capped at 10); slow resistance does not stack.",
+ "attack:resolve":"Reduce movement slows by 80% at any HP and gain +2 defense (total defense capped at 10). Unique per fighter; does not occupy a utility slot.",
  "attack:ricochet":"Ranged projectiles can bounce off terrain or boundaries once per stack (max 2), renewing the full original travel range (including Range upgrades) at each bounce. Hazardous and Chain may each activate once per volley at a bounce; Chain adds auxiliary damage without reducing the projectile. Melee hits slide the target sideways by 16 arena units per stack (max 4 stacks), reduced by displacement resistance. Combines with Knockback into one movement. Collision with terrain or another fighter stuns the sliding fighter for 1s, with 5s target-specific stun immunity.",
  "passive:aegis":"Grant a threatened nearby ally a 12 HP temporary shield for 2s. Cooldown 6s.",
  "passive:inspiration":"Allies within 220 units recover utility cooldowns 35% faster.",
@@ -70,7 +70,7 @@ export const SUMMARIES={
  "attack:siphon":"Recover HP from landed attacks",
  "attack:steadfast":"Resist displacement after hitting",
  "attack:patience":"Favor advantageous holds",
- "attack:resolve":"80% slow resistance; +1 defense per stack",
+ "attack:resolve":"80% slow resistance · +2 defense · unique",
  "attack:ricochet":"Renewed terrain bounce / lateral slide and collision stun",
  "passive:aegis":"Shield threatened ally",
  "passive:inspiration":"Ally cooldown recovery +35% within 220 units",

@@ -38,7 +38,7 @@ test('Inspiration grants 35% extra utility cooldown recovery only to nearby alli
  near(short.allyMobility,short.time);
 });
 
-test('Resolve gives fixed resistance and additive defense at every health level',()=>{
+test('Resolve gives fixed resistance and defense at every health level, even with legacy duplicate copies',()=>{
  const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-8);
  for(const type of Object.keys(CHASSIS))for(const n of [0,1,3]){
   const ch=makeChassis(type);ch.mods.resolve=n;
@@ -47,14 +47,14 @@ test('Resolve gives fixed resistance and additive defense at every health level'
   near(stats(u).speed,expected);
   u.hp=1;
   near(stats(u).speed,expected);
-  near(stats(u).defense,CHASSIS[type].defense+n);
+  near(stats(u).defense,CHASSIS[type].defense+(n>0?2:0));
   u.effects.slowUntil=1;
   near(stats(u).speed,CHASSIS[type].speed);
  }
 });
 test('Resolve records slow exposure and nominal defense contribution',()=>{
  const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-8);
- const ch=makeChassis('bruiser');ch.mods.resolve=2;
+ const ch=makeChassis('bruiser');ch.mods.resolve=1;
  const battle=spawn([{hp:100,squad:[ch]},{hp:100,squad:[makeChassis('rogue')]}],ARENAS[0],42,1);
  const [u,v]=battle.units;
  u.effects={slowUntil:1,slowStrength:.4};
