@@ -1,5 +1,5 @@
 // Engine subsystem: module-registry. See AGENTS.md for ownership and test routes.
-import {distance} from './geometry.js?v=engine-321-hp40';
+import {distance} from './geometry.js?v=engine-322';
 
 // Attack modules are composed by stage, not treated as interchangeable procs.
 // Geometric/conditional effects work per hit; persistent aftermath has an
@@ -9,7 +9,7 @@ export const ATTACK_STAGES={
  piercing:{stage:'shape',label:'Extra targets'},
  area:{stage:'shape',label:'Hit footprint'},
  range:{stage:'shape',label:'Reach'},
- chain:{stage:'shape',label:'Secondary target / damage redistribution'},
+ chain:{stage:'shape',label:'Additional secondary damage'},
  knockback:{stage:'impact',label:'Displacement'},
  followthrough:{stage:'impact',label:'Follow-through displacement',cooldown:.75},
  taunt:{stage:'aftermath',label:'Target override'},
@@ -30,9 +30,9 @@ export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt'
 export const UTILITY_MODULES=['dash','dodge','backstep','flank','intercept'];
 export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
- coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1},coordinated:{coordinated:1},independent:{independent:1},opportunist:{opportunist:1},pursuer:{pursuer:1},challenger:{challenger:1}
+ coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1},coordinated:{coordinated:1},opportunist:{opportunist:1},pursuer:{pursuer:1},challenger:{challenger:1}
 };
 export const PASSIVE_MODULES=['regen','bulwark','haste','focus','retaliation','aegis','inspiration','anchor','wake','repulsion'];
-export const COOPERATIVE_KEYS=new Set(['expose','guardian','intercept','rally','resonance','aegis','inspiration','coordinated','independent']);
+export const COOPERATIVE_KEYS=new Set(['expose','guardian','intercept','rally','resonance','aegis','inspiration','coordinated']);
 
 export const MORPHOLOGY_MODULES=['growth','shrink'];

@@ -28,6 +28,6 @@ export const PROJECTILE_SPEED=320;
 export const PROJECTILE_RADIUS=3;
 
 // Signed size tier, shared by the physical and derived-stat systems.
-export function morphologyTier(unit){const m=(unit.chassis||unit).mods||{};return Math.max(-3,Math.min(3,(m.growth||0)-(m.shrink||0)));}
+export function morphologyTier(unit){const m=(unit.chassis||unit).mods||{};return Math.sign((m.growth||0)-(m.shrink||0));}
 export function radiusOf(unit){return CHASSIS[unit.type].radius*(1+.12*morphologyTier(unit));}
-export function attackTimeScale(unit){return 1+.10*morphologyTier(unit);}
+export function attackTimeScale(unit){const t=morphologyTier(unit);return t<0?.85:t>0?1.10:1;}

@@ -1,4 +1,4 @@
-# Agent guide — AutoBattlerWIP (3.2.1)
+# Agent guide — AutoBattlerWIP (3.2.2)
 Repository: https://github.com/willjordan615/AutoBattlerWIP. Default branch: main. Playable: https://willjordan615.github.io/AutoBattlerWIP/. Native JavaScript ES modules, Node 22+, no runtime dependencies.
 
 ## Workflow
@@ -38,7 +38,7 @@ Engine modules import their direct dependencies, never the facade. Keep new file
 ## Design invariants
 - Deterministic, DOM-free engine; browser is an adapter to the same match rules. Four-player FFA, shared draft before first combat and every subsequent round, active players + 2 offers; duplicated offers remain contested. Maximum three chassis per squad. Winner takes no persistent HP loss. Ties use shared headless ranking rules.
 - Fixed 30 Hz, 30-second rounds. Legitimate holding, survival and timeouts are valid. No forced aggression timer. Movement should remain purposeful and terrain-aware. Navigation regression gates flag physically stuck pursuers and failed stationary-target fixtures, not every timeout.
-- Morphology modules use net size tiers (-3 to +3) and do not occupy utility slots. Use radiusOf for actor geometry and attackTimeScale for attack timing; preserve cancellation and shared browser/headless behavior.
+- Morphology is a unique specialization (-1, 0, +1); opposite cards replace and duplicates are illegal. It does not occupy utility slots. Use radiusOf and attackTimeScale consistently.
 - Utility/passive slots remain limited; duplicate movement utility copies improve cooldown not travel, nonstacking passives remain unique. Preserve ability and module cooldown semantics. Optional diagnostics and telemetry must not consume RNG or change outcomes.
 - Low-end Android: no runtime dependencies or heavy assets; measure CPU and allocations before optimizing. Do not minify maintained source. Keep historical details in docs/history, current behavior in code and tests.
 

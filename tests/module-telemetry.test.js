@@ -13,7 +13,7 @@ test('Inspiration grants 35% extra utility cooldown recovery only to nearby alli
   const battle=spawn([{hp:100,squad:[a,b]},{hp:100,squad:[makeChassis('ranged')]}],ARENAS[0],42,1);
   const [u,v,e]=battle.units;
   Object.assign(u,{x:120,y:120});
-  Object.assign(v,{x:far?300:160,y:120});
+  Object.assign(v,{x:far?360:300,y:120});
   Object.assign(e,{x:610,y:420});
   v.mobilityCd.dash=short?STEP*1.1:10;
   v.reactionCd.focus=u.mobilityCd.dash=e.mobilityCd.dash=10;
@@ -59,7 +59,7 @@ test('Resolve records slow exposure and nominal defense contribution',()=>{
  const [u,v]=battle.units;
  u.effects={slowUntil:1,slowStrength:.4};
  u.bulwarkUntil=2;u.fortifyUntil=2;u.fortifyStrength=3;u.anchorUntil=2;
- near(stats(u).defense,CHASSIS.bruiser.defense+2+5+3+4);
+ near(stats(u).defense,CHASSIS.bruiser.defense+2+3+3+4);
  battle.moduleTelemetry={};
  tick(battle,STEP);
  near(battle.moduleTelemetry[u.id].resolve.slowActiveSeconds,STEP);
@@ -67,5 +67,5 @@ test('Resolve records slow exposure and nominal defense contribution',()=>{
  u.effects.sunderUntil=2;u.effects.sunder=3;
  const hit=resolveAttackModules(battle,[{source:v,target:u,rawDamage:30,damage:30}])[0];
  near(battle.moduleTelemetry[u.id].resolve.nominalDamagePrevented,2);
- near(hit.damage,30-(CHASSIS.bruiser.defense+2+5+3+4-3));
+ near(hit.damage,30-(CHASSIS.bruiser.defense+2+3+3+4-3));
 });

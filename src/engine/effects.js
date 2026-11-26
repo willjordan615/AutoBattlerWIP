@@ -1,10 +1,10 @@
 // Engine subsystem: effects. See AGENTS.md for ownership and test routes.
-import {ATTACK_STAGES} from './module-registry.js?v=engine-321-hp40';
-import {distance,clearLine} from './geometry.js?v=engine-321-hp40';
-import {resolveResistance,stats} from './stats.js?v=engine-321-hp40';
-import {CHASSIS,radiusOf} from './config.js?v=engine-321-hp40';
-import {physicalLineClear} from './navigation.js?v=engine-321-hp40';
-import {measure} from './telemetry.js?v=engine-321-hp40';
+import {ATTACK_STAGES} from './module-registry.js?v=engine-322';
+import {distance,clearLine} from './geometry.js?v=engine-322';
+import {resolveResistance,stats} from './stats.js?v=engine-322';
+import {CHASSIS,radiusOf} from './config.js?v=engine-322';
+import {physicalLineClear} from './navigation.js?v=engine-322';
+import {measure} from './telemetry.js?v=engine-322';
 
 // Returns true for all targets struck by the SAME committed attack; other
 // attacks respect the independent cooldown. Projectile volleys can arrive
@@ -98,7 +98,7 @@ export function resolveAttackModules(state,attacks){
   if(mods.resonance&&target.lastAllyHit?.owner===source.owner&&target.lastAllyHit.sourceId!==source.id&&state.time-target.lastAllyHit.time<=1.5)gain('resonance',Math.min(4,mods.resonance)*1.5);
   if(mods.precision&&target.hp/target.maxHp>.75)gain('precision',mods.precision*2);
   if(mods.momentum)gain('momentum',mods.momentum*2*traveledRecently(source,state.time)/100);
-  if(source.retaliationReady>state.time){gain('retaliation',4);source.retaliationReady=0}
+  if(source.retaliationReady>state.time){gain('retaliation',3);source.retaliationReady=0}
   if(effects.expose&&effects.expose.until>state.time&&
      effects.expose.owner===source.owner&&effects.expose.sourceId!==source.id){
    gain('expose',2*effects.expose.stacks);effects.expose=null;
@@ -110,15 +110,14 @@ export function resolveAttackModules(state,attacks){
   if(state.moduleTelemetry){if(target.chassis.mods.resolve){const withoutResolve=Math.max(0,baseDefense-target.chassis.mods.resolve-sunderStrength);measure(state,target,'resolve','nominalDamagePrevented',Math.max(0,Math.max(1,raw-withoutResolve)-hit.damage));}if(target.fortifyUntil>state.time)measure(state,target,'fortify','nominalDamagePrevented',Math.max(0,Math.max(1,raw-Math.max(0,defense-(target.fortifyStrength||0)))-hit.damage));if(target.anchorUntil>state.time)measure(state,target,'anchor','nominalDamagePrevented',Math.max(0,Math.max(1,raw-Math.max(0,defense-4))-hit.damage));}
   const chained=mods.chain?state.units.filter(u=>u!==target&&u.hp>0&&u.owner!==source.owner&&
    distance(u,target)<=95&&clearLine(target,u,state.arena)).sort((a,b)=>distance(a,target)-distance(b,target)||a.id-b.id)[0]:null;
-  const split=mods.chain?Math.min(.6,.2*mods.chain):0;
-  hit.chainRedirected=hit.damage*split;
-  hit.damage*=1-split;
+  const split=mods.chain?Math.min(.60,.15*mods.chain):0;
+  hit.chainRedirected=0;
   const rearMultiplier=hit.rearHit?1.15:1;
   hit.damage*=rearMultiplier;
-  hit.moduleDamage=Object.fromEntries(Object.entries(contributions).map(([key,value])=>[key,value*(1-split)*rearMultiplier]));
+  hit.moduleDamage=Object.fromEntries(Object.entries(contributions).map(([key,value])=>[key,value*rearMultiplier]));
   output.push(hit);
   if(chained){
-   const damage=Math.max(0,raw*split-stats(chained).defense);
+   const damage=Math.max(0,raw-stats(chained).defense)*split;
    output.push({source,target:chained,rawDamage:raw*split,
     damage,secondary:true,moduleDamage:{chain:damage}});
    state.visualEvents.push({kind:'chain',x:target.x,y:target.y,toX:chained.x,toY:chained.y,owner:source.owner});

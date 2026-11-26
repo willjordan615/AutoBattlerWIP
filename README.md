@@ -1,6 +1,6 @@
-# Modular Arena Autobattler — Prototype 3.2.1
+# Modular Arena Autobattler — Prototype 3.2.2
 
-Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. The 3.2.1 gameplay update adds Morphology draft modules, extended Follow Through, and a rear-sector direct damage bonus. The 3.2 refactor verification below is historical, not verification of this balance update.
+Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. Prototype 3.2.2 revises outlier modules after the 3.2.1 balance audit.
 
 ## Run
 - Browser: serve the repository statically or open the GitHub Pages build. Do not open via file://.
@@ -16,7 +16,8 @@ src/simulation.js is the stable public facade; implementation lives in src/engin
 - Continuous 2D movement, obstacle navigation, targeting weights, deterministic attack cycles, cooperative positioning, and 30-second rounds. Player HP is depleted by placement, with streak scaling; last surviving player wins.
 - Current balance values and module behavior are defined in the engine and tests. Historical release notes and original design decisions are preserved under docs/history/.
 
-- Morphology: Growth and Shrink are opposing, stackable trade-offs (net tiers -3 to +3), separate from utility slots. Each growth tier adds 12% radius, 10% damage, 12% melee/6% ranged reach, reduces movement speed and attack frequency by 10%, and adds 10% windup and recovery duration. Shrink reverses these modifiers. HP instead compounds by a factor of 1.4 per net growth tier (divide by 1.4 per shrink tier), ensuring cancellation and positive HP at all tiers.
+- Morphology: unique Growth (+30% HP) or Shrink (-15% HP); opposite cards replace. Shrink increases movement and attack frequency by 15% and reduces attack phase duration by 15%. Growth retains its 10% speed penalties. Both retain size, reach and damage trade-offs.
+- Follow Through moves to an adjacent legal destination and grants a bonus release at most once per second. Chain preserves primary damage and adds 15% auxiliary damage per stack (cap 60%). Bulwark grants +3 defense, Retaliation +3 raw damage, Inspiration radius 220. Coordinated makes its holder a formation anchor; Independent is removed from draft.
 
 ## Verification
 The structural parity command compares complete seeded matches and current engine state against a selected Git commit: npm run verify:parity -- <baseline SHA>. The original 3.1.2 baseline is 9416d7c130a7e40838822f5594800caaeb47dff4. CI and device performance must be checked independently; a structural move does not imply faster runtime or improved balance. See AGENTS.md for exact checks and reporting requirements.

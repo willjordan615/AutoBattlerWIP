@@ -208,7 +208,7 @@ test('2.12.3 fighters cannot mutually brace just outside actual attack reach',()
  assert.ok(dir.x>0,'must advance into actual attack access rather than hold in radius padding');
 });
 
-test('2.12.4 movement utility tuning increases distance without affecting Follow Through',()=>{
+test('2.12.4 movement utilities and Follow Through retain distinct speed scaling',()=>{
  assert.equal(UTILITY_MOVE_SCALE,1.3);
  const sample=(type)=>{
   const p=players();p[0].squad=[makeChassis(type)];p[1].squad=[makeChassis('bruiser')];const battle=spawn(p,ARENAS[0],9714);
@@ -227,7 +227,7 @@ test('2.12.4 movement utility tuning increases distance without affecting Follow
  battle.units=[attacker,target];attacker.x=200;attacker.y=200;target.x=245;target.y=200;
  attacker.chassis.mods.followthrough=1;battle.time=.2;
  assert.ok(applyFollowthrough(battle,{source:attacker,target,attackId:972,attackDirection:0}));
- assert.equal(attacker.followthroughCommit.speedFactor,1,'Follow Through movement speed unaffected');
+ assert.equal(attacker.followthroughCommit.speedFactor,1.6,'Follow Through uses independent speed scaling');
 });
 test('2.12.4 utility movement still rejects obstructed or out-of-bounds landing',()=>{
  const battle=spawn(players(),ARENAS[1],9716),unit=battle.units[0],target=battle.units[1];

@@ -1,9 +1,9 @@
 // Engine subsystem: positioning. See AGENTS.md for ownership and test routes.
-import {stats} from './stats.js?v=engine-321-hp40';
-import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-321-hp40';
-import {healthFraction} from './targeting.js?v=engine-321-hp40';
-import {METRICS,STEP,CHASSIS,radiusOf} from './config.js?v=engine-321-hp40';
-import {recentMovement} from './collision.js?v=engine-321-hp40';
+import {stats} from './stats.js?v=engine-322';
+import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-322';
+import {healthFraction} from './targeting.js?v=engine-322';
+import {METRICS,STEP,CHASSIS,radiusOf} from './config.js?v=engine-322';
+import {recentMovement} from './collision.js?v=engine-322';
 
 // Utility movement is deterministic, shares the existing targeting weights, and
 // consumes its own cooldown. Terrain still blocks every movement technique.
@@ -48,6 +48,14 @@ export function positionScore(state,u,target,point,st,enemies){
  let score=METRICS.reduce((sum,k)=>sum+(w[k]||0)*(features[k]||0),0);
  // More safety-conscious allies yield space to teammates who prefer taking risks.
  // The preference is relative: a bold ranged build may stand its ground.
+ // A coordinator attracts teammates toward a formation radius without overriding terrain or evasion.
+ const coordinators=allies.filter(a=>(a.chassis.weights.coordinated||0)>0).sort((a,b)=>(b.chassis.weights.coordinated||0)-(a.chassis.weights.coordinated||0)||a.id-b.id);
+ const coordinator=coordinators[0];
+ if(coordinator&&(!(w.coordinated>0)||coordinator.chassis.weights.coordinated>w.coordinated||coordinator.id<u.id)){
+  const desired=st.radius+radiusOf(coordinator)+35;
+  const excess=Math.max(0,distance(point,coordinator)-desired);
+  score-=Math.min(3,coordinator.chassis.weights.coordinated)*3*Math.min(2,excess/100);
+ }
  const mySafety=w.safety||0;
  for(const ally of allies){
   const theirSafety=ally.chassis.weights.safety||0;

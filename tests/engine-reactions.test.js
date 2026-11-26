@@ -45,7 +45,7 @@ test('bulwark prepares before a dangerous attack rather than providing permanent
  for(let i=0;i<6;i++)tick(b,STEP);
  assert.equal(defender.combatStats.bulwark,1);
  assert.ok(defender.bulwarkUntil>b.time);
- assert.equal(stats(defender).defense,9);
+ assert.equal(stats(defender).defense,7);
 });
 test('fully unusable shared board gets one legal fallback without removing duplicates prematurely',()=>{
  const m=createMatch(['bruiser','bruiser'],151);draftPool(m);

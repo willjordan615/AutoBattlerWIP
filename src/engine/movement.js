@@ -1,9 +1,9 @@
 // Engine subsystem: movement. See AGENTS.md for ownership and test routes.
-import {CHASSIS,radiusOf} from './config.js?v=engine-321-hp40';
-import {clearLine,distance,rectHit,clamp} from './geometry.js?v=engine-321-hp40';
-import {actorClearance,navigationPath} from './navigation.js?v=engine-321-hp40';
-import {cooperativeEngagement,positionScore,holdingOpportunity} from './positioning.js?v=engine-321-hp40';
-import {measure} from './telemetry.js?v=engine-321-hp40';
+import {CHASSIS,radiusOf} from './config.js?v=engine-322';
+import {clearLine,distance,rectHit,clamp} from './geometry.js?v=engine-322';
+import {actorClearance,navigationPath} from './navigation.js?v=engine-322';
+import {cooperativeEngagement,positionScore,holdingOpportunity} from './positioning.js?v=engine-322';
+import {measure} from './telemetry.js?v=engine-322';
 
 export function chooseMovement(state,u,target,st,enemies,dt){
  u.previouslyHolding=!!u.holdingPosition;u.holdingPosition=false;
@@ -15,7 +15,16 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  u.navigationBlocked=routeBlocked;u.navigationActorPressure=actorPressure;
  let nav=u.navigation;
  const hasGoal=routeBlocked||distance(u,target)>Math.min(st.range*.85,st.range-5);
- const teamSupport=cooperativeEngagement(state,u,st,enemies);
+ let teamSupport=cooperativeEngagement(state,u,st,enemies);
+ const coordinators=state.units.filter(a=>a!==u&&a.hp>0&&a.owner===u.owner&&(a.chassis.weights.coordinated||0)>0).sort((a,b)=>(b.chassis.weights.coordinated||0)-(a.chassis.weights.coordinated||0)||a.id-b.id);
+ const leader=coordinators[0],myWeight=u.chassis.weights.coordinated||0;
+ if(leader&&(!myWeight||leader.chassis.weights.coordinated>myWeight||(leader.chassis.weights.coordinated===myWeight&&leader.id<u.id))){
+  const d=distance(u,leader),radius=radiusOf(u)+radiusOf(leader)+35;
+  if(d>radius+Math.max(12,45-10*leader.chassis.weights.coordinated)){
+   const p={x:leader.x+(u.x-leader.x)*radius/d,y:leader.y+(u.y-leader.y)*radius/d};
+   if(p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&!arena.obstacles.some(o=>rectHit(p.x,p.y,r,o)))teamSupport={point:p,allyId:leader.id,enemyId:target.id,mode:'formation'};
+  }
+ }
  // A direct attack position needs no terrain route. Tactical movement is free to
  // choose a preferred range, provided no terrain detour is being completed.
  if(nav&&!terrainBlocked&&distance(u,target)<=st.range){u.navigation=null;u.navProgress=null;nav=null;u.navNextPlanTime=state.time+.35}

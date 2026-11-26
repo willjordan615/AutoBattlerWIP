@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=engine-321-hp40';
-import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-321-hp40';
+import {CHASSIS} from './simulation.js?v=engine-322';
+import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-322';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];
@@ -95,7 +95,7 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
   if(card.kind==='morphology'){
     const growth=card.key==='growth',tier=stack('growth')-stack('shrink');
     add(parts,'Chassis specialization',growth?(type==='bruiser'?3:type==='ranged'?1:0):(type==='rogue'?3:type==='ranged'?1:0));
-    add(parts,'Existing specialization',Math.abs(tier)*(Math.sign(tier)===(growth?1:-1)?-1.5:-2));
+    add(parts,'Replacing existing morphology',tier?-5:0);
    }
    if(card.kind==='attack'){
    if(card.key==='momentum')add(parts,'Movement-based combat style',(mobile-1)*3+(type==='rogue'?3:0));

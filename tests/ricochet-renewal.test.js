@@ -23,7 +23,7 @@ test('Ranged Ricochet renews original upgraded travel distance and preserves spe
  advanceProjectiles(state,1,[]);
  assert.equal(state.projectiles.length,0);
 });
-test('Ranged bounce effects are bounded per volley and Chain redistributes raw value',()=>{
+test('Ranged bounce effects are bounded per volley and Chain adds auxiliary value',()=>{
  const {state,source,target}=fixture({stacks:8,chain:1,hazardous:1,projectiles:2});
  target.x=70;target.y=250;
  const shot=state.projectiles[0],raw=shot.damage,attacks=[];
@@ -33,7 +33,7 @@ test('Ranged bounce effects are bounded per volley and Chain redistributes raw v
  assert.equal(m.hazardActivations,1);assert.equal(m.chainActivations,1);
  assert.equal(state.zones.length,1);
  assert.equal(attacks.filter(a=>a.secondary).length,1);
- assert.ok(Math.abs(shot.damage+attacks.find(a=>a.secondary).rawDamage-raw)<1e-8);
+ assert.equal(shot.damage,raw);assert.ok(Math.abs(attacks.find(a=>a.secondary).rawDamage-raw*.15)<1e-8);
  assert.ok(shot.volley.hitIds.has(target.id));
  assert.equal(attacks.filter(a=>!a.secondary&&a.target===target).length,0);
 });

@@ -1,9 +1,9 @@
 // Engine subsystem: combat. See AGENTS.md for ownership and test routes.
-import {ATTACK_TIMING,CHASSIS,radiusOf,attackTimeScale,morphologyTier} from './config.js?v=engine-321-hp40';
-import {clearLine,distance,inRearSector} from './geometry.js?v=engine-321-hp40';
-import {measure} from './telemetry.js?v=engine-321-hp40';
-import {spawnProjectileVolley} from './projectiles.js?v=engine-321-hp40';
-import {stats} from './stats.js?v=engine-321-hp40';
+import {ATTACK_TIMING,CHASSIS,radiusOf,attackTimeScale,morphologyTier} from './config.js?v=engine-322';
+import {clearLine,distance,inRearSector} from './geometry.js?v=engine-322';
+import {measure} from './telemetry.js?v=engine-322';
+import {spawnProjectileVolley} from './projectiles.js?v=engine-322';
+import {stats} from './stats.js?v=engine-322';
 
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.
@@ -59,7 +59,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
   const attackId=state.nextAttackId++;
   if(st.delivery==='projectile'){
    const dx=Math.cos(attack.direction),dy=Math.sin(attack.direction);
-   spawnProjectileVolley(state,u,{id:attack.targetId,x:u.x+dx*st.range,y:u.y+dy*st.range},st,attack.direction,attackId);
+   spawnProjectileVolley(state,u,{id:attack.targetId,x:u.x+dx*st.range,y:u.y+dy*st.range},st,attack.direction,attackId,!!attack.followthroughBonus);
   }else{
    const victims=meleeAttackTargets(state,u,attack.direction,st);
    for(let i=0;i<victims.length;i++){
@@ -76,7 +76,7 @@ export function advanceAttack(state,u,target,st,dt,attacks){
     if(st.area>0&&(diff>baseArc||dist>st.range+radius))deliveredBy.push('area');
     const naturalRange=CHASSIS[u.type].range*(1+.12*morphologyTier(u));
     if(st.range>naturalRange&&dist>naturalRange+st.area*9+radius)deliveredBy.push('range');
-    attacks.push({source:u,target:victim,attackId,attackOrigin:{x:u.x,y:u.y},attackDirection:attack.direction,rawDamage:st.damage,
+    attacks.push({source:u,target:victim,attackId,followthroughBonus:!!attack.followthroughBonus,attackOrigin:{x:u.x,y:u.y},attackDirection:attack.direction,rawDamage:st.damage,
      rearHit:inRearSector(victim,u.x-victim.x,u.y-victim.y),
      damage:Math.max(1,st.damage-stats(victim).defense),
      knockback:st.knockback,taunt:st.taunt,deliveredBy});

@@ -31,7 +31,7 @@ test('2.9.1 Sunder, Expose, Chain and Retaliation capture measurable contributio
  assert.equal(follow.moduleDamage.sunder,Math.min(2,stats(enemy).defense));
  ally.retaliationReady=b.time+4;
  const answer=resolveAttackModules(b,[{source:ally,target:enemy,rawDamage:20,damage:20}])[0];
- assert.equal(answer.moduleDamage.retaliation,4);
+ assert.equal(answer.moduleDamage.retaliation,3);
  ally.chassis.mods.chain=1;
  const chained=resolveAttackModules(b,[{source:ally,target:enemy,rawDamage:20,damage:20}]);
  assert.equal(chained.length,2);

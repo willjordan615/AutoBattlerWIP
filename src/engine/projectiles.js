@@ -1,17 +1,17 @@
 // Engine subsystem: projectiles. See AGENTS.md for ownership and test routes.
-import {measure} from './telemetry.js?v=engine-321-hp40';
-import {PROJECTILE_SPEED,PROJECTILE_RADIUS,CHASSIS,radiusOf,morphologyTier} from './config.js?v=engine-321-hp40';
-import {claimAttackEffect} from './effects.js?v=engine-321-hp40';
-import {distance,clearLine,segmentBoxHit,segmentCircleHit,inRearSector} from './geometry.js?v=engine-321-hp40';
-import {stats} from './stats.js?v=engine-321-hp40';
+import {measure} from './telemetry.js?v=engine-322';
+import {PROJECTILE_SPEED,PROJECTILE_RADIUS,CHASSIS,radiusOf,morphologyTier} from './config.js?v=engine-322';
+import {claimAttackEffect} from './effects.js?v=engine-322';
+import {distance,clearLine,segmentBoxHit,segmentCircleHit,inRearSector} from './geometry.js?v=engine-322';
+import {stats} from './stats.js?v=engine-322';
 
 // World-space projectile simulation. Every projectile is resolved in the
 // deterministic combat tick; rendering reads state.projectiles without inferring hits.
 
-export function spawnProjectileVolley(state,u,t,st,aimAngle=null,attackId=null){
+export function spawnProjectileVolley(state,u,t,st,aimAngle=null,attackId=null,followthroughBonus=false){
  const count=Math.min(st.projectiles,9),spacing=.22;
  const angle=aimAngle??Math.atan2(t.y-u.y,t.x-u.x);
- const volley={hitIds:new Set(),attackId:attackId??state.nextAttackId++,origin:{x:u.x,y:u.y},direction:angle};
+ const volley={hitIds:new Set(),attackId:attackId??state.nextAttackId++,origin:{x:u.x,y:u.y},direction:angle,followthroughBonus};
  state.projectiles ||= [];
  for(let i=0;i<count;i++){
   const offset=i===0?0:(i%2?1:-1)*Math.ceil(i/2)*spacing;
@@ -42,13 +42,12 @@ function applyRicochetLocationEffects(state,shot,attacks){
   const target=state.units.filter(u=>u.hp>0&&u.owner!==source.owner&&!volley.hitIds.has(u.id)&&distance(u,shot)<=95&&clearLine(shot,u,state.arena)).sort((a,b)=>distance(a,shot)-distance(b,shot)||a.id-b.id)[0];
   if(target){
    volley.ricochetChain=true;volley.hitIds.add(target.id);
-   const redirected=shot.damage*Math.min(.6,.2*mods.chain);
-   shot.damage-=redirected;
-   const damage=Math.max(0,redirected-stats(target).defense);
+   const fraction=Math.min(.6,.15*mods.chain),redirected=shot.damage*fraction;
+   const damage=Math.max(0,shot.damage-stats(target).defense)*fraction;
    attacks.push({source,target,rawDamage:redirected,damage,secondary:true,attackId:volley.attackId,moduleDamage:{chain:damage}});
    state.visualEvents.push({kind:'chain',x:shot.x,y:shot.y,toX:target.x,toY:target.y,owner:source.owner});
    measure(state,source,'ricochet','chainActivations');
-   measure(state,source,'ricochet','chainRedirectedRaw',redirected);
+   measure(state,source,'ricochet','chainAuxiliaryRaw',redirected);
   }
  }
 }
@@ -117,7 +116,7 @@ export function advanceProjectiles(state,dt,attacks=[]){
     if(shot.landedCount>0&&shot.source.chassis.mods.piercing>0)deliveredBy.push('piercing');
     shot.landedCount++;if(shot.bounced)measure(state,shot.source,'ricochet','postBounceContacts');if(shot.source.chassis.mods.velocity){measure(state,shot.source,'velocity','projectileContacts');measure(state,shot.source,'velocity','nominalTravelSecondsSaved',shot.distanceTraveled/PROJECTILE_SPEED-shot.distanceTraveled/shot.speed);}
     if(shot.source.combatStats&&victim.id!==shot.aimedAtId)shot.source.combatStats.interceptions++;
-    attacks.push({source:shot.source,target:victim,projectile:true,attackId:shot.volley.attackId,
+    attacks.push({source:shot.source,target:victim,projectile:true,attackId:shot.volley.attackId,followthroughBonus:!!shot.volley.followthroughBonus,
      attackOrigin:shot.volley.origin,attackDirection:shot.volley.direction,postBounce:!!shot.bounced,
      rearHit:inRearSector(victim,-shot.vx,-shot.vy),
       rawDamage:shot.damage,damage:Math.max(1,shot.damage-stats(victim).defense),

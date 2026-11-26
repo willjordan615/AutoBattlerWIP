@@ -1,16 +1,16 @@
 // Engine subsystem: loop. See AGENTS.md for ownership and test routes.
-import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-321-hp40';
-import {chooseTarget} from './targeting.js?v=engine-321-hp40';
-import {distance,clearLine,bound} from './geometry.js?v=engine-321-hp40';
-import {measure} from './telemetry.js?v=engine-321-hp40';
-import {stats,resolveResistance} from './stats.js?v=engine-321-hp40';
-import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-321-hp40';
-import {startAttack,attackMovementMultiplier,advanceAttack,attackWindup} from './combat.js?v=engine-321-hp40';
-import {chooseMovement} from './movement.js?v=engine-321-hp40';
-import {advanceFollowthrough,resolveFollowthroughImpacts} from './followthrough.js?v=engine-321-hp40';
-import {resolveCollision} from './collision.js?v=engine-321-hp40';
-import {advanceProjectiles} from './projectiles.js?v=engine-321-hp40';
-import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-321-hp40';
+import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-322';
+import {chooseTarget} from './targeting.js?v=engine-322';
+import {distance,clearLine,bound} from './geometry.js?v=engine-322';
+import {measure} from './telemetry.js?v=engine-322';
+import {stats,resolveResistance} from './stats.js?v=engine-322';
+import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-322';
+import {startAttack,attackMovementMultiplier,advanceAttack,attackWindup} from './combat.js?v=engine-322';
+import {chooseMovement} from './movement.js?v=engine-322';
+import {advanceFollowthrough,resolveFollowthroughImpacts,finishFollowthrough} from './followthrough.js?v=engine-322';
+import {resolveCollision} from './collision.js?v=engine-322';
+import {advanceProjectiles} from './projectiles.js?v=engine-322';
+import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-322';
 
 export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];
  // Snapshot intentions for all units before sequential movement begins.
@@ -24,7 +24,7 @@ export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.t
   const norm=Math.hypot(prior.x,prior.y);
   unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:unit.holdingPosition?{x:0,y:0}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
  }
-for(const u of state.units){if(u.hp<=0)continue;if(u.chassis.passives.includes('inspiration'))for(const ally of state.units){if(ally===u||ally.hp<=0||ally.owner!==u.owner||distance(u,ally)>110)continue;for(const cds of [ally.mobilityCd,ally.reactionCd])for(const key of Object.keys(cds||{}))if(cds[key]>state.time){const before=cds[key];cds[key]=Math.max(state.time,cds[key]-dt*.35);measure(state,u,'inspiration','cooldownSecondsSaved',before-cds[key]);}}}
+for(const u of state.units){if(u.hp<=0)continue;if(u.chassis.passives.includes('inspiration'))for(const ally of state.units){if(ally===u||ally.hp<=0||ally.owner!==u.owner||distance(u,ally)>220)continue;for(const cds of [ally.mobilityCd,ally.reactionCd])for(const key of Object.keys(cds||{}))if(cds[key]>state.time){const before=cds[key];cds[key]=Math.max(state.time,cds[key]-dt*.35);measure(state,u,'inspiration','cooldownSecondsSaved',before-cds[key]);}}}
 const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;if(u.ricochetStunUntil>state.time){u.moveDecision={x:0,y:0};u.intent={x:0,y:0};continue;}const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);
  reactToThreat(state,u,t,st,awareness);
  const activeStats=stats(u);
@@ -84,6 +84,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
    if(u.combatStats)u.combatStats.followthroughDistance=(u.combatStats.followthroughDistance||0)+Math.max(0,progress);
    delete u.followthroughStepStart;
   }
+  finishFollowthrough(state,u,attacks);
 
   const path=u.motion||(u.motion=[]);
   if(u.hp>0&&u.chassis.passives.includes('wake')&&state.time>=(u.wakeAt||0)&&path.length&&distance(u,path.at(-1))>.5){u.wakeAt=state.time+.5;measure(state,u,'wake','patchesCreated');state.zones.push({x:u.x,y:u.y,owner:u.owner,source:u,radius:20,dps:0,slow:true,until:state.time+1.2});}

@@ -1,10 +1,10 @@
 // Engine subsystem: utilities. See AGENTS.md for ownership and test routes.
-import {CHASSIS,PROJECTILE_RADIUS,ATTACK_TIMING,UTILITY_MOVE_SCALE,STEP,radiusOf} from './config.js?v=engine-321-hp40';
-import {segmentCircleHit,clearLine,distance,rectHit,bound} from './geometry.js?v=engine-321-hp40';
-import {stats} from './stats.js?v=engine-321-hp40';
-import {measure} from './telemetry.js?v=engine-321-hp40';
-import {healthFraction} from './targeting.js?v=engine-321-hp40';
-import {holdingOpportunity,positionScore} from './positioning.js?v=engine-321-hp40';
+import {CHASSIS,PROJECTILE_RADIUS,ATTACK_TIMING,UTILITY_MOVE_SCALE,STEP,radiusOf} from './config.js?v=engine-322';
+import {segmentCircleHit,clearLine,distance,rectHit,bound} from './geometry.js?v=engine-322';
+import {stats} from './stats.js?v=engine-322';
+import {measure} from './telemetry.js?v=engine-322';
+import {healthFraction} from './targeting.js?v=engine-322';
+import {holdingOpportunity,positionScore} from './positioning.js?v=engine-322';
 
 // One small deterministic threat/opportunity assessment per fighter per tick.
 // Projectile risk uses projected swept motion; melee risk uses attack readiness.

@@ -1,5 +1,5 @@
 // Engine subsystem: geometry. See AGENTS.md for ownership and test routes.
-import {ARENAS,CHASSIS,radiusOf} from './config.js?v=engine-321-hp40';
+import {ARENAS,CHASSIS,radiusOf} from './config.js?v=engine-322';
 
 export function distance(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
 // Game-token rear sector: 70 degrees centered opposite facing.

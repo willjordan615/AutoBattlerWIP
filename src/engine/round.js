@@ -1,7 +1,7 @@
 // Engine subsystem: round. See AGENTS.md for ownership and test routes.
-import {rng,stats} from './stats.js?v=engine-321-hp40';
-import {ARENAS,radiusOf} from './config.js?v=engine-321-hp40';
-import {bound} from './geometry.js?v=engine-321-hp40';
+import {rng,stats} from './stats.js?v=engine-322';
+import {ARENAS,radiusOf} from './config.js?v=engine-322';
+import {bound} from './geometry.js?v=engine-322';
 
 export function teamPercent(state,owner){const team=state.units.filter(u=>u.owner===owner);const max=team.reduce((n,u)=>n+u.maxHp,0);return max?team.reduce((n,u)=>n+Math.max(0,u.hp),0)/max:0}
 // Randomize the *owner-to-corner assignment*, not just the arena orientation.

@@ -1,9 +1,9 @@
-import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-321-hp40';
+import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-322';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
- 'morphology:growth':'Move up one size tier: +12% radius, ×1.4 HP per tier, +10% damage, +12% melee or +6% ranged reach, -10% movement speed and attack frequency, +10% windup and recovery duration. HP compounds; other percentages are additive by net tier, from -3 to +3. Cancels Shrink; no utility slot required.',
- 'morphology:shrink':'Move down one size tier: -12% radius, ÷1.4 HP per tier (about -28.6%), -10% damage, -12% melee or -6% ranged reach, +10% movement speed and attack frequency, -10% windup and recovery duration. HP compounds; other percentages are additive by net tier, from -3 to +3. Cancels Growth; no utility slot required.',
+ "morphology:growth":"One morphology slot: +12% radius, +30% HP, +10% damage, +12% melee or +6% ranged reach, -10% movement speed and attack frequency, +10% windup and recovery. Replaces Shrink; no stacking or utility slot.",
+ "morphology:shrink":"One morphology slot: -12% radius, -15% HP, -10% damage, -12% melee or -6% ranged reach, +15% movement speed and attack frequency, -15% windup and recovery. Replaces Growth; no stacking or utility slot.",
  "attack:velocity":"Ranged: +25% projectile speed per stack. Melee: shorter windup with the saved time added to recovery and cooldown, preserving attack frequency.",
  "attack:rally":"On attack release, nearby allies within 110 units gain 8% movement speed per stack for 1.2s, capped at 30%.",
  "attack:resonance":"Gain 1.5 bonus raw damage per stack (max 4 stacks) if a different ally hit the target within 1.5s.",
@@ -12,14 +12,13 @@ export const DETAILS={
  "attack:steadfast":"Landed attacks grant 25% displacement stability per stack, max 100%, for 1s.",
  "attack:patience":"Increase the existing valid holding-position preference by 30% per stack, max 100%. Does not reward idle time or add damage.",
  "attack:resolve":"Reduce movement slows by 80% at any HP. Each stack also grants +1 defense; slow resistance does not stack.",
- "attack:ricochet":"Ranged projectiles can bounce off terrain or boundaries once per stack (max 2), renewing the full original travel range (including Range upgrades) at each bounce. Hazardous and Chain may each activate once per volley at a bounce; Chain redirects part of the projectile's raw value. Melee hits slide the target sideways by 16 arena units per stack (max 4 stacks), reduced by displacement resistance. Combines with Knockback into one movement. Collision with terrain or another fighter stuns the sliding fighter for 1s, with 5s target-specific stun immunity.",
+ "attack:ricochet":"Ranged projectiles can bounce off terrain or boundaries once per stack (max 2), renewing the full original travel range (including Range upgrades) at each bounce. Hazardous and Chain may each activate once per volley at a bounce; Chain adds auxiliary damage without reducing the projectile. Melee hits slide the target sideways by 16 arena units per stack (max 4 stacks), reduced by displacement resistance. Combines with Knockback into one movement. Collision with terrain or another fighter stuns the sliding fighter for 1s, with 5s target-specific stun immunity.",
  "passive:aegis":"Grant a threatened nearby ally a 12 HP temporary shield for 2s. Cooldown 6s.",
- "passive:inspiration":"Nearby allies within 110 units recover utility cooldowns 35% faster.",
+ "passive:inspiration":"Allies within 220 units recover utility cooldowns 35% faster.",
  "passive:anchor":"When threatened in a valid holding position, gain 4 defense for 1.5s. Cooldown 6s.",
  "passive:wake":"Movement leaves short-lived slowing patches, 18% movement slow. One patch per 0.5s, lasts 1.2s.",
  "passive:repulsion":"When threatened, push nearby opponents away. Cooldown 6s.",
- "target:coordinated":"Favor enemies already targeted by an ally.",
- "target:independent":"Favor enemies not targeted by allies.",
+ "target:coordinated":"Allies favor staying near this fighter as a formation anchor. Stacks strengthen cohesion; terrain and urgent movement still take precedence.",
  "target:opportunist":"Favor opponents whose attack is on cooldown.",
  "target:pursuer":"Increase Pursuer targeting weight by 1. Prefer opponents that are retreating.",
  "target:challenger":"Favor opponents with higher remaining HP percentage.",
@@ -42,11 +41,11 @@ export const DETAILS={
  'attack:expose':'A landed hit marks its target for 1.5 seconds. A hit from a DIFFERENT fighter on the same team consumes the mark for 2 bonus raw damage per stack (maximum 4 stacks). Your own follow-up attack cannot consume your mark.',
  'attack:disruption':'A landed hit slows the target\'s movement speed for 0.6 seconds: 8% per stack, up to 45%. Further hits refresh the slow. Attack speed is unaffected.',
  'attack:momentum':'Each attack gains up to 2 raw damage per stack, based on distance actually traveled over the previous 2 seconds (up to 100 units). Sideways movement and retreat count; no specific target or consecutive hits are required.',
- 'attack:chain':'Redistribute 20% of the primary hit\'s damage per stack (up to 60%) toward the nearest additional enemy within 95 units and clear of obstacles. The primary hit loses that share even if no secondary target exists. The second target applies its own defense; the secondary hit cannot chain again or apply other on-hit effects.',
+ "attack:chain":"Keep full primary damage. The closest additional enemy within 95 units and clear of obstacles receives 15% of the hit value after its own defense per stack (maximum 60%). No recursive effects.",
  'attack:burning':'On a qualifying landed attack, apply a 2-second burn dealing 2 damage per second per stack (maximum 12 DPS), ignoring defense. Each fighter can activate Burning once per second; all eligible targets struck by that attack receive it, including later impacts from the same volley. Hits while the activation is on cooldown do not refresh the burn. Burn ticks cannot trigger on-hit effects.',
  'attack:hazardous':'On a qualifying landed attack, leave a damaging patch at each struck enemy\'s position for 2.5 seconds. Each fighter can activate Hazardous once per second; all eligible targets of the same attack can create a patch, including later impacts from that volley. Enemies standing in patches take 2 damage per second per stack (maximum 10 DPS), ignoring defense. Each fighter can maintain up to two patches, and overlapping patches can both deal damage. Patch damage cannot trigger on-hit effects.',
  'attack:restless':'For 3 seconds after landing a hit, lower the priority of targeting that same enemy again. Stacks strengthen this preference for switching; other targeting weights can counteract it.',
- 'attack:followthrough':'After a committed attack finishes resolving its landed hits, advance for 0.5 seconds along the original attack direction toward the deepest successfully struck target. Each extra stack (up to 3) adds 0.25 seconds and 30% commitment speed. With two or more stacks, the selected target stops body-blocking this movement until the commitment ends; other fighters, terrain and walls remain solid. The advance uses actual movement speed and is never a teleport. One commitment per attack or projectile volley, with a minimum 0.75-second internal cooldown.',
+ "attack:followthrough":"On a landed hit, move toward a valid adjacent position by the deepest struck fighter. Extra copies increase traversal speed; at two copies, prefer the opposite side and phase only through the selected fighter. Terrain and other pieces remain solid. Successful arrival grants a free basic attack, at most once per second; it cannot trigger Follow Through again.",
  'attack:disengage':'After each committed attack releases, heavily prioritize personal safety and retreat away from nearby enemies for 0.5 seconds. The fighter then re-evaluates its target normally. Works on melee and ranged attacks; extra stacks increase retreat speed by 10% each (up to 35%) without extending the retreat.',
  'target:executioner':'Increase Kill Opportunity targeting weight by 1. Prefer enemies with a smaller percentage of HP remaining.',
  'target:guardian':'Increase Ally Protection targeting weight by 1. Prefer enemies currently targeting your teammates.',
@@ -56,14 +55,14 @@ export const DETAILS={
  'target:hunter':'Increase Target Distance targeting weight by 1. Prefer enemies that are physically closer.',
  'target:aggressor':'Increase Damage Opportunity targeting weight by 1. Prefer enemies against whom the fighter\'s damage represents a larger share of remaining HP.',
  'passive:regen':'Occupies one of two shared Utility slots. Passively restore 2 HP per second, up to this fighter\'s maximum HP. Unique per fighter.',
- 'passive:bulwark':'Occupies one of two shared Utility slots. When a substantial hit is imminent or at least two enemies are nearby, gain 5 defense for 2 seconds. Cooldown: 6 seconds. Unique per fighter.',
+ "passive:bulwark":"Occupies one of two Utility slots. When a substantial hit is imminent or at least two enemies are nearby, gain 3 defense for 2 seconds. Cooldown: 6 seconds. Unique per fighter.",
  'passive:haste':'Occupies one of two shared Utility slots. When pursuing an enemy or retreating under threat, gain 40% movement speed for 1.5 seconds. Cooldown: 5 seconds. Unique per fighter.',
  'passive:focus':'Occupies one of two shared Utility slots. When multiple attacks could finish an enemy soon, attack 35% faster for 1.5 seconds. Does not activate for a trivial one-hit finish. Cooldown: 6 seconds. Unique per fighter.',
- 'passive:retaliation':'Occupies one of two shared Utility slots. After receiving a direct melee hit, the next attack made within 4 seconds gains 4 raw damage. Does not affect attack timing. Unique per fighter.'
+ "passive:retaliation":"Occupies one of two Utility slots. After receiving a direct melee hit, the next attack within 4 seconds gains 3 raw damage. Unique per fighter."
 };
 export const SUMMARIES={
- 'morphology:growth':'+40% HP per tier · larger, stronger, slower',
- 'morphology:shrink':'÷1.4 HP per tier · smaller, quicker, less damage and reach',
+ "morphology:growth":"+30% HP · larger and slower · unique",
+ "morphology:shrink":"-15% HP · smaller and quicker · unique",
  "attack:velocity":"Faster delivery, unchanged attack frequency",
  "attack:rally":"Attacking speeds nearby allies",
  "attack:resonance":"Bonus damage following an ally hit",
@@ -74,12 +73,11 @@ export const SUMMARIES={
  "attack:resolve":"80% slow resistance; +1 defense per stack",
  "attack:ricochet":"Renewed terrain bounce / lateral slide and collision stun",
  "passive:aegis":"Shield threatened ally",
- "passive:inspiration":"Nearby ally cooldown recovery +35%",
+ "passive:inspiration":"Ally cooldown recovery +35% within 220 units",
  "passive:anchor":"Defend an advantageous position",
  "passive:wake":"Leave slowing patches while moving",
  "passive:repulsion":"Reactive space creation",
- "target:coordinated":"Favor ally targets",
- "target:independent":"Diversify ally targets",
+ "target:coordinated":"Allies rally around this fighter",
  "target:opportunist":"Favor recovering enemies",
  "target:pursuer":"Favor retreating targets",
  "target:challenger":"Favor healthy opponents",
@@ -102,11 +100,11 @@ export const SUMMARIES={
  'attack:expose':'Mark enemy for bonus damage from a different ally',
  'attack:disruption':'Slow target movement by 8% per stack · max 45%',
  'attack:momentum':'More distance traveled in last 2s → bonus attack damage',
- 'attack:chain':'Redirect 20% damage per stack to another nearby enemy',
+ "attack:chain":"Full main hit · 15% auxiliary damage per stack",
  'attack:burning':'Apply 2-second burn · 1s activation cooldown per fighter',
  'attack:hazardous':'Create damaging ground · 1s activation cooldown · max 2 patches',
  'attack:restless':'Recently hit enemies become lower-priority targets',
- 'attack:followthrough':'Speed-scaled advance · extra copies extend travel and phase past target',
+ "attack:followthrough":"Move adjacent · free attack on arrival (1s cooldown)",
  'attack:disengage':'After attacking, retreat for 0.5s then retarget',
  'target:executioner':'Kill Opportunity +1 · favor weakened enemies',
  'target:guardian':'Ally Protection +1 · favor threats to teammates',
@@ -116,10 +114,10 @@ export const SUMMARIES={
  'target:hunter':'Target Distance +1 · favor closer enemies',
  'target:aggressor':'Damage Opportunity +1 · favor vulnerable enemies',
  'passive:regen':'Utility slot · restore 2 HP/s',
- 'passive:bulwark':'Utility slot · reactive +5 defense',
+ "passive:bulwark":"Utility slot · reactive +3 defense",
  'passive:haste':'Utility slot · reactive +40% movement speed',
  'passive:focus':'Utility slot · reactive faster attacks',
- 'passive:retaliation':'Utility slot · next attack after receiving a melee hit gains +4 damage'
+ "passive:retaliation":"Utility slot · next attack after receiving a melee hit gains +3 damage"
 };
 export function cardDetail(card){
  const key=card.kind+':'+card.key;

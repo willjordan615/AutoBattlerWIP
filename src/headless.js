@@ -1,6 +1,6 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng,morphologyTier} from './simulation.js?v=engine-321-hp40';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng,morphologyTier} from './simulation.js?v=engine-322';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-321-hp40';
+import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-322';
 export {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES};
 export function cooperativeWeight(players){const alive=players.filter(p=>p.hp>0);return alive.length?alive.filter(p=>p.squad.length>1).length/alive.length:0;}
 export const catalog=[
@@ -16,7 +16,7 @@ export function createMatch(types=['bruiser','rogue','ranged','bruiser'],seed=12
  return {seed,random,round:1,phase:'draft',players:types.map((type,i)=>({name:i===0?'You':'Bot '+i,hp:100,streak:0,squad:[makeChassis(type)]})),lastRanking:[],lastSpawnSlots:null,draft:null,history:[]}
 }
 export function canEquip(unit,card){
- if(card.kind==='morphology')return MORPHOLOGY_MODULES.includes(card.key)&&(card.key==='growth'?morphologyTier(unit)<3:morphologyTier(unit)>-3);
+ if(card.kind==='morphology')return MORPHOLOGY_MODULES.includes(card.key)&&(card.key==='growth'?morphologyTier(unit)!==1:morphologyTier(unit)!==-1);
   if(card.kind==='utility')return (unit.mods[card.key]||0)<2;
  if(card.kind==='passive')return !unit.passives.includes(card.key);
  return true;
@@ -57,7 +57,8 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0,re
  if(card.kind==='unit')player.squad.push(makeChassis(card.key));
  else{const unit=player.squad[chassisIndex];if(!unit)throw Error('Invalid chassis slot');
  if(!canEquip(unit,card))throw Error('This chassis cannot equip another copy of '+card.key);
- if(card.kind==='attack'||card.kind==='morphology')unit.mods[card.key]=(unit.mods[card.key]||0)+1;
+ if(card.kind==='attack')unit.mods[card.key]=(unit.mods[card.key]||0)+1;
+  if(card.kind==='morphology'){unit.mods.growth=Number(card.key==='growth');unit.mods.shrink=Number(card.key==='shrink');unit.modules=unit.modules.filter(m=>m.kind!=='morphology');}
  if(card.kind==='target')for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
  if(card.kind==='passive'||card.kind==='utility'){
   const slots=unit.passives;

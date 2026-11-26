@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {distance,CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,holdingOpportunity,cooperativeEngagement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,advanceFollowthrough,UTILITY_MOVE_SCALE,recentMovement,collisionStability,disengageDirection,resolveFollowthroughImpacts} from '../src/simulation.js';
+import {distance,CHASSIS,ARENAS,STEP,makeChassis,stats,bound,chooseTarget,chooseMovement,holdingOpportunity,cooperativeEngagement,positionScore,clearLine,resolveCollision,tick,spawn,placementGroups,placementDamage,resolvePlayerHP,teamPercent,advanceProjectiles,PROJECTILE_SPEED,utilityCooldown,tacticalAssessment,ATTACK_TIMING,startAttack,advanceAttack,attackMovementMultiplier,meleeAttackTargets,resolveAttackModules,targetScoreDetails,ATTACK_STAGES,claimAttackEffect,applyFollowthrough,advanceFollowthrough,UTILITY_MOVE_SCALE,recentMovement,collisionStability,disengageDirection,resolveFollowthroughImpacts,finishFollowthrough,radiusOf} from '../src/simulation.js';
 import {ATTACK_MODULES,catalog,createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat,ensureDraftChoice} from '../src/headless.js';
 import {DETAILS,SUMMARIES,cardDetail,cardSummary} from '../src/module-info.js';
 import {players,projectileFixture,testShot} from './simulation-fixtures.js';
@@ -68,112 +68,55 @@ test('2.12 collision stability changes yield without introducing immovable brace
  assert.ok(Math.abs(a.x-ax)>0,'brace can still be moved');
  assert.ok(distance(a,enemy)>=CHASSIS[a.type].radius+CHASSIS[enemy.type].radius+4);
 });
-test('2.12 Follow Through creates half-second commitment, not instant teleport',()=>{
- const b=spawn(players(),ARENAS[0],4512),u=b.units[0],target=b.units[1];
+function followFixture(stacks=2,arena=ARENAS[0]){
+ const b=spawn(players(),arena,4512),u=b.units[0],target=b.units[1];
  b.units=[u,target];u.type='rogue';u.chassis=makeChassis('rogue');
- u.chassis.mods.followthrough=1;u.x=150;u.y=200;target.x=300;target.y=200;b.time=.2;
- assert.equal(applyFollowthrough(b,{source:u,target,attackId:50,attackDirection:0}),true);
- assert.equal(u.x,150,'impact does not teleport');
- const cap=stats(u).speed*.5;
- let traveled=0;
- for(let i=1;i<=15;i++){
-  b.time=.2+i*STEP;
-  const start=u.x;advanceFollowthrough(b,u,STEP);resolveCollision(b);
-  traveled+=u.x-start;
- }
- assert.ok(traveled>cap*.85);
- assert.ok(traveled<=cap+1e-5,'speed x commitment time is hard travel budget');
- assert.ok(u.x<target.x,'faraway target cannot induce a teleport');
- assert.equal(applyFollowthrough(b,{source:u,target,attackId:50}),false);
+ u.x=150;u.y=220;target.x=210;target.y=220;u.chassis.mods.followthrough=stacks;b.time=.1;
+ return {b,u,target};
+}
+function completeMove(b,u){const attacks=[];for(let i=0;i<24&&u.followthroughCommit;i++){
+ b.time+=STEP;advanceFollowthrough(b,u,STEP);resolveCollision(b);delete u.followthroughStepStart;
+ finishFollowthrough(b,u,attacks);
+ }return attacks;}
+test('3.2.2 Follow Through moves without teleport and ends beside target with one bonus release',()=>{
+ const {b,u,target}=followFixture();u.cd=.4;
+ assert.ok(applyFollowthrough(b,{source:u,target,attackId:50,attackDirection:0}));
+ assert.equal(u.x,150);assert.equal(target.x,210);
+ const hits=completeMove(b,u);
+ assert.ok(Math.abs(distance(u,target)-(radiusOf(u)+radiusOf(target)+5))<1e-6);
+ assert.ok(u.x>target.x);assert.equal(target.x,210);assert.equal(u.cd,.4);
+ assert.equal(hits.length,1);assert.equal(hits[0].target,target);assert.ok(hits[0].followthroughBonus);
+ assert.equal(u.combatStats.followthroughBonus,1);
+ resolveFollowthroughImpacts(b,hits);assert.equal(u.followthroughCommit,null);
+ assert.equal(applyFollowthrough(b,{source:u,target,attackId:51}),false,'one second cooldown');
 });
-test('2.12 Follow Through stacks scale movement speed rather than teleport distance',()=>{
- const b=spawn(players(),ARENAS[0],4513),u=b.units[0],target=b.units[1];
- b.units=[u,target];u.x=100;u.y=100;target.x=500;target.y=100;b.time=.1;
- u.chassis.mods.followthrough=3;
- assert.ok(applyFollowthrough(b,{source:u,target,attackId:51,attackDirection:0}));
- b.time=.1+STEP;advanceFollowthrough(b,u,STEP);
- assert.ok(Math.abs((u.x-100)-stats(u).speed*(1+.60)*STEP)<1e-6);
+test('3.2.2 additional copies improve movement speed, not landing distance',()=>{
+ const a=followFixture(2),b=followFixture(3);
+ for(const f of [a,b])assert.ok(applyFollowthrough(f.b,{source:f.u,target:f.target,attackId:51,attackDirection:0}));
+ assert.ok(b.u.followthroughCommit.speedFactor>a.u.followthroughCommit.speedFactor);
+ for(const f of [a,b])completeMove(f.b,f.u);
+ assert.ok(Math.abs(a.u.x-b.u.x)<1e-6);
 });
-test('2.12 a Follow Through push shares displacement with a braced fighter',()=>{
- const b=spawn(players(),ARENAS[0],4514),u=b.units[0],target=b.units[1];
- b.units=[u,target];u.x=200;u.y=200;target.x=226;target.y=200;b.time=.2;
- u.chassis.mods.followthrough=1;
- u.motion=[{time:0,x:199,y:200},{time:.2,x:200,y:200}];
- target.motion=[{time:0,x:226,y:200},{time:.2,x:226,y:200}];
- assert.ok(applyFollowthrough(b,{source:u,target,attackId:52,attackDirection:0}));
- const prior=target.x;
- b.time+=STEP;advanceFollowthrough(b,u,STEP);resolveCollision(b);
- assert.ok(target.x>prior,'braced defender yields some ground');
- assert.ok(target.x-prior<CHASSIS[target.type].radius,'contact does not teleport defender');
+test('3.2.2 blocked destinations cannot activate or award a bonus',()=>{
+ const {b,u,target}=followFixture(2,ARENAS[1]);
+ u.x=245;u.y=200;target.x=450;target.y=200;
+ assert.equal(applyFollowthrough(b,{source:u,target,attackId:53,attackDirection:0}),false);
+ assert.equal(u.x,245);assert.equal(u.combatStats.followthroughBonus,undefined);
 });
-test('2.12 committed Follow Through is blocked by solid terrain',()=>{
- const b=spawn(players(),ARENAS[1],4515),u=b.units[0],target=b.units[1];
- b.units=[u,target];u.x=245;u.y=200;target.x=450;target.y=200;
- u.chassis.mods.followthrough=1;b.time=.1;
- assert.ok(applyFollowthrough(b,{source:u,target,attackId:53,attackDirection:0}));
- const start=u.x;
- for(let i=0;i<20;i++){b.time+=STEP;advanceFollowthrough(b,u,STEP);resolveCollision(b)}
- assert.ok(u.x<278-CHASSIS[u.type].radius,'cannot pass into a pillar');
- assert.ok(u.x>=start);
-});
-test('2.12 deepest successful target controls direction, not attack processing order',()=>{
- const b=spawn(players(),ARENAS[0],4516),u=b.units[0],a=b.units[1],far=b.units[2];
- b.units=[u,a,far];u.chassis.mods.followthrough=1;u.x=120;u.y=220;
- a.x=170;a.y=220;far.x=190;far.y=238;
- const origin={x:120,y:220},direction=.1;b.time=.1;
- resolveFollowthroughImpacts(b,[
-  {source:u,target:far,attackId:60,damage:10,attackOrigin:origin,attackDirection:direction},
-  {source:u,target:a,attackId:60,damage:10,attackOrigin:origin,attackDirection:direction}
- ]);
- assert.ok(u.followthroughCommit);
- assert.equal(u.combatStats.followthrough,1);
- assert.ok(Math.abs(u.followthroughCommit.x-Math.cos(direction))<1e-8);
- assert.equal(u.x,120,'no immediate jump after multi-hit release');
-});
-test('2.12 projectile volley waits for its final impact before initiating commitment',()=>{
- const b=spawn(players(),ARENAS[0],4517),u=b.units[0],a=b.units[1],far=b.units[2];
- b.units=[u,a,far];u.type='ranged';u.chassis=makeChassis('ranged');
- u.chassis.mods.followthrough=1;u.x=120;u.y=240;a.x=170;a.y=240;far.x=210;far.y=240;
- const origin={x:120,y:240},attackId=61;b.time=.1;
+test('3.2.2 deepest landed target controls movement and projectile volley waits',()=>{
+ const {b,u,target}=followFixture(),far=spawn(players(),ARENAS[0],4516).units[2];
+ far.x=235;far.y=220;b.units.push(far);
+ const origin={x:150,y:220},attackId=60;
  b.projectiles=[{volley:{attackId}}];
- resolveFollowthroughImpacts(b,[{source:u,target:a,projectile:true,attackId,damage:10,attackOrigin:origin,attackDirection:0}]);
+ resolveFollowthroughImpacts(b,[{source:u,target,projectile:true,attackId,damage:10,attackOrigin:origin,attackDirection:0}]);
  assert.equal(u.followthroughCommit,null);
  resolveFollowthroughImpacts(b,[{source:u,target:far,projectile:true,attackId,damage:10,attackOrigin:origin,attackDirection:0}]);
  b.projectiles=[];resolveFollowthroughImpacts(b,[]);
- assert.ok(u.followthroughCommit);
- assert.equal(u.x,120);
- assert.equal(u.combatStats.followthrough,1);
+ assert.equal(u.followthroughCommit.targetId,far.id);
+ assert.equal(u.x,150);assert.equal(u.combatStats.followthrough,1);
 });
-
-test('2.12 Follow Through and Disengage resolve sequentially, without cancelling either module',()=>{
- const b=spawn(players(),ARENAS[0],4518),u=b.units[0],target=b.units[1];
- b.units=[u,target];u.chassis.mods.followthrough=1;u.chassis.mods.disengage=1;
- u.x=120;u.y=220;target.x=260;target.y=220;b.time=.2;
- u.disengageUntil=b.time+.5;
+test('3.2.2 Disengage begins after Follow Through arrival',()=>{
+ const {b,u,target}=followFixture();u.chassis.mods.disengage=1;u.disengageUntil=b.time+.5;
  assert.ok(applyFollowthrough(b,{source:u,target,attackId:70,attackDirection:0}));
- assert.ok(Math.abs(u.disengageUntil-(b.time+1))<1e-8);
- assert.ok(u.followthroughCommit.until<b.time+.6);
-});
-test('2.12 Follow Through movement never exceeds speed-scaled commitment budget even with collision',()=>{
- const b=spawn(players(),ARENAS[0],4519),u=b.units[0],enemy=b.units[1];
- b.units=[u,enemy];u.type='rogue';u.chassis=makeChassis('rogue');
- u.chassis.mods.followthrough=1;u.x=150;u.y=220;enemy.x=205;enemy.y=220;
- b.time=.1;assert.ok(applyFollowthrough(b,{source:u,target:enemy,attackId:71,attackDirection:0}));
- const start=u.x;
- for(let i=0;i<15;i++){b.time+=STEP;advanceFollowthrough(b,u,STEP);resolveCollision(b)}
- const cap=stats(u).speed*.5;
- assert.ok(u.x-start<=cap+2,'contact does not create a far-side teleport');
- assert.ok(enemy.x>205,'fighter yields space during committed contact');
-});
-
-test('3.2 two Follow Through copies let a full-speed rogue clear a stationary bruiser from normal reach',()=>{
- const b=spawn(players(),ARENAS[0],4520),u=b.units.find(u=>u.type==='rogue'),target=b.units.find(u=>u.type==='bruiser');
- b.units=[u,target];u.x=150;u.y=220;target.x=210;target.y=220;b.time=.1;
- u.chassis.mods.followthrough=2;
- assert.ok(applyFollowthrough(b,{source:u,target,attackId:72,attackDirection:0}));
- for(let i=1;i<=24;i++){
-  b.time=.1+i*STEP;advanceFollowthrough(b,u,STEP);resolveCollision(b);delete u.followthroughStepStart;
- }
- assert.ok(u.x>=target.x+CHASSIS.rogue.radius+CHASSIS.bruiser.radius+5-1e-6);
- assert.equal(target.x,210);
+ completeMove(b,u);assert.ok(Math.abs(u.disengageUntil-b.time-.5)<1e-8);
 });

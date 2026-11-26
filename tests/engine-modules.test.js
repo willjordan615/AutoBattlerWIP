@@ -12,21 +12,21 @@ test('2.7 ranged and melee range stacks increase reach by eight',()=>{
   assert.equal(stats(unit).range,base+16);
  }
 });
-test('2.7 chain splits rather than duplicating damage, and cannot recurse',()=>{
+test('2.7 chain preserves the primary and adds auxiliary damage, and cannot recurse',()=>{
  const b=spawn(players(),ARENAS[0],910),u=b.units[0],a=b.units[1],other=b.units[2];
  b.units=[u,a,other];u.x=200;u.y=200;a.x=250;a.y=200;other.x=275;other.y=220;
  u.chassis.mods.chain=1;
  const attacks=resolveAttackModules(b,[{source:u,target:a,rawDamage:20,damage:20}]);
  assert.equal(attacks.length,2);
- assert.ok(Math.abs(attacks[0].damage-(20-stats(a).defense)*.8)<1e-6);
+ assert.ok(Math.abs(attacks[0].damage-(20-stats(a).defense))<1e-6);
  assert.equal(attacks[1].secondary,true);
  assert.equal(attacks[1].target,other);
- assert.ok(attacks[1].damage<=4);
+ assert.ok(Math.abs(attacks[1].damage-Math.max(0,20-stats(other).defense)*.15)<1e-8);
  const noOther=spawn(players(),ARENAS[0],911);
  noOther.units=noOther.units.slice(0,2);noOther.units[0].chassis.mods.chain=1;
  const lone=resolveAttackModules(noOther,[{source:noOther.units[0],target:noOther.units[1],rawDamage:20,damage:20}]);
  assert.equal(lone.length,1);
- assert.ok(Math.abs(lone[0].damage-(20-stats(noOther.units[1]).defense)*.8)<1e-6);
+ assert.ok(Math.abs(lone[0].damage-(20-stats(noOther.units[1]).defense))<1e-6);
 });
 test('2.7 marks, burning, hazards and slow have bounded lifetimes',()=>{
  const b=spawn(players(),ARENAS[0],912),source=b.units[0],target=b.units[1];
@@ -84,7 +84,7 @@ test('2.7 Retaliation primes only from direct melee and applies once',()=>{
  assert.ok(defender.hp<defender.maxHp,'a melee hit must land');
  assert.ok(defender.retaliationReady>b.time,'direct melee primes Retaliation');
  const first=resolveAttackModules(b,[{source:defender,target:source,rawDamage:18,damage:18}]);
- assert.equal(first[0].rawDamage,22);
+ assert.equal(first[0].rawDamage,21);
  const second=resolveAttackModules(b,[{source:defender,target:source,rawDamage:18,damage:18}]);
  assert.equal(second[0].rawDamage,18);
 });
@@ -167,7 +167,7 @@ test('2.8.1 descriptions capture key effects and module-slot stacking rules',()=
  const by=(kind,key)=>({kind,key,name:key});
  assert.match(cardDetail(by('attack','area')),/9 units of melee reach and 12°/);
  assert.match(cardDetail(by('attack','range')),/8 units/);
- assert.match(cardDetail(by('attack','chain')),/20%/);
+ assert.match(cardDetail(by('attack','chain')),/15%/);
  assert.match(cardDetail(by('attack','chain')),/own defense/);
  assert.match(cardDetail(by('attack','sunder')),/subsequent attacks/);
  assert.match(cardDetail(by('attack','expose')),/DIFFERENT fighter/);
