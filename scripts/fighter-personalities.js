@@ -18,6 +18,11 @@ export function applyProfile(chassis,profile){
  if(profile.zero)chassis.weights[profile.key]=0;
  else if(profile.card)for(const [k,v] of Object.entries(TARGET_MODULES[profile.card]))chassis.weights[k]+=v*profile.n;
  else if(profile.key)chassis.weights[profile.key]+=profile.n;
+ // Diagnostic-only raw stat increments; not draft offers.
+ for(const [k,v] of Object.entries(profile.statMods||{})){
+  assert.ok(['hp','damage','speed','rate','range'].includes(k)&&Number.isFinite(v)&&v>=0);
+  chassis.mods[k]+=v;
+ }
  return chassis;
 }
 export function focalSeats(seed){
@@ -25,9 +30,15 @@ export function focalSeats(seed){
  const corner=seed%4;
  return [slots.indexOf(corner),slots.indexOf((corner+2)%4)];
 }
-export function makeFixture({seed,arena,type,owner,health,profile,condition}){
+export function makeFixture({seed,arena,type,owner,health,profile,condition,layout='mirror'}){
  const ally=TYPES[(TYPES.indexOf(type)+1)%TYPES.length];
  const players=Array.from({length:4},(_,i)=>({name:'P'+i,hp:100,streak:0,squad:[makeChassis(type),makeChassis(ally)]}));
+ if(layout==='mixed'){
+  // Relative seats rotate with focal owner; matched variants keep all opponents fixed.
+  players[(owner+1)%4].squad=[makeChassis(TYPES[(seed+1)%3])];
+  players[(owner+2)%4].squad=[makeChassis(TYPES[seed%3]),makeChassis(TYPES[(seed+1)%3]),makeChassis(TYPES[(seed+2)%3])];
+  players[(owner+3)%4].squad=[makeChassis(TYPES[(seed+2)%3]),makeChassis(TYPES[seed%3])];
+ }
  applyProfile(players[owner].squad[0],profile);
  const b=spawn(players,arena,seed);
  const focal=b.units.find(u=>u.owner===owner&&u.id%100===0);
@@ -57,6 +68,10 @@ function observe(b,u,m){
  const threateningAlly=enemies.filter(e=>allies.some(a=>e.focus===a.id));
  if(threateningAlly.length){add(m,'allyThreatFrames');if(threateningAlly.includes(selected))add(m,'allyThreatSelected');}
  if(selected){
+  if(enemies.some(e=>!enemies.some(a=>a.owner===e.owner&&a!==e))&&enemies.some(e=>enemies.some(a=>a.owner===e.owner&&a!==e))){
+   add(m,'mixedIsolationFrames');
+   if(!enemies.some(a=>a.owner===selected.owner&&a!==selected))add(m,'singletonSelected');
+  }
   add(m,'targetFrames');add(m,'rangeRatio',distance(u,selected)/st.range);
   add(m,'rangeError',Math.abs(distance(u,selected)/st.range-.85));
   const peers=enemies.filter(e=>e.owner===selected.owner&&e!==selected);
@@ -72,7 +87,7 @@ export function summarizeObservation(m,c,u,b){
   releases:u.combatStats.attacks,exposure:fraction('exposed','frames'),lowExposure:fraction('lowExposed','low'),
   safeAccess:fraction('safeAccess','frames'),access:fraction('access','frames'),focusedSelection:fraction('focusedSelected','focused'),
   allyThreatSelection:fraction('allyThreatSelected','allyThreatFrames'),allyDistance:fraction('allyDistance','allyFrames'),
-  isolationDistance:fraction('isolationDistance','isolationFrames'),rangeRatio:fraction('rangeRatio','targetFrames'),rangeError:fraction('rangeError','targetFrames'),
+  singletonSelection:fraction('singletonSelected','mixedIsolationFrames'),isolationDistance:fraction('isolationDistance','isolationFrames'),rangeRatio:fraction('rangeRatio','targetFrames'),rangeError:fraction('rangeError','targetFrames'),
   missedAccess:ratio(c.alternateAccessOnly||0,c.anyAccess||0),hold:ratio(c['mode:hold']||0,c.actionFrames||0),
   support:ratio(c['mode:support']||0,c.actionFrames||0),switches:ratio((c.actionSwitches||0)*1000,c.actionFrames||0),
   releasesPerSecond:ratio(u.combatStats.attacks*30,m.frames||0),timeout:Number(b.time>=30-1e-6),
