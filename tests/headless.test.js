@@ -103,8 +103,14 @@ test('3.1.2 draft valuation reduces unconditional premium while preserving pierc
   const card=(kind,key)=>({kind,key});
   assert.equal(scoreDraft(p,card('attack','followthrough')),type==='rogue'?18:16);
   assert.equal(scoreDraft(p,card('attack','piercing')),16);
-  assert.equal(scoreDraft(p,card('target','coordinated')),20);
+  assert.equal(scoreDraft(p,card('utility','coordinated')),22);
   p.squad[0].mods.projectiles=2;
   assert.ok(scoreDraft(p,card('attack','piercing'))>16);
  }
+});
+
+test('Coordinated is a unique utility and replacement clears its stat modifier',()=>{
+ const m=createMatch();const u=m.players[0].squad[0];const pick=(key,kind,slot=0)=>{m.phase='draft';const card={uid:key,key,kind,name:key};m.draft={pool:[card],originalPool:[card],order:[0],turn:0,picks:[]};assign(m,0,key,0,slot);};
+ pick('coordinated','utility');assert.equal(u.mods.coordinated,1);assert.deepEqual(u.passives,['coordinated']);assert.throws(()=>pick('coordinated','utility'));
+ pick('regen','passive');pick('bulwark','passive');assert.equal(u.mods.coordinated,0);assert.deepEqual(u.passives,['bulwark','regen']);
 });

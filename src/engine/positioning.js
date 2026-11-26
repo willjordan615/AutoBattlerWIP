@@ -1,9 +1,9 @@
 // Engine subsystem: positioning. See AGENTS.md for ownership and test routes.
-import {stats} from './stats.js?v=engine-322-ft1';
-import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-322-ft1';
-import {healthFraction} from './targeting.js?v=engine-322-ft1';
-import {METRICS,STEP,CHASSIS,radiusOf} from './config.js?v=engine-322-ft1';
-import {recentMovement} from './collision.js?v=engine-322-ft1';
+import {stats,coordinationStacks} from './stats.js?v=engine-323-final';
+import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-323-final';
+import {healthFraction} from './targeting.js?v=engine-323-final';
+import {METRICS,STEP,CHASSIS,radiusOf} from './config.js?v=engine-323-final';
+import {recentMovement} from './collision.js?v=engine-323-final';
 
 // Utility movement is deterministic, shares the existing targeting weights, and
 // consumes its own cooldown. Terrain still blocks every movement technique.
@@ -49,12 +49,12 @@ export function positionScore(state,u,target,point,st,enemies){
  // More safety-conscious allies yield space to teammates who prefer taking risks.
  // The preference is relative: a bold ranged build may stand its ground.
  // A coordinator attracts teammates toward a formation radius without overriding terrain or evasion.
- const coordinators=allies.filter(a=>(a.chassis.weights.coordinated||0)>0).sort((a,b)=>(b.chassis.weights.coordinated||0)-(a.chassis.weights.coordinated||0)||a.id-b.id);
- const coordinator=coordinators[0];
- if(coordinator&&(!(w.coordinated>0)||coordinator.chassis.weights.coordinated>w.coordinated||coordinator.id<u.id)){
-  const desired=st.radius+radiusOf(coordinator)+35;
+ const coordinators=allies.filter(a=>coordinationStacks(a)>0).sort((a,b)=>coordinationStacks(b)-coordinationStacks(a)||a.id-b.id);
+ const coordinator=coordinators[0],myWeight=coordinationStacks(u);
+ if(coordinator&&!attack&&(coordinationStacks(coordinator)>myWeight||(coordinationStacks(coordinator)===myWeight&&coordinator.id<u.id))){
+  const desired=st.radius+radiusOf(coordinator)+55;
   const excess=Math.max(0,distance(point,coordinator)-desired);
-  score-=Math.min(3,coordinator.chassis.weights.coordinated)*3*Math.min(2,excess/100);
+  score-=.65*coordinationStacks(coordinator)*Math.min(2,excess/100);
  }
  const mySafety=w.safety||0;
  for(const ally of allies){

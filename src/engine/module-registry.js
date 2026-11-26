@@ -1,5 +1,5 @@
 // Engine subsystem: module-registry. See AGENTS.md for ownership and test routes.
-import {distance} from './geometry.js?v=engine-322-ft1';
+import {distance} from './geometry.js?v=engine-323-final';
 
 // Attack modules are composed by stage, not treated as interchangeable procs.
 // Geometric/conditional effects work per hit; persistent aftermath has an
@@ -27,12 +27,12 @@ export const ATTACK_STAGES={
 
 // Ordered draft categories; preserve order for seeded draft reproducibility.
 export const ATTACK_MODULES=['projectiles','piercing','area','knockback','taunt','range','sunder','precision','expose','disruption','momentum','chain','burning','hazardous','restless','followthrough','disengage','velocity','rally','resonance','fortify','siphon','steadfast','patience','resolve','ricochet'];
-export const UTILITY_MODULES=['dash','dodge','backstep','flank','intercept'];
+export const UTILITY_MODULES=['dash','dodge','backstep','flank','intercept','coordinated'];
 export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
- coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1},coordinated:{coordinated:1},opportunist:{opportunist:1},pursuer:{pursuer:1},challenger:{challenger:1}
+ coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1},opportunist:{opportunist:1},pursuer:{pursuer:1},challenger:{challenger:1}
 };
 export const PASSIVE_MODULES=['regen','bulwark','haste','focus','retaliation','aegis','inspiration','anchor','wake','repulsion'];
-export const COOPERATIVE_KEYS=new Set(['expose','guardian','intercept','rally','resonance','aegis','inspiration','coordinated']);
+export const COOPERATIVE_KEYS=new Set(['expose','guardian','intercept','rally','resonance','aegis','inspiration']);
 
 export const MORPHOLOGY_MODULES=['growth','shrink'];

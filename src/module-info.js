@@ -1,4 +1,4 @@
-import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-322-ft1';
+import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-323-final';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
@@ -11,14 +11,14 @@ export const DETAILS={
  "attack:siphon":"Restore 6% of actual direct damage as combat HP per stack, capped at 24%.",
  "attack:steadfast":"Landed attacks grant 25% displacement stability per stack, max 100%, for 1s.",
  "attack:patience":"Increase the existing valid holding-position preference by 30% per stack, max 100%. Does not reward idle time or add damage.",
- "attack:resolve":"Reduce movement slows by 80% at any HP. Each stack also grants +1 defense; slow resistance does not stack.",
+ "attack:resolve":"Reduce movement slows by 80% at any HP. Each stack also grants +1 defense (total defense capped at 10); slow resistance does not stack.",
  "attack:ricochet":"Ranged projectiles can bounce off terrain or boundaries once per stack (max 2), renewing the full original travel range (including Range upgrades) at each bounce. Hazardous and Chain may each activate once per volley at a bounce; Chain adds auxiliary damage without reducing the projectile. Melee hits slide the target sideways by 16 arena units per stack (max 4 stacks), reduced by displacement resistance. Combines with Knockback into one movement. Collision with terrain or another fighter stuns the sliding fighter for 1s, with 5s target-specific stun immunity.",
  "passive:aegis":"Grant a threatened nearby ally a 12 HP temporary shield for 2s. Cooldown 6s.",
  "passive:inspiration":"Allies within 220 units recover utility cooldowns 35% faster.",
  "passive:anchor":"When threatened in a valid holding position, gain 4 defense for 1.5s. Cooldown 6s.",
  "passive:wake":"Movement leaves short-lived slowing patches, 18% movement slow. One patch per 0.5s, lasts 1.2s.",
  "passive:repulsion":"When threatened, push nearby opponents away. Cooldown 6s.",
- "target:coordinated":"Allies favor staying near this fighter as a formation anchor. Stacks strengthen cohesion; terrain and urgent movement still take precedence.",
+ "utility:coordinated":"At combat start, gain 10% HP, damage, movement speed, attack frequency and reach. Defense and physical size unchanged. Allies prefer loose formation when not productively engaged. Unique per fighter; uses one utility slot.",
  "target:opportunist":"Favor opponents whose attack is on cooldown.",
  "target:pursuer":"Increase Pursuer targeting weight by 1. Prefer opponents that are retreating.",
  "target:challenger":"Favor opponents with higher remaining HP percentage.",
@@ -77,7 +77,7 @@ export const SUMMARIES={
  "passive:anchor":"Defend an advantageous position",
  "passive:wake":"Leave slowing patches while moving",
  "passive:repulsion":"Reactive space creation",
- "target:coordinated":"Allies rally around this fighter",
+ "utility:coordinated":"+10% general stats · unique · loose formation",
  "target:opportunist":"Favor recovering enemies",
  "target:pursuer":"Favor retreating targets",
  "target:challenger":"Favor healthy opponents",
@@ -122,7 +122,7 @@ export const SUMMARIES={
 export function cardDetail(card){
  const key=card.kind+':'+card.key;
  const detail=DETAILS[key]||card.name;
- return card.kind==='utility'?detail+' A second copy on the same fighter halves the cooldown without using another slot (maximum two copies).':
+ return card.key==='coordinated'&&card.kind==='utility'?detail:card.kind==='utility'?detail+' A second copy on the same fighter halves the cooldown without using another slot (maximum two copies).':
   card.kind==='attack'&&ATTACK_STAGES[card.key]?detail+' Category: '+ATTACK_STAGES[card.key].stage+'.':detail;
 }
 export function cardSummary(card){

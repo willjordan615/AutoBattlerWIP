@@ -1,6 +1,6 @@
-import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng,morphologyTier} from './simulation.js?v=engine-322-ft1';
+import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng,morphologyTier} from './simulation.js?v=engine-323-final';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-322-ft1';
+import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-323-final';
 export {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES};
 export function cooperativeWeight(players){const alive=players.filter(p=>p.hp>0);return alive.length?alive.filter(p=>p.squad.length>1).length/alive.length:0;}
 export const catalog=[
@@ -17,7 +17,7 @@ export function createMatch(types=['bruiser','rogue','ranged','bruiser'],seed=12
 }
 export function canEquip(unit,card){
  if(card.kind==='morphology')return MORPHOLOGY_MODULES.includes(card.key)&&(card.key==='growth'?morphologyTier(unit)!==1:morphologyTier(unit)!==-1);
-  if(card.kind==='utility')return (unit.mods[card.key]||0)<2;
+  if(card.kind==='utility')return (unit.mods[card.key]||0)<(card.key==='coordinated'?1:2);
  if(card.kind==='passive')return !unit.passives.includes(card.key);
  return true;
 }
@@ -72,7 +72,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0,re
    // Re-drafting an equipped utility strengthens it without using another slot.
    const existing=slots.indexOf(card.key);
    if(existing>=0){
-    unit.mods[card.key]=Math.min(2,(unit.mods[card.key]||0)+1);
+    unit.mods[card.key]=Math.min(card.key==='coordinated'?1:2,(unit.mods[card.key]||0)+1);
     unit.modules=unit.modules.filter(m=>m.passiveSlot!==(existing+1));
     unit.modules.push({kind:card.kind,name:card.name+' ×'+unit.mods[card.key],passiveSlot:existing+1});
    }else{

@@ -1,4 +1,4 @@
-# Agent guide — AutoBattlerWIP (3.2.2)
+# Agent guide — AutoBattlerWIP (3.2.3)
 Repository: https://github.com/willjordan615/AutoBattlerWIP. Default branch: main. Playable: https://willjordan615.github.io/AutoBattlerWIP/. Native JavaScript ES modules, Node 22+, no runtime dependencies.
 
 ## Workflow
@@ -49,7 +49,7 @@ Engine modules import their direct dependencies, never the facade. Keep new file
 - Deterministic, DOM-free engine; browser is an adapter to the same match rules. Four-player FFA, shared draft before first combat and every subsequent round, active players + 2 offers; duplicated offers remain contested. Maximum three chassis per squad. Winner takes no persistent HP loss. Ties use shared headless ranking rules.
 - Fixed 30 Hz, 30-second rounds. Legitimate holding, survival and timeouts are valid. No forced aggression timer. Movement should remain purposeful and terrain-aware. Navigation regression gates flag physically stuck pursuers and failed stationary-target fixtures, not every timeout.
 - Morphology is a unique specialization (-1, 0, +1); opposite cards replace and duplicates are illegal. It does not occupy utility slots. Use radiusOf and attackTimeScale consistently.
-- Utility/passive slots remain limited; duplicate movement utility copies improve cooldown not travel, nonstacking passives remain unique. Preserve ability and module cooldown semantics. Optional diagnostics and telemetry must not consume RNG or change outcomes.
+- Utility/passive slots remain limited; duplicate movement utility copies improve cooldown not travel, nonstacking passives remain unique. Coordinated is a unique utility granting its holder +10% HP, damage, movement speed, attack frequency and reach; relaxed formation yields to productive engagement. Total flat defense is capped at 10 before Sunder. Preserve ability and module cooldown semantics. Optional diagnostics and telemetry must not consume RNG or change outcomes.
 - Low-end Android: no runtime dependencies or heavy assets; measure CPU and allocations before optimizing. Do not minify maintained source. Keep historical details in docs/history, current behavior in code and tests.
 
 ## Verification
@@ -60,5 +60,7 @@ Engine modules import their direct dependencies, never the facade. Keep new file
 - Structural parity (opt-in for major refactors, not routine CI): npm run verify:parity -- <baseline commit SHA> (requires accessible Git history; no extra dependency). Compare seeded round and full-match state, not just winners. Only require parity for changes intended to preserve behavior.
 - If only isolated JavaScript evaluation is possible, call it isolated smoke/parity testing, not Node CI. Never claim tests ran when they did not.
 - On a playable release, update the visible prototype label, build.json and all browser module/cache query versions together; do not claim Pages is live without verification.
+
+3.2.3 closes the module-development phase; 3.3 focuses on fighter AI profiles and targeting/positioning, not new combat modules. Defense cap comparison remains outstanding at the time of this decision; revisit if results identify a material issue.
 
 Historical design decisions and previous test limitations: docs/history/AGENTS-through-3.1.2.md and docs/history/README-through-3.1.2.md. See PLAYTESTING.md for harness usage.

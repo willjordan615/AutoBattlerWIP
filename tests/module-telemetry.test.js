@@ -59,13 +59,16 @@ test('Resolve records slow exposure and nominal defense contribution',()=>{
  const [u,v]=battle.units;
  u.effects={slowUntil:1,slowStrength:.4};
  u.bulwarkUntil=2;u.fortifyUntil=2;u.fortifyStrength=3;u.anchorUntil=2;
- near(stats(u).defense,CHASSIS.bruiser.defense+2+3+3+4);
+ near(stats(u).defense,10);
  battle.moduleTelemetry={};
  tick(battle,STEP);
  near(battle.moduleTelemetry[u.id].resolve.slowActiveSeconds,STEP);
  near(battle.moduleTelemetry[u.id].resolve.slowFractionSecondsAvoided,.4*.8*STEP);
  u.effects.sunderUntil=2;u.effects.sunder=3;
  const hit=resolveAttackModules(battle,[{source:v,target:u,rawDamage:30,damage:30}])[0];
+ near(battle.moduleTelemetry[u.id].resolve.nominalDamagePrevented||0,0);
+ near(hit.damage,23);
+ u.bulwarkUntil=0;u.fortifyUntil=0;u.anchorUntil=0;
+ resolveAttackModules(battle,[{source:v,target:u,rawDamage:30,damage:30}]);
  near(battle.moduleTelemetry[u.id].resolve.nominalDamagePrevented,2);
- near(hit.damage,30-(CHASSIS.bruiser.defense+2+3+3+4-3));
 });

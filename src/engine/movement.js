@@ -1,9 +1,10 @@
 // Engine subsystem: movement. See AGENTS.md for ownership and test routes.
-import {CHASSIS,radiusOf} from './config.js?v=engine-322-ft1';
-import {clearLine,distance,rectHit,clamp} from './geometry.js?v=engine-322-ft1';
-import {actorClearance,navigationPath} from './navigation.js?v=engine-322-ft1';
-import {cooperativeEngagement,positionScore,holdingOpportunity} from './positioning.js?v=engine-322-ft1';
-import {measure} from './telemetry.js?v=engine-322-ft1';
+import {CHASSIS,radiusOf} from './config.js?v=engine-323-final';
+import {clearLine,distance,rectHit,clamp} from './geometry.js?v=engine-323-final';
+import {actorClearance,navigationPath} from './navigation.js?v=engine-323-final';
+import {cooperativeEngagement,positionScore,holdingOpportunity} from './positioning.js?v=engine-323-final';
+import {coordinationStacks} from './stats.js?v=engine-323-final';
+import {measure} from './telemetry.js?v=engine-323-final';
 
 export function chooseMovement(state,u,target,st,enemies,dt){
  u.previouslyHolding=!!u.holdingPosition;u.holdingPosition=false;
@@ -16,13 +17,15 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  let nav=u.navigation;
  const hasGoal=routeBlocked||distance(u,target)>Math.min(st.range*.85,st.range-5);
  let teamSupport=cooperativeEngagement(state,u,st,enemies);
- const coordinators=state.units.filter(a=>a!==u&&a.hp>0&&a.owner===u.owner&&(a.chassis.weights.coordinated||0)>0).sort((a,b)=>(b.chassis.weights.coordinated||0)-(a.chassis.weights.coordinated||0)||a.id-b.id);
- const leader=coordinators[0],myWeight=u.chassis.weights.coordinated||0;
- if(leader&&(!myWeight||leader.chassis.weights.coordinated>myWeight||(leader.chassis.weights.coordinated===myWeight&&leader.id<u.id))){
-  const d=distance(u,leader),radius=radiusOf(u)+radiusOf(leader)+35;
-  if(d>radius+Math.max(12,45-10*leader.chassis.weights.coordinated)){
+ const coordinators=state.units.filter(a=>a!==u&&a.hp>0&&a.owner===u.owner&&coordinationStacks(a)>0).sort((a,b)=>coordinationStacks(b)-coordinationStacks(a)||a.id-b.id);
+ const leader=coordinators[0],myWeight=coordinationStacks(u);
+ const hasAttackAccess=enemies.some(e=>distance(u,e)<=st.range&&clearLine(u,e,arena));
+ // Formation is a fallback, never an override of productive engagement or terrain navigation.
+ if(leader&&!teamSupport&&!nav&&!routeBlocked&&!hasAttackAccess&&(coordinationStacks(leader)>myWeight||(coordinationStacks(leader)===myWeight&&leader.id<u.id))){
+  const d=distance(u,leader),radius=radiusOf(u)+radiusOf(leader)+55;
+  if(d>radius+45){
    const p={x:leader.x+(u.x-leader.x)*radius/d,y:leader.y+(u.y-leader.y)*radius/d};
-   if(p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&!arena.obstacles.some(o=>rectHit(p.x,p.y,r,o)))teamSupport={point:p,allyId:leader.id,enemyId:target.id,mode:'formation'};
+   if(distance(p,target)<distance(u,target)-15&&p.x>=20+r&&p.x<=700-r&&p.y>=20+r&&p.y<=500-r&&!arena.obstacles.some(o=>rectHit(p.x,p.y,r,o)))teamSupport={point:p,allyId:leader.id,enemyId:target.id,mode:'formation'};
   }
  }
  // A direct attack position needs no terrain route. Tactical movement is free to

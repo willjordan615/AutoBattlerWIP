@@ -1,10 +1,10 @@
 // Engine subsystem: effects. See AGENTS.md for ownership and test routes.
-import {ATTACK_STAGES} from './module-registry.js?v=engine-322-ft1';
-import {distance,clearLine} from './geometry.js?v=engine-322-ft1';
-import {resolveResistance,stats} from './stats.js?v=engine-322-ft1';
-import {CHASSIS,radiusOf} from './config.js?v=engine-322-ft1';
-import {physicalLineClear} from './navigation.js?v=engine-322-ft1';
-import {measure} from './telemetry.js?v=engine-322-ft1';
+import {ATTACK_STAGES} from './module-registry.js?v=engine-323-final';
+import {distance,clearLine} from './geometry.js?v=engine-323-final';
+import {resolveResistance,stats,defenseOf} from './stats.js?v=engine-323-final';
+import {CHASSIS,radiusOf} from './config.js?v=engine-323-final';
+import {physicalLineClear} from './navigation.js?v=engine-323-final';
+import {measure} from './telemetry.js?v=engine-323-final';
 
 // Returns true for all targets struck by the SAME committed attack; other
 // attacks respect the independent cooldown. Projectile volleys can arrive
@@ -107,7 +107,7 @@ export function resolveAttackModules(state,attacks){
   const defense=Math.max(0,baseDefense-sunderStrength);
   add('sunder',Math.max(0,Math.max(1,raw-defense)-Math.max(1,raw-baseDefense)));
   hit.rawDamage=raw;hit.damage=Math.max(1,raw-defense);
-  if(state.moduleTelemetry){if(target.chassis.mods.resolve){const withoutResolve=Math.max(0,baseDefense-target.chassis.mods.resolve-sunderStrength);measure(state,target,'resolve','nominalDamagePrevented',Math.max(0,Math.max(1,raw-withoutResolve)-hit.damage));}if(target.fortifyUntil>state.time)measure(state,target,'fortify','nominalDamagePrevented',Math.max(0,Math.max(1,raw-Math.max(0,defense-(target.fortifyStrength||0)))-hit.damage));if(target.anchorUntil>state.time)measure(state,target,'anchor','nominalDamagePrevented',Math.max(0,Math.max(1,raw-Math.max(0,defense-4))-hit.damage));}
+  if(state.moduleTelemetry){for(const key of ['resolve','fortify','anchor']){if(key==='resolve'?!target.chassis.mods.resolve:!(target[key+'Until']>state.time))continue;const without=Math.max(0,defenseOf(target,key)-sunderStrength);measure(state,target,key,'nominalDamagePrevented',Math.max(0,Math.max(1,raw-without)-hit.damage));}}
   const chained=mods.chain?state.units.filter(u=>u!==target&&u.hp>0&&u.owner!==source.owner&&
    distance(u,target)<=95&&clearLine(target,u,state.arena)).sort((a,b)=>distance(a,target)-distance(b,target)||a.id-b.id)[0]:null;
   const split=mods.chain?Math.min(.60,.15*mods.chain):0;

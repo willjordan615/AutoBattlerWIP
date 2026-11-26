@@ -1,6 +1,6 @@
-# Modular Arena Autobattler — Prototype 3.2.2
+# Modular Arena Autobattler — Prototype 3.2.3
 
-Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. Prototype 3.2.2 revises outlier modules after the 3.2.1 balance audit.
+Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. Prototype 3.2.3 revises outlier modules after the 3.2.1 balance audit.
 
 ## Run
 - Browser: serve the repository statically or open the GitHub Pages build. Do not open via file://.
@@ -17,7 +17,7 @@ src/simulation.js is the stable public facade; implementation lives in src/engin
 - Current balance values and module behavior are defined in the engine and tests. Historical release notes and original design decisions are preserved under docs/history/.
 
 - Morphology: unique Growth (+30% HP) or Shrink (-15% HP); opposite cards replace. Shrink increases movement and attack frequency by 15% and reduces attack phase duration by 15%. Growth retains its 10% speed penalties. Both retain size, reach and damage trade-offs.
-- Follow Through moves to an adjacent legal destination and grants a bonus release only on far-side arrival, at most once per second, never twice consecutively against the same target. Chain preserves primary damage and adds 15% auxiliary damage per stack (cap 60%). Bulwark grants +3 defense, Retaliation +3 raw damage, Inspiration radius 220. Coordinated makes its holder a formation anchor; Independent is removed from draft.
+- Follow Through moves to an adjacent legal destination and grants a bonus release only on far-side arrival, at most once per second, never twice consecutively against the same target. Chain preserves primary damage and adds 15% auxiliary damage per stack (cap 60%). Bulwark grants +3 defense, Retaliation +3 raw damage, Inspiration radius 220. Coordinated is now a unique utility: +10% HP, damage, movement speed, attack frequency and reach, with relaxed formation preference. Independent is removed from draft. Total flat defense capped at 10 before Sunder.
 
 ## Verification
 The structural parity command compares complete seeded matches and current engine state against a selected Git commit: npm run verify:parity -- <baseline SHA>. The original 3.1.2 baseline is 9416d7c130a7e40838822f5594800caaeb47dff4. CI and device performance must be checked independently; a structural move does not imply faster runtime or improved balance. See AGENTS.md for exact checks and reporting requirements.
