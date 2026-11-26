@@ -1,8 +1,8 @@
-import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails,radiusOf,morphologyTier} from './simulation.js?v=engine-322';
-import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=engine-322';
-import {cardDetail,cardSummary} from './module-info.js?v=engine-322';
-import {chooseCpuDraft} from './draft-ai.js?v=engine-322';
-import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION,teamFill} from './mobility-visual.js?v=engine-322';
+import {CHASSIS,ARENAS,STEP,tick,rng,stats,METRICS,positionScore,targetScoreDetails,radiusOf,morphologyTier} from './simulation.js?v=engine-322-ft1';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from './headless.js?v=engine-322-ft1';
+import {cardDetail,cardSummary} from './module-info.js?v=engine-322-ft1';
+import {chooseCpuDraft} from './draft-ai.js?v=engine-322-ft1';
+import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION,teamFill} from './mobility-visual.js?v=engine-322-ft1';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let initialTypes=[],draftArchive=[],advancedOpen=false,effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='start',lastResult=null,completedDraft=null,inspected=null;

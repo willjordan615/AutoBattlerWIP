@@ -1,7 +1,7 @@
 // Engine subsystem: targeting. See AGENTS.md for ownership and test routes.
-import {clamp,distance} from './geometry.js?v=engine-322';
-import {stats} from './stats.js?v=engine-322';
-import {METRICS} from './config.js?v=engine-322';
+import {clamp,distance} from './geometry.js?v=engine-322-ft1';
+import {stats} from './stats.js?v=engine-322-ft1';
+import {METRICS} from './config.js?v=engine-322-ft1';
 
 export function healthFraction(u){return clamp(u.hp/u.maxHp,0,1)}
 export function targetScoreDetails(state,u,e){

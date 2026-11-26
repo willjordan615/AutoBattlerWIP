@@ -1,9 +1,9 @@
 // Engine subsystem: positioning. See AGENTS.md for ownership and test routes.
-import {stats} from './stats.js?v=engine-322';
-import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-322';
-import {healthFraction} from './targeting.js?v=engine-322';
-import {METRICS,STEP,CHASSIS,radiusOf} from './config.js?v=engine-322';
-import {recentMovement} from './collision.js?v=engine-322';
+import {stats} from './stats.js?v=engine-322-ft1';
+import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-322-ft1';
+import {healthFraction} from './targeting.js?v=engine-322-ft1';
+import {METRICS,STEP,CHASSIS,radiusOf} from './config.js?v=engine-322-ft1';
+import {recentMovement} from './collision.js?v=engine-322-ft1';
 
 // Utility movement is deterministic, shares the existing targeting weights, and
 // consumes its own cooldown. Terrain still blocks every movement technique.

@@ -1,5 +1,5 @@
-import {CHASSIS} from './simulation.js?v=engine-322';
-import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-322';
+import {CHASSIS} from './simulation.js?v=engine-322-ft1';
+import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-322-ft1';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];

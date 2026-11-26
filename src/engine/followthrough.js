@@ -1,9 +1,9 @@
 // Engine subsystem: followthrough. See AGENTS.md for ownership and test routes.
-import {resolveCollision} from './collision.js?v=engine-322';
-import {stats} from './stats.js?v=engine-322';
-import {radiusOf} from './config.js?v=engine-322';
-import {startAttack,advanceAttack,attackWindup} from './combat.js?v=engine-322';
-import {bound,distance,clearLine,rectHit} from './geometry.js?v=engine-322';
+import {resolveCollision} from './collision.js?v=engine-322-ft1';
+import {stats} from './stats.js?v=engine-322-ft1';
+import {radiusOf} from './config.js?v=engine-322-ft1';
+import {startAttack,advanceAttack,attackWindup} from './combat.js?v=engine-322-ft1';
+import {bound,distance,clearLine,rectHit} from './geometry.js?v=engine-322-ft1';
 
 // Destination-based movement. A bounded commitment prefers the opposite side
 // at two copies, and never moves through terrain or unrelated units.
@@ -31,9 +31,13 @@ export function applyFollowthrough(state,hit){
  const duration=.75,choice=destination(state,u,target,heading,stacks>0,stats(u).speed*speedFactor*duration);
  if(!choice)return false;
  const d=distance(u,choice.point);
+ const startDistance=distance(u,target);
+ const entryX=startDistance>1e-8?(u.x-target.x)/startDistance:0;
+ const entryY=startDistance>1e-8?(u.y-target.y)/startDistance:0;
  u.followthroughCommit={x:(choice.point.x-u.x)/d,y:(choice.point.y-u.y)/d,
   until:state.time+duration,started:state.time,attackId:hit.attackId,
-  speedFactor,phaseTargetId:stacks>0?target.id:null,targetId:target.id,landingAngle:choice.angle};
+  speedFactor,phaseTargetId:stacks>0?target.id:null,targetId:target.id,landingAngle:choice.angle,
+  entryX,entryY,startX:u.x,startY:u.y};
  if(u.chassis.mods.disengage&&u.disengageUntil>state.time)u.disengageUntil=state.time+duration+.5;
  u.followthroughAt=state.time+1;u.lastFollowthroughAttackId=hit.attackId;
  u.navigation=null;u.navProgress=null;
@@ -66,11 +70,18 @@ export function finishFollowthrough(state,u,attacks){
  const adjacent=t&&Math.abs(distance(u,t)-(radiusOf(u)+radiusOf(t)+5))<=3&&clearLine(u,t,state.arena);
  if(u.chassis.mods.disengage&&u.disengageUntil>state.time)u.disengageUntil=state.time+.5;
  u.followthroughCommit=null;
- if(!adjacent||!c.arrived||u.hp<=0||u.followthroughBonusAt>state.time+1e-8)return false;
+ // The destination must be on the opposite side of the original relative bearing.
+ // Sideways or near-side arrival, even if valid, does not qualify.
+ const gap=t?radiusOf(u)+radiusOf(t)+5:0;
+ const farSide=t&&(u.x-t.x)*c.entryX+(u.y-t.y)*c.entryY < -gap*.5;
+ const traversed=-(u.x-c.startX)*c.entryX-(u.y-c.startY)*c.entryY>=gap*.5;
+ if(!adjacent||!c.arrived||!farSide||!traversed||u.hp<=0||
+    u.lastFollowthroughBonusTargetId===t.id||u.followthroughBonusAt>state.time+1e-8)return false;
  const prior=u.attack,cd=u.cd;
  u.attack=null;u.cd=0;
  if(startAttack(state,u,t)){u.attack.followthroughBonus=true;advanceAttack(state,u,t,stats(u),attackWindup(u),attacks);}
  u.attack=prior;u.cd=cd;u.followthroughBonusAt=state.time+1;
+ u.lastFollowthroughBonusTargetId=t.id;
  if(u.combatStats)u.combatStats.followthroughBonus=(u.combatStats.followthroughBonus||0)+1;
  return true;
 }

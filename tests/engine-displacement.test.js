@@ -120,3 +120,38 @@ test('3.2.2 Disengage begins after Follow Through arrival',()=>{
  assert.ok(applyFollowthrough(b,{source:u,target,attackId:70,attackDirection:0}));
  completeMove(b,u);assert.ok(Math.abs(u.disengageUntil-b.time-.5)<1e-8);
 });
+
+test('Follow Through near-side arrival grants no bonus',()=>{
+ const {b,u,target}=followFixture(1);
+ assert.ok(applyFollowthrough(b,{source:u,target,attackId:80,attackDirection:0}));
+ const hits=completeMove(b,u);
+ assert.ok(Math.abs(distance(u,target)-(radiusOf(u)+radiusOf(target)+5))<=3);
+ assert.ok(u.x<target.x);assert.equal(hits.length,0);
+ assert.equal(u.lastFollowthroughBonusTargetId,undefined);
+});
+test('Follow Through lateral landing is not a far-side traversal',()=>{
+ const {b,u,target}=followFixture();
+ assert.ok(applyFollowthrough(b,{source:u,target,attackId:81,attackDirection:0}));
+ u.x=target.x;u.y=target.y+radiusOf(u)+radiusOf(target)+5;
+ u.followthroughCommit.arrived=true;
+ const hits=[];assert.equal(finishFollowthrough(b,u,hits),false);
+ assert.equal(hits.length,0);assert.equal(u.lastFollowthroughBonusTargetId,undefined);
+});
+test('Follow Through bonuses must alternate targets even after the cooldown',()=>{
+ const {b,u,target}=followFixture();
+ const other=spawn(players(),ARENAS[0],4516).units[2];b.units.push(other);
+ other.x=450;other.y=220;
+ assert.ok(applyFollowthrough(b,{source:u,target,attackId:82,attackDirection:0}));
+ assert.equal(completeMove(b,u).length,1);
+ assert.equal(u.lastFollowthroughBonusTargetId,target.id);
+ b.time+=1.1;
+ assert.ok(applyFollowthrough(b,{source:u,target,attackId:83,attackDirection:Math.PI}));
+ assert.equal(completeMove(b,u).length,0,'same target remains ineligible after cooldown');
+ assert.equal(u.lastFollowthroughBonusTargetId,target.id);
+ target.x=450;other.x=210;u.x=150;u.y=220;b.time+=1.1;
+ assert.ok(applyFollowthrough(b,{source:u,target:other,attackId:84,attackDirection:0}));
+ assert.equal(completeMove(b,u).length,1);assert.equal(u.lastFollowthroughBonusTargetId,other.id);
+ other.x=450;target.x=210;u.x=150;u.y=220;b.time+=1.1;
+ assert.ok(applyFollowthrough(b,{source:u,target,attackId:85,attackDirection:0}));
+ assert.equal(completeMove(b,u).length,1);assert.equal(u.lastFollowthroughBonusTargetId,target.id);
+});

@@ -1,16 +1,16 @@
 // Engine subsystem: loop. See AGENTS.md for ownership and test routes.
-import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-322';
-import {chooseTarget} from './targeting.js?v=engine-322';
-import {distance,clearLine,bound} from './geometry.js?v=engine-322';
-import {measure} from './telemetry.js?v=engine-322';
-import {stats,resolveResistance} from './stats.js?v=engine-322';
-import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-322';
-import {startAttack,attackMovementMultiplier,advanceAttack,attackWindup} from './combat.js?v=engine-322';
-import {chooseMovement} from './movement.js?v=engine-322';
-import {advanceFollowthrough,resolveFollowthroughImpacts,finishFollowthrough} from './followthrough.js?v=engine-322';
-import {resolveCollision} from './collision.js?v=engine-322';
-import {advanceProjectiles} from './projectiles.js?v=engine-322';
-import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-322';
+import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-322-ft1';
+import {chooseTarget} from './targeting.js?v=engine-322-ft1';
+import {distance,clearLine,bound} from './geometry.js?v=engine-322-ft1';
+import {measure} from './telemetry.js?v=engine-322-ft1';
+import {stats,resolveResistance} from './stats.js?v=engine-322-ft1';
+import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-322-ft1';
+import {startAttack,attackMovementMultiplier,advanceAttack,attackWindup} from './combat.js?v=engine-322-ft1';
+import {chooseMovement} from './movement.js?v=engine-322-ft1';
+import {advanceFollowthrough,resolveFollowthroughImpacts,finishFollowthrough} from './followthrough.js?v=engine-322-ft1';
+import {resolveCollision} from './collision.js?v=engine-322-ft1';
+import {advanceProjectiles} from './projectiles.js?v=engine-322-ft1';
+import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-322-ft1';
 
 export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];
  // Snapshot intentions for all units before sequential movement begins.

@@ -1,10 +1,10 @@
 // Engine subsystem: effects. See AGENTS.md for ownership and test routes.
-import {ATTACK_STAGES} from './module-registry.js?v=engine-322';
-import {distance,clearLine} from './geometry.js?v=engine-322';
-import {resolveResistance,stats} from './stats.js?v=engine-322';
-import {CHASSIS,radiusOf} from './config.js?v=engine-322';
-import {physicalLineClear} from './navigation.js?v=engine-322';
-import {measure} from './telemetry.js?v=engine-322';
+import {ATTACK_STAGES} from './module-registry.js?v=engine-322-ft1';
+import {distance,clearLine} from './geometry.js?v=engine-322-ft1';
+import {resolveResistance,stats} from './stats.js?v=engine-322-ft1';
+import {CHASSIS,radiusOf} from './config.js?v=engine-322-ft1';
+import {physicalLineClear} from './navigation.js?v=engine-322-ft1';
+import {measure} from './telemetry.js?v=engine-322-ft1';
 
 // Returns true for all targets struck by the SAME committed attack; other
 // attacks respect the independent cooldown. Projectile volleys can arrive

@@ -1,5 +1,5 @@
 // Engine subsystem: stats. See AGENTS.md for ownership and test routes.
-import {CHASSIS,METRICS,BASE_WEIGHTS,morphologyTier,radiusOf} from './config.js?v=engine-322';
+import {CHASSIS,METRICS,BASE_WEIGHTS,morphologyTier,radiusOf} from './config.js?v=engine-322-ft1';
 
 export function rng(seed=12345){let s=seed>>>0;return ()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
 export function makeChassis(type){if(!CHASSIS[type])throw Error('Unknown chassis');return {type,mods:{growth:0,shrink:0,hp:0,damage:0,speed:0,rate:0,range:0,projectiles:0,piercing:0,area:0,knockback:0,taunt:0,dash:0,dodge:0,backstep:0,flank:0,disengage:0,intercept:0,followthrough:0,range:0,sunder:0,precision:0,expose:0,disruption:0,momentum:0,chain:0,burning:0,hazardous:0,restless:0,velocity:0,rally:0,resonance:0,fortify:0,siphon:0,steadfast:0,patience:0,resolve:0,ricochet:0},weights:Object.fromEntries(METRICS.map((m,i)=>[m,BASE_WEIGHTS[type][i]||0])),passives:[],modules:[]}}

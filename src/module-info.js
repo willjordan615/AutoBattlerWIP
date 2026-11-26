@@ -1,4 +1,4 @@
-import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-322';
+import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-322-ft1';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={
@@ -45,7 +45,7 @@ export const DETAILS={
  'attack:burning':'On a qualifying landed attack, apply a 2-second burn dealing 2 damage per second per stack (maximum 12 DPS), ignoring defense. Each fighter can activate Burning once per second; all eligible targets struck by that attack receive it, including later impacts from the same volley. Hits while the activation is on cooldown do not refresh the burn. Burn ticks cannot trigger on-hit effects.',
  'attack:hazardous':'On a qualifying landed attack, leave a damaging patch at each struck enemy\'s position for 2.5 seconds. Each fighter can activate Hazardous once per second; all eligible targets of the same attack can create a patch, including later impacts from that volley. Enemies standing in patches take 2 damage per second per stack (maximum 10 DPS), ignoring defense. Each fighter can maintain up to two patches, and overlapping patches can both deal damage. Patch damage cannot trigger on-hit effects.',
  'attack:restless':'For 3 seconds after landing a hit, lower the priority of targeting that same enemy again. Stacks strengthen this preference for switching; other targeting weights can counteract it.',
- "attack:followthrough":"On a landed hit, move toward a valid adjacent position by the deepest struck fighter. Extra copies increase traversal speed; at two copies, prefer the opposite side and phase only through the selected fighter. Terrain and other pieces remain solid. Successful arrival grants a free basic attack, at most once per second; it cannot trigger Follow Through again.",
+ "attack:followthrough":"On a landed hit, move toward a valid adjacent position by the deepest struck fighter. Extra copies increase traversal speed; at two copies, prefer the opposite side and phase only through the selected fighter. Terrain and other pieces remain solid. Only a completed far-side traversal grants a free basic attack, at most once per second. Consecutive bonuses must target different fighters; the bonus cannot trigger Follow Through again.",
  'attack:disengage':'After each committed attack releases, heavily prioritize personal safety and retreat away from nearby enemies for 0.5 seconds. The fighter then re-evaluates its target normally. Works on melee and ranged attacks; extra stacks increase retreat speed by 10% each (up to 35%) without extending the retreat.',
  'target:executioner':'Increase Kill Opportunity targeting weight by 1. Prefer enemies with a smaller percentage of HP remaining.',
  'target:guardian':'Increase Ally Protection targeting weight by 1. Prefer enemies currently targeting your teammates.',
@@ -104,7 +104,7 @@ export const SUMMARIES={
  'attack:burning':'Apply 2-second burn · 1s activation cooldown per fighter',
  'attack:hazardous':'Create damaging ground · 1s activation cooldown · max 2 patches',
  'attack:restless':'Recently hit enemies become lower-priority targets',
- "attack:followthrough":"Move adjacent · free attack on arrival (1s cooldown)",
+ "attack:followthrough":"Move adjacent · far-side bonus (1s, alternate targets)",
  'attack:disengage':'After attacking, retreat for 0.5s then retarget',
  'target:executioner':'Kill Opportunity +1 · favor weakened enemies',
  'target:guardian':'Ally Protection +1 · favor threats to teammates',
