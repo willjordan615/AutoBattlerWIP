@@ -32,6 +32,11 @@ export const TARGET_MODULES={
  executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},
  coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1},opportunist:{opportunist:1},pursuer:{pursuer:1},challenger:{challenger:1}
 };
+// Stackable fractional increments to existing stat fields, not new draft slots.
+export const TARGET_STAT_BONUSES=Object.freeze({
+ duelist:Object.freeze({speed:.25}),
+ guardian:Object.freeze({hp:.25})
+});
 export const PASSIVE_MODULES=['regen','bulwark','haste','focus','retaliation','aegis','inspiration','anchor','wake','repulsion'];
 export const COOPERATIVE_KEYS=new Set(['expose','guardian','intercept','rally','resonance','aegis','inspiration']);
 

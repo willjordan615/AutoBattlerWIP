@@ -5,6 +5,7 @@ import {encounterPressure} from '../src/engine/targeting.js?v=engine-323-r1';
 
 function fixture(){
  const b=spawn(['ranged','bruiser','rogue'].map((type,i)=>({name:'P'+i,hp:100,squad:[makeChassis(type)]})),ARENAS[0],21);
+ b.aiExperiment='control';
  const [u,a,z]=b.units;
  Object.assign(u,{x:200,y:200});
  Object.assign(a,{x:250,y:200,focus:u.id,intent:{x:0,y:0}});
@@ -64,7 +65,7 @@ test('target and position ablations isolate their own consumer and respect zero 
  assert.deepEqual(targetScoreDetails(b,u,a),t);
  u.chassis.weights.threat=0;
  const t0=targetScoreDetails(b,u,a).total,p0=positionScore(b,u,a,point,st,enemies);
- delete b.aiExperiment;
+ b.aiExperiment='control';
  assert.equal(targetScoreDetails(b,u,a).total,t0);
  assert.equal(positionScore(b,u,a,point,st,enemies),p0);
 });

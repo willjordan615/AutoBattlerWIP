@@ -4,7 +4,7 @@ import {stats} from './stats.js?v=engine-323-r1';
 import {METRICS} from './config.js?v=engine-323-r1';
 
 export function healthFraction(u){return clamp(u.hp/u.maxHp,0,1)}
-// Experimental feature evaluators: enabled only by the diagnostic harness.
+// Named legacy/experimental arms remain available to diagnostic harnesses.
 export function safetySensitivity(u){return 1+(1-healthFraction(u));}
 export function engagementPreference(state,u,e,st,d,bonus=.65){
  if(!clearLine(u,e,state.arena))return 0;
@@ -39,7 +39,7 @@ export function encounterPressure(state,u,point,e,es){
  const intentFactor=e.focus===u.id?1:.75;
  return (.75*now+.25*soon)*intentFactor;
 }
-// Explicit experiment arms. Default gameplay is untouched.
+// Explicit historical experiment arms; production is the default on 3.3.
 export const EVALUATION_ARMS=Object.freeze({
  'engagement-low':{engagement:.20},
  'engagement-mid':{engagement:.40},
@@ -48,12 +48,19 @@ export const EVALUATION_ARMS=Object.freeze({
  'position-engagement-high':{position:true,engagement:.65},
  'position-safety-pressure':{position:true,safetyPressure:true}
 });
+// Damage opportunity measures access and effective output, not remaining HP.
+export function productiveOpportunity(state,u,e,st,d,enemyStats){
+ const access=engagementPreference(state,u,e,st,d,.40);
+ const efficiency=clamp(Math.max(1,st.damage-enemyStats.defense)/Math.max(1,st.damage),0,1);
+ return access*(.75+.25*efficiency);
+}
 export function targetScoreDetails(state,u,e){
  const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a.id!==u.id),st=stats(u);
  const d=distance(u,e),ratio=healthFraction(e),enemyStats=stats(e),enemyAllies=state.units.filter(a=>a.hp>0&&a.owner===e.owner&&a.id!==e.id);
  const isolated=enemyAllies.length?Math.min(...enemyAllies.map(a=>distance(a,e)))/200:1,nearAllies=allies.length?Math.min(...allies.map(a=>distance(a,e))):250;
  const features={kill:1-ratio,damage:st.damage/Math.max(1,e.hp),threat:enemyStats.damage/30+(e.focus===u.id?.5:0),distance:1-d/500,allyProximity:1-nearAllies/500,safety:d/500,protection:allies.some(a=>e.focus===a.id)?1:0,ability:u.cd<=0?1:0,isolation:clamp(isolated,0,1),preferredRange:1-Math.abs(d-st.range)/500,coordinated:0,independent:allies.length&&!allies.some(a=>a.focus===e.id)?1:0,opportunist:clamp((e.cd||0)/Math.max(.1,enemyStats.rate),0,1),pursuer:e.disengageUntil>state.time?1:Math.max(0,((e.intent?.x||0)*(e.x-u.x)+(e.intent?.y||0)*(e.y-u.y))/Math.max(1,d)),challenger:ratio};
- const experiment=state.aiExperiment;
+ const experiment=state.aiExperiment??'production';
+ if(experiment==='production')features.damage=productiveOpportunity(state,u,e,st,d,enemyStats);
  if(experiment==='safety')features.safety*=safetySensitivity(u);
  if(experiment==='engagement')features.damage+=engagementPreference(state,u,e,st,d);
  const arm=EVALUATION_ARMS[experiment];

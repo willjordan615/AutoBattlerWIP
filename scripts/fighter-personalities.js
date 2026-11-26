@@ -44,7 +44,7 @@ export function makeFixture({seed,arena,type,owner,health,profile,condition,layo
  const focal=b.units.find(u=>u.owner===owner&&u.id%100===0);
  // All four same-slot units start at the same health; only focal weights vary.
  for(const u of b.units)if(u.id%100===0)u.hp=u.maxHp*health;
- if(condition!=='control')b.aiExperiment=condition;
+ b.aiExperiment=condition;
  b.decisionAudit={interval:30,limit:1,units:{}};
  b.diagnostics={units:{}};
  return {b,focal};

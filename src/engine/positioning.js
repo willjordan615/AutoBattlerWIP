@@ -49,8 +49,8 @@ export function positionScore(state,u,target,point,st,enemies){
  // route commitments, and the safety exposure term in the threat arm stay fixed.
  if(state.aiExperiment==='safety')features.safety*=safetySensitivity(u);
  if(state.aiExperiment==='threat')features.threat=-forecast.reduce((sum,f)=>sum+localThreat(state,u,point,f.e,f.es),0)*.5;
- const arm=EVALUATION_ARMS[state.aiExperiment];
- if(state.aiExperiment==='threat-v2'||state.aiExperiment==='threat-position'||arm?.position){
+ const experiment=state.aiExperiment??'production',arm=EVALUATION_ARMS[experiment];
+ if(experiment==='production'||experiment==='threat-v2'||experiment==='threat-position'||arm?.position){
   const pressure=forecast.reduce((sum,f)=>sum+encounterPressure(state,u,point,f.e,f.es),0);
   features.threat=-pressure*.5;
   // Separate sensitivity experiment: replace legacy safety exposure with the

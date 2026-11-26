@@ -4,6 +4,7 @@ import {ARENAS,makeChassis,spawn,stats,targetScoreDetails,positionScore,tick,STE
 
 function scene(arena=ARENAS[0]){
  const b=spawn(['ranged','bruiser','rogue'].map((type,i)=>({name:'P'+i,hp:100,squad:[makeChassis(type)]})),arena,19);
+ b.aiExperiment='control';
  const [u,a,z]=b.units;
  Object.assign(u,{x:200,y:200});Object.assign(a,{x:300,y:200});Object.assign(z,{x:450,y:200});
  return {b,u,a,z};
@@ -20,7 +21,7 @@ test('health awareness scales only safety and preserves player weight control',(
  zero(u);
  const st=stats(u),point={x:190,y:200};
  const experimental=positionScore(b,u,a,point,st,[a]);
- delete b.aiExperiment;
+ b.aiExperiment='control';
  assert.equal(positionScore(b,u,a,point,st,[a]),experimental);
 });
 test('engagement preference distinguishes accessible and occluded targets without forcing selection',()=>{
@@ -51,11 +52,11 @@ test('coherent threat is local and respects visibility; only threat feature chan
  const st=stats(u);
  const p={x:195,y:200};
  const exp=positionScore(b,u,a,p,st,[a]);
- delete b.aiExperiment;
+ b.aiExperiment='control';
  assert.ok(exp>positionScore(b,u,a,p,st,[a]));
 });
 test('default and explicit control are identical on a fixed seed',()=>{
- const a=scene().b,b=scene().b;b.aiExperiment='control';
+ const a=scene().b,b=scene().b;delete a.aiExperiment;b.aiExperiment='production';
  const snapshot=x=>JSON.stringify(x,(k,v)=>k==='aiExperiment'?undefined:v);
  for(let i=0;i<90;i++){
   assert.deepEqual(tick(a,STEP),tick(b,STEP));

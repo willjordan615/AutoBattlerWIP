@@ -12,7 +12,7 @@ assert.ok(['control','safety','engagement','threat','threat-v2','threat-target',
 assert.ok(Number.isInteger(start)&&Number.isInteger(count)&&count>0&&count<=20);
 const add=(o,k,n=1)=>{o[k]=(o[k]||0)+n;};
 function run(b){
- if(condition!=='control')b.aiExperiment=condition;
+ b.aiExperiment=condition;
  b.decisionAudit={interval:30,limit:1,units:{}};
  b.diagnostics={units:{}};
  const observations={};

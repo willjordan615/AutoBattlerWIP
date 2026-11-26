@@ -1,6 +1,6 @@
 import {ARENAS,CHASSIS,STEP,spawn,tick,teamPercent,placementGroups,resolvePlayerHP,makeChassis,rng,morphologyTier} from './simulation.js?v=engine-323-r1';
 // Headless match orchestration: no DOM, Canvas or wall-clock dependencies.
-import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-323-r1';
+import {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,TARGET_STAT_BONUSES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-323-r1';
 export {ATTACK_MODULES,UTILITY_MODULES,TARGET_MODULES,PASSIVE_MODULES,COOPERATIVE_KEYS,MORPHOLOGY_MODULES};
 export function cooperativeWeight(players){const alive=players.filter(p=>p.hp>0);return alive.length?alive.filter(p=>p.squad.length>1).length/alive.length:0;}
 export const catalog=[
@@ -60,7 +60,10 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0,re
  if(!canEquip(unit,card))throw Error('This chassis cannot equip another copy of '+card.key);
  if(card.kind==='attack')unit.mods[card.key]=(unit.mods[card.key]||0)+1;
   if(card.kind==='morphology'){unit.mods.growth=Number(card.key==='growth');unit.mods.shrink=Number(card.key==='shrink');unit.modules=unit.modules.filter(m=>m.kind!=='morphology');}
- if(card.kind==='target')for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
+ if(card.kind==='target'){
+  for(const [key,value] of Object.entries(TARGET_MODULES[card.key]))unit.weights[key]+=value;
+  for(const [key,value] of Object.entries(TARGET_STAT_BONUSES[card.key]||{}))unit.mods[key]=(unit.mods[key]||0)+value;
+ }
  if(card.kind==='passive'||card.kind==='utility'){
   const slots=unit.passives;
   const assignedSlot=slots.length<2?slots.length:passiveSlot;

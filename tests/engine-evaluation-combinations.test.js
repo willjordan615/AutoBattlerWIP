@@ -4,6 +4,7 @@ import {ARENAS,makeChassis,spawn,stats,targetScoreDetails,positionScore} from '.
 
 function scene(){
  const b=spawn(['ranged','bruiser','rogue'].map((type,i)=>({name:'P'+i,hp:100,squad:[makeChassis(type)]})),ARENAS[0],21);
+ b.aiExperiment='control';
  const [u,a,z]=b.units;
  Object.assign(u,{x:200,y:200});
  Object.assign(a,{x:235,y:200,focus:u.id,intent:{x:0,y:0}});
