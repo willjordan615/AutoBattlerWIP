@@ -1,0 +1,125 @@
+name: Final balance audit
+on:
+  push:
+    branches:
+      - diagnostics/final-32-matrix
+  workflow_dispatch:
+jobs:
+  audit:
+    name: ${{ matrix.kind }}-${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 24
+      matrix:
+        include:
+          - kind: modules
+            shard: 0
+          - kind: modules
+            shard: 1
+          - kind: modules
+            shard: 2
+          - kind: modules
+            shard: 3
+          - kind: modules
+            shard: 4
+          - kind: modules
+            shard: 5
+          - kind: modules
+            shard: 6
+          - kind: modules
+            shard: 7
+          - kind: modules
+            shard: 8
+          - kind: modules
+            shard: 9
+          - kind: modules
+            shard: 10
+          - kind: modules
+            shard: 11
+          - kind: synergy
+            shard: 0
+          - kind: synergy
+            shard: 1
+          - kind: synergy
+            shard: 2
+          - kind: synergy
+            shard: 3
+          - kind: synergy
+            shard: 4
+          - kind: synergy
+            shard: 5
+          - kind: synergy
+            shard: 6
+          - kind: synergy
+            shard: 7
+          - kind: stress
+            shard: 0
+          - kind: stress
+            shard: 1
+          - kind: stress
+            shard: 2
+          - kind: stress
+            shard: 3
+          - kind: stress
+            shard: 4
+          - kind: stress
+            shard: 5
+          - kind: stress
+            shard: 6
+          - kind: stress
+            shard: 7
+          - kind: cross
+            shard: 0
+          - kind: cross
+            shard: 1
+          - kind: cross
+            shard: 2
+          - kind: cross
+            shard: 3
+          - kind: matches
+            shard: 0
+          - kind: matches
+            shard: 1
+          - kind: matches
+            shard: 2
+          - kind: matches
+            shard: 3
+          - kind: matches
+            shard: 4
+          - kind: matches
+            shard: 5
+          - kind: matches
+            shard: 6
+          - kind: matches
+            shard: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/final-audit.js ${{ matrix.kind }} ${{ matrix.shard }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audit-${{ matrix.kind }}-${{ matrix.shard }}
+          path: audit-results/*.json
+          if-no-files-found: error
+  aggregate:
+    runs-on: ubuntu-latest
+    needs: audit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: audit-*
+          path: audit-results
+          merge-multiple: true
+      - run: node scripts/final-audit-aggregate.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: final-balance-summary
+          path: audit-summary.json
