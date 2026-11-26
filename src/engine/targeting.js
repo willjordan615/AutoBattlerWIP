@@ -6,10 +6,10 @@ import {METRICS} from './config.js?v=engine-323-r1';
 export function healthFraction(u){return clamp(u.hp/u.maxHp,0,1)}
 // Experimental feature evaluators: enabled only by the diagnostic harness.
 export function safetySensitivity(u){return 1+(1-healthFraction(u));}
-export function engagementPreference(state,u,e,st,d){
+export function engagementPreference(state,u,e,st,d,bonus=.65){
  if(!clearLine(u,e,state.arena))return 0;
- if(d<=st.range)return .65;
- return .20*Math.max(0,1-(d-st.range)/Math.max(35,st.range*.5));
+ if(d<=st.range)return bonus;
+ return (.20*bonus/.65)*Math.max(0,1-(d-st.range)/Math.max(35,st.range*.5));
 }
 // Same measure of an immediate opponent's pressure for target and position scoring.
 // Positive threat weight favors attending to nearby pressure but disfavors exposure.
@@ -39,6 +39,15 @@ export function encounterPressure(state,u,point,e,es){
  const intentFactor=e.focus===u.id?1:.75;
  return (.75*now+.25*soon)*intentFactor;
 }
+// Explicit experiment arms. Default gameplay is untouched.
+export const EVALUATION_ARMS=Object.freeze({
+ 'engagement-low':{engagement:.20},
+ 'engagement-mid':{engagement:.40},
+ 'position-engagement-low':{position:true,engagement:.20},
+ 'position-engagement-mid':{position:true,engagement:.40},
+ 'position-engagement-high':{position:true,engagement:.65},
+ 'position-safety-pressure':{position:true,safetyPressure:true}
+});
 export function targetScoreDetails(state,u,e){
  const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a.id!==u.id),st=stats(u);
  const d=distance(u,e),ratio=healthFraction(e),enemyStats=stats(e),enemyAllies=state.units.filter(a=>a.hp>0&&a.owner===e.owner&&a.id!==e.id);
@@ -47,6 +56,8 @@ export function targetScoreDetails(state,u,e){
  const experiment=state.aiExperiment;
  if(experiment==='safety')features.safety*=safetySensitivity(u);
  if(experiment==='engagement')features.damage+=engagementPreference(state,u,e,st,d);
+ const arm=EVALUATION_ARMS[experiment];
+ if(arm?.engagement)features.damage+=engagementPreference(state,u,e,st,d,arm.engagement);
  if(experiment==='threat')features.threat=localThreat(state,u,u,e,enemyStats);
  if(experiment==='threat-v2'||experiment==='threat-target')features.threat=encounterPressure(state,u,u,e,enemyStats);
  const contributions=Object.fromEntries(METRICS.map(k=>[k,(w[k]||0)*(features[k]||0)]));
