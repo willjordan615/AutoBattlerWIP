@@ -18,7 +18,7 @@ export const DETAILS={
  "passive:anchor":"When threatened in a valid holding position, gain 4 defense for 1.5s. Cooldown 6s.",
  "passive:wake":"Movement leaves short-lived slowing patches, 18% movement slow. One patch per 0.5s, lasts 1.2s.",
  "passive:repulsion":"When threatened, push nearby opponents away. Cooldown 6s.",
- "target:coordinated":"Allies favor staying near this fighter as a formation anchor. Stacks strengthen cohesion; terrain and urgent movement still take precedence.",
+ "utility:coordinated":"At combat start, gain 10% HP, damage, movement speed, attack frequency and reach per copy (max 3). Defense and physical size unchanged. Allies prefer loose formation when not productively engaged. Uses one utility slot regardless of copies.",
  "target:opportunist":"Favor opponents whose attack is on cooldown.",
  "target:pursuer":"Increase Pursuer targeting weight by 1. Prefer opponents that are retreating.",
  "target:challenger":"Favor opponents with higher remaining HP percentage.",
@@ -77,7 +77,7 @@ export const SUMMARIES={
  "passive:anchor":"Defend an advantageous position",
  "passive:wake":"Leave slowing patches while moving",
  "passive:repulsion":"Reactive space creation",
- "target:coordinated":"Allies rally around this fighter",
+ "utility:coordinated":"+10% general stats per copy · max 3 · loose formation",
  "target:opportunist":"Favor recovering enemies",
  "target:pursuer":"Favor retreating targets",
  "target:challenger":"Favor healthy opponents",
@@ -122,7 +122,7 @@ export const SUMMARIES={
 export function cardDetail(card){
  const key=card.kind+':'+card.key;
  const detail=DETAILS[key]||card.name;
- return card.kind==='utility'?detail+' A second copy on the same fighter halves the cooldown without using another slot (maximum two copies).':
+ return card.key==='coordinated'&&card.kind==='utility'?detail:card.kind==='utility'?detail+' A second copy on the same fighter halves the cooldown without using another slot (maximum two copies).':
   card.kind==='attack'&&ATTACK_STAGES[card.key]?detail+' Category: '+ATTACK_STAGES[card.key].stage+'.':detail;
 }
 export function cardSummary(card){

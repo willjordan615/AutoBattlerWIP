@@ -13,7 +13,7 @@ const TRAITS_BY_CARD={
  'attack:momentum':{mobility:1},'attack:chain':{coverage:1,control:.3},
  'attack:burning':{mobility:.6,control:.25},'attack:hazardous':{control:1,coverage:.4},
  'attack:restless':{mobility:.55,coverage:.5},
- 'utility:dash':{mobility:1},'utility:dodge':{survival:1,mobility:.5},
+ 'utility:coordinated':{teamwork:1,survival:.4},'utility:dash':{mobility:1},'utility:dodge':{survival:1,mobility:.5},
  'utility:backstep':{survival:.8,mobility:.65},'utility:flank':{mobility:1,coverage:.25},
  'attack:disengage':{survival:1,mobility:.7},'utility:intercept':{teamwork:1,mobility:.5},
  'attack:followthrough':{mobility:1,coverage:.3},
@@ -30,9 +30,9 @@ const BASE={
  attack:{projectiles:23,piercing:16,area:21,knockback:18,taunt:21,range:22,
   sunder:22,precision:21,expose:21,disruption:23,momentum:21,chain:22,
   burning:22,hazardous:22,restless:20,followthrough:16,disengage:22},
- utility:{dash:22,dodge:24,backstep:21,flank:22,intercept:21},
+ utility:{coordinated:22,dash:22,dodge:24,backstep:21,flank:22,intercept:21},
  passive:{regen:23,bulwark:24,haste:23,focus:23,retaliation:21},
- target:{executioner:22,guardian:21,skirmisher:21,coward:20,duelist:21,hunter:20,aggressor:21,coordinated:15}
+ target:{executioner:22,guardian:21,skirmisher:21,coward:20,duelist:21,hunter:20,aggressor:21}
 };
 const TARGET_KEYS={executioner:'kill',guardian:'protection',skirmisher:'preferredRange',
  coward:'safety',duelist:'isolation',hunter:'distance',aggressor:'damage'};
@@ -139,7 +139,7 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
     add(parts,'Replacing '+previous,-clamp(oldValue*.35,5,9));
    }
    if(card.kind==='utility'&&has(card.key)){
-    add(parts,'Second copy only shortens cooldown',-7);
+    add(parts,card.key==='coordinated'?'Additional stat investment':'Second copy only shortens cooldown',card.key==='coordinated'?-2:-7);
    }
    if(card.key==='intercept')add(parts,'Allies to defend',count>1?4:-7);
    if(card.key==='backstep'&&type==='ranged')add(parts,'Maintain projectile distance',4);

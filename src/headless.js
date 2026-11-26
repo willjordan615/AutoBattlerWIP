@@ -17,7 +17,7 @@ export function createMatch(types=['bruiser','rogue','ranged','bruiser'],seed=12
 }
 export function canEquip(unit,card){
  if(card.kind==='morphology')return MORPHOLOGY_MODULES.includes(card.key)&&(card.key==='growth'?morphologyTier(unit)!==1:morphologyTier(unit)!==-1);
-  if(card.kind==='utility')return (unit.mods[card.key]||0)<2;
+  if(card.kind==='utility')return (unit.mods[card.key]||0)<(card.key==='coordinated'?3:2);
  if(card.kind==='passive')return !unit.passives.includes(card.key);
  return true;
 }
@@ -72,7 +72,7 @@ export function assign(match,playerIndex,cardUid,chassisIndex=0,passiveSlot=0,re
    // Re-drafting an equipped utility strengthens it without using another slot.
    const existing=slots.indexOf(card.key);
    if(existing>=0){
-    unit.mods[card.key]=Math.min(2,(unit.mods[card.key]||0)+1);
+    unit.mods[card.key]=Math.min(card.key==='coordinated'?3:2,(unit.mods[card.key]||0)+1);
     unit.modules=unit.modules.filter(m=>m.passiveSlot!==(existing+1));
     unit.modules.push({kind:card.kind,name:card.name+' ×'+unit.mods[card.key],passiveSlot:existing+1});
    }else{

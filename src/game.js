@@ -97,7 +97,7 @@ const card=view==='draft'?draft.pool.find(c=>c.uid===chosen):null;if(card){const
   if(!canEquip(u,card))return;
   const opt=document.createElement('option');opt.value=i;
   opt.textContent='Attach to '+(i+1)+'. '+CHASSIS[u.type].name+
-   (card.kind==='utility'&&u.passives.includes(card.key)?' · upgrade to 2 copies':'');
+   (card.kind==='utility'&&u.passives.includes(card.key)?' · upgrade to '+((u.mods[card.key]||0)+1)+' copies':'');
   slot.append(opt);
  });
  root.append(slot);

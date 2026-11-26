@@ -103,7 +103,7 @@ test('3.1.2 draft valuation reduces unconditional premium while preserving pierc
   const card=(kind,key)=>({kind,key});
   assert.equal(scoreDraft(p,card('attack','followthrough')),type==='rogue'?18:16);
   assert.equal(scoreDraft(p,card('attack','piercing')),16);
-  assert.equal(scoreDraft(p,card('target','coordinated')),20);
+  assert.equal(scoreDraft(p,card('utility','coordinated')),22);
   p.squad[0].mods.projectiles=2;
   assert.ok(scoreDraft(p,card('attack','piercing'))>16);
  }
