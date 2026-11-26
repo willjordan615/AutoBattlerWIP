@@ -17,7 +17,7 @@ export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.t
  for(const unit of state.units){
   if(unit.hp<=0)continue;
   const opponents=state.units.filter(e=>e.hp>0&&e.owner!==unit.owner);
-  const target=opponents.length?chooseTarget(state,unit,opponents):null;
+  const target=opponents.length?chooseTarget(state,unit,opponents,'intent'):null;
   unit.focus=target?.id??null;
   if(unit.ricochetStunUntil>state.time){unit.intent={x:0,y:0};continue;}
   const prior=unit.moveDecision||{x:0,y:0};
@@ -25,7 +25,7 @@ export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.t
   unit.intent=norm>1e-8?{x:prior.x/norm,y:prior.y/norm}:unit.holdingPosition?{x:0,y:0}:target?{x:(target.x-unit.x)/Math.max(1,distance(unit,target)),y:(target.y-unit.y)/Math.max(1,distance(unit,target))}:{x:0,y:0};
  }
 for(const u of state.units){if(u.hp<=0)continue;if(u.chassis.passives.includes('inspiration'))for(const ally of state.units){if(ally===u||ally.hp<=0||ally.owner!==u.owner||distance(u,ally)>220)continue;for(const cds of [ally.mobilityCd,ally.reactionCd])for(const key of Object.keys(cds||{}))if(cds[key]>state.time){const before=cds[key];cds[key]=Math.max(state.time,cds[key]-dt*.35);measure(state,u,'inspiration','cooldownSecondsSaved',before-cds[key]);}}}
-const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;if(u.ricochetStunUntil>state.time){u.moveDecision={x:0,y:0};u.intent={x:0,y:0};continue;}const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies);if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);
+const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner));for(const u of state.units){if(u.hp<=0)continue;u.stateTime=state.time;const st=stats(u);if(u.chassis.passives.includes('regen'))u.hp=Math.min(u.maxHp,u.hp+2*dt);u.cd-=dt;if(u.ricochetStunUntil>state.time){u.moveDecision={x:0,y:0};u.intent={x:0,y:0};continue;}const enemies=state.units.filter(e=>e.hp>0&&e.owner!==u.owner);if(!enemies.length)continue;const t=chooseTarget(state,u,enemies,'action');if(!t)continue;u.focus=t.id;const awareness=tacticalAssessment(state,u,t,st,enemies);
  reactToThreat(state,u,t,st,awareness);
  const activeStats=stats(u);
  if(state.moduleTelemetry){if(u.rallyUntil>state.time){const source=state.units.find(a=>a.id===u.rallySource);if(source)measure(state,source,'rally','allyBuffSeconds',dt);}if(u.chassis.mods.resolve&&u.effects?.slowUntil>state.time){measure(state,u,'resolve','slowActiveSeconds',dt);measure(state,u,'resolve','slowFractionSecondsAvoided',Math.min(.45,u.effects.slowStrength||0)*resolveResistance(u)*dt);}for(const key of ['fortify','steadfast','anchor'])if(u[key+'Until']>state.time)measure(state,u,key,'activeSeconds',dt);}
@@ -47,6 +47,24 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
  const direction=committing?{x:u.followthroughCommit.x,y:u.followthroughCommit.y}:
   retreating?disengageDirection(state,u,enemies):chooseMovement(state,u,t,activeStats,enemies,dt);
  if(committing||retreating)u.holdingPosition=false;
+ if(state.decisionAudit){
+  const row=state.decisionAudit.units[u.id],c=row.counts;
+  const access=enemies.some(e=>distance(u,e)<=activeStats.range&&clearLine(u,e,state.arena));
+  const chosenAccess=distance(u,t)<=activeStats.range&&clearLine(u,t,state.arena);
+  const mode=committing?'commit':retreating?'retreat':u.supportingAlly!=null?'support':u.localEscape?'escape':u.navigation?'route':u.holdingPosition?'hold':direction.x||direction.y?'free-move':'idle';
+  const count=k=>{c[k]=(c[k]||0)+1};
+  count('actionFrames');count('mode:'+mode);
+  if(access)count('anyAccess');if(chosenAccess)count('chosenAccess');
+  if(access&&!chosenAccess)count('alternateAccessOnly');
+  if(!direction.x&&!direction.y&&!access&&mode==='idle')count('idleWithoutAccess');
+  if(u.holdingPosition&&!access)count('holdWithoutAccess');
+  if(state.tick%(state.decisionAudit.interval||15)===0){
+   const allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a!==u);
+   if(row.moves.length<(state.decisionAudit.limit||128))row.moves.push({tick:state.tick,mode,target:t.id,access,chosenAccess,
+    rangeRatio:distance(u,t)/activeStats.range,allyDistance:allies.length?Math.min(...allies.map(a=>distance(u,a))):null,
+    supportingAlly:mode==='support'?u.supportingAlly:null,direction:{x:direction.x,y:direction.y}});
+  }
+ }
  u.moveDecision=direction;u.moveTarget=t.id;
  if(state.diagnostics){const d=state.diagnostics;const record=d.units[u.id]||(d.units[u.id]={owner:u.owner,type:u.type,frames:0,idle:0,blocked:0,replans:0,stuck:0,waypointChanges:0,collisionLoss:0,intended:0,actual:0,attackOpportunities:0,shots:0,damage:0,routeProgress:0,reversals:0,reasonCounts:{},samples:[]});
  record.frames++;if(!direction.x&&!direction.y)record.idle++;

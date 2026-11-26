@@ -15,7 +15,7 @@ export function targetScoreDetails(state,u,e){
  const total=METRICS.reduce((sum,k)=>sum+contributions[k],0)+(u.focus===e.id?.2:0)-Math.min(2.4,.9*restlessness)*recent;
  return {total,features,contributions};
 }
-export function chooseTarget(state,u,enemies){
+function selectTarget(state,u,enemies){
  if(u.tauntedUntil>state.time){const forced=enemies.find(e=>e.id===u.tauntedBy);if(forced)return forced}
  let best=null,score=-Infinity;
  for(const e of enemies){const value=targetScoreDetails(state,u,e).total;if(value>score){score=value;best=e}}
@@ -28,4 +28,32 @@ export function chooseTarget(state,u,enemies){
   if(score-currentScore<hysteresis)return current;
  }
  return best;
+}
+
+ // Diagnostic wrapper: the original selector is authoritative, including tie order and taunt.
+export function chooseTarget(state,u,enemies,stage='direct'){
+ const selected=selectTarget(state,u,enemies);
+ if(!state.decisionAudit)return selected;
+ const audit=state.decisionAudit,rows=audit.units||=(Object.create(null));
+ const row=rows[u.id]||={type:u.type,owner:u.owner,targets:[],moves:[],counts:{}};
+ const c=row.counts;
+ c[stage+'Calls']=(c[stage+'Calls']||0)+1;
+ if(stage==='intent')row.intentTarget=selected?.id??null;
+ if(stage==='action'){
+  const id=selected?.id??null;
+  if(row.intentTarget!==id)c.intentActionDisagreements=(c.intentActionDisagreements||0)+1;
+  if(row.lastActionTarget!=null&&id!==row.lastActionTarget)c.actionSwitches=(c.actionSwitches||0)+1;
+  row.lastActionTarget=id;
+ }
+ if(state.tick%(audit.interval||15)===0&&row.targets.length<(audit.limit||128)){
+  const ranked=enemies.map(e=>({id:e.id,...targetScoreDetails(state,u,e)})).sort((a,b)=>b.total-a.total);
+  const chosen=ranked.find(e=>e.id===selected?.id);
+  const alternative=ranked.find(e=>e.id!==selected?.id);
+  const forced=u.tauntedUntil>state.time&&selected?.id===u.tauntedBy;
+  row.targets.push({tick:state.tick,stage,focus:u.focus,chosen,alternative,
+   rawBest:ranked[0]?.id??null,forced:!!forced,
+   reason:forced?'taunt':chosen?.id!==ranked[0]?.id?'hysteresis':'score',
+   margin:chosen&&alternative?chosen.total-alternative.total:null});
+ }
+ return selected;
 }

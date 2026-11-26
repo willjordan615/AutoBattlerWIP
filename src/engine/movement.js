@@ -204,6 +204,8 @@ export function chooseMovement(state,u,target,st,enemies,dt){
  const candidates=[{x:0,y:0}];
  for(let i=0;i<16;i++){const a=angle+i*Math.PI/8;candidates.push({x:Math.cos(a),y:Math.sin(a)})}
  const holdValue=holdingOpportunity(state,u,target,st,enemies);
+ const audit=state.decisionAudit;
+ const trace=audit&&state.tick%(audit.interval||15)===0?[]:null;
  let best={x:0,y:0,score:-Infinity};
  for(const dir of candidates){
   if((dir.x||dir.y)&&!valid(dir))continue;
@@ -212,7 +214,19 @@ export function chooseMovement(state,u,target,st,enemies,dt){
   const progress=distance(u,target)-distance(p,target);
   const score=positionScore(state,u,target,p,st,enemies)-pressure*.09
    +(hasGoal?progress*.09:0)+(!(dir.x||dir.y)?holdValue:0);
+  if(trace)trace.push({...dir,score,pressure,progress,holdBonus:!(dir.x||dir.y)?holdValue:0});
   if(score>best.score+1e-8)best={...dir,score};
+ }
+ if(trace){
+  const rows=audit.units||=(Object.create(null));
+  const row=rows[u.id]||={type:u.type,owner:u.owner,targets:[],moves:[],counts:{}};
+  const samples=row.freeChoices||=[];
+  if(samples.length<(audit.limit||128)){
+   const chosen=trace.find(v=>v.x===best.x&&v.y===best.y);
+   const alternative=trace.filter(v=>v!==chosen).sort((a,b)=>b.score-a.score)[0];
+   samples.push({tick:state.tick,target:target.id,holdValue,hasGoal,chosen,alternative,
+    margin:chosen&&alternative?chosen.score-alternative.score:null});
+  }
  }
  u.holdingPosition=!(best.x||best.y)&&holdValue>0;
  if(state.moduleTelemetry&&u.chassis.mods.patience&&u.holdingPosition)measure(state,u,'patience',distance(u,target)<=st.range&&clearLine(u,target,state.arena)?'holdWithAttackAccessSeconds':'holdAwaitingApproachSeconds',dt);
