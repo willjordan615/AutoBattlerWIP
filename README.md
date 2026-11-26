@@ -1,6 +1,6 @@
-# Modular Arena Autobattler — Prototype 3.2.3
+# Modular Arena Autobattler — Prototype 3.3
 
-Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. Prototype 3.2.3 revises outlier modules after the 3.2.1 balance audit.
+Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. Prototype 3.3 improves fighter decision evaluation and introduces hybrid targeting cards.
 
 ## Run
 - Browser: serve the repository statically or open the GitHub Pages build. Do not open via file://.
@@ -22,4 +22,9 @@ src/simulation.js is the stable public facade; implementation lives in src/engin
 ## Verification
 The structural parity command compares complete seeded matches and current engine state against a selected Git commit: npm run verify:parity -- <baseline SHA>. The original 3.1.2 baseline is 9416d7c130a7e40838822f5594800caaeb47dff4. CI and device performance must be checked independently; a structural move does not imply faster runtime or improved balance. See AGENTS.md for exact checks and reporting requirements.
 
-Release verification (commit 5c0b9c6): 180/180 tests, four combat fixtures and eight full-match parity checks (seeds 1–4, random and strategic; 96 total match rounds), 12/12 scripted player matches (5/138 timeouts), and navigation diagnostics (4/96 timeouts). Routine CI now runs standard tests only; extended harnesses are opt-in. 3.2.3 final audit: 41/41 jobs passed, 6,312 paired module comparisons, 600 completed matches, 1.47% ordinary round timeouts. Tested engine baseline: 36610a735b2f2a8e9177714b982be9a741216779. The module roster is frozen for routine 3.3 development; the next focus is fighter intelligence and strategic diversity. See [3.3 hand-off](docs/3.3-handoff.md), [reusable final audit](docs/final-balance-audit.md), and [archived results](docs/history/3.2-final-audit-summary.json).
+Release verification (commit 5c0b9c6): 180/180 tests, four combat fixtures and eight full-match parity checks (seeds 1–4, random and strategic; 96 total match rounds), 12/12 scripted player matches (5/138 timeouts), and navigation diagnostics (4/96 timeouts). Routine CI now runs standard tests only; extended harnesses are opt-in. 3.2.3 final audit: 41/41 jobs passed, 6,312 paired module comparisons, 600 completed matches, 1.47% ordinary round timeouts. Tested engine baseline: 36610a735b2f2a8e9177714b982be9a741216779. The 3.2.3 baseline remains the historical control. See [3.3 hand-off](docs/3.3-handoff.md), [reusable final audit](docs/final-balance-audit.md), and [archived results](docs/history/3.2-final-audit-summary.json).
+
+## 3.3 release
+- Engagement-aware Damage Opportunity is separate from Kill Opportunity; positional pressure is damage-independent with short movement forecasts. Safety and preferred-range preferences are retained. Duelist adds 4.5 base movement speed and Guardian adds 5 base maximum HP per copy; no slot changes. Aggressor has no flat stat bonus.
+- Candidate `266448890e9169ababf05dd860afa7fac56683dd`: [209/209 tests](https://github.com/willjordan615/AutoBattlerWIP/actions/runs/45853054238), [192 strategic comparison matches](https://github.com/willjordan615/AutoBattlerWIP/actions/runs/45853054509), [128 drafted matches and four scripted player games](https://github.com/willjordan615/AutoBattlerWIP/actions/runs/45851850231). Current candidate strategic sample: 64 matches, 747 rounds, 20 timeouts; starting chassis wins 17/96 Bruiser, 26/80 Rogue, 21/80 Ranged. Guardian association remains a small-sample observation, not a causal balance finding. No device/visual performance claim.
+- Next: human playtesting and strategic diversity; position-only is historical, not a candidate. See docs/3.3-provisional-implementation.md and docs/3.3-decision-followup.md.

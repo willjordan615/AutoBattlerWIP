@@ -1,7 +1,7 @@
 // Engine subsystem: targeting. See AGENTS.md for ownership and test routes.
-import {clamp,distance,clearLine} from './geometry.js?v=engine-323-r1';
-import {stats} from './stats.js?v=engine-323-r1';
-import {METRICS} from './config.js?v=engine-323-r1';
+import {clamp,distance,clearLine} from './geometry.js?v=engine-330-r1';
+import {stats} from './stats.js?v=engine-330-r1';
+import {METRICS} from './config.js?v=engine-330-r1';
 
 export function healthFraction(u){return clamp(u.hp/u.maxHp,0,1)}
 // Named legacy/experimental arms remain available to diagnostic harnesses.

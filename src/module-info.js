@@ -1,4 +1,4 @@
-import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-323-r1';
+import {ATTACK_STAGES} from './engine/module-registry.js?v=engine-330-r1';
 // Player-facing catalog copy. The combat engine in simulation.js is authoritative.
 // Keep short summaries and expanded descriptions together to avoid drift.
 export const DETAILS={

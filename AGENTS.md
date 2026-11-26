@@ -1,4 +1,4 @@
-# Agent guide — AutoBattlerWIP (3.2.3)
+# Agent guide — AutoBattlerWIP (3.3)
 Repository: https://github.com/willjordan615/AutoBattlerWIP. Default branch: main. Playable: https://willjordan615.github.io/AutoBattlerWIP/. Native JavaScript ES modules, Node 22+, no runtime dependencies.
 
 ## Workflow
@@ -61,6 +61,6 @@ Engine modules import their direct dependencies, never the facade. Keep new file
 - If only isolated JavaScript evaluation is possible, call it isolated smoke/parity testing, not Node CI. Never claim tests ran when they did not.
 - On a playable release, update the visible prototype label, build.json and all browser module/cache query versions together; do not claim Pages is live without verification.
 
-3.2 is closed: baseline 36610a735b2f2a8e9177714b982be9a741216779. Final audit 45745869032 passed all 41 jobs; 6,312 paired comparisons, 600 complete matches, 1.47% ordinary timeouts. Module roster and numerical rules are frozen for routine 3.3 development. Read docs/3.3-handoff.md before touching fighter AI; start with metric and decision audit, then profiles, target/position consistency, team strategy and later draft policy. Team cooperation is a valid advantage, not a defect by itself. Preserve existing counterplay hypotheses and evaluate them with matched experiments. Reuse the opt-in final balance matrix and archive comparisons.
+3.2 is closed: baseline 36610a735b2f2a8e9177714b982be9a741216779. Final audit 45745869032 passed all 41 jobs; 6,312 paired comparisons, 600 complete matches, 1.47% ordinary timeouts. 3.3 candidate verified at 266448890e9169ababf05dd860afa7fac56683dd (209/209 tests and 192 strategic comparison matches). Preserve engagement-aware targeting, damage-independent positional pressure, and player-drafted additive preferences. Position-only is a historical control, not a development candidate. Duelist grants +4.5 base speed and Guardian +5 base HP per copy; Aggressor uses revised Damage Opportunity without a raw stat bonus. Keep other chassis and module rules unchanged for routine work. Next focus: actual playtesting, readable strategic diversity, team counterplay and draft policy. See docs/3.3-provisional-implementation.md and docs/3.3-decision-followup.md. Team cooperation is a valid advantage, not a defect by itself. Preserve existing counterplay hypotheses and evaluate them with matched experiments. Reuse the opt-in final balance matrix and archive comparisons.
 
 Historical design decisions and previous test limitations: docs/history/AGENTS-through-3.1.2.md and docs/history/README-through-3.1.2.md. See PLAYTESTING.md for harness usage.

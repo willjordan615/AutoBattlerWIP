@@ -1,5 +1,5 @@
 // Engine subsystem: module-registry. See AGENTS.md for ownership and test routes.
-import {distance} from './geometry.js?v=engine-323-r1';
+import {distance} from './geometry.js?v=engine-330-r1';
 
 // Attack modules are composed by stage, not treated as interchangeable procs.
 // Geometric/conditional effects work per hit; persistent aftermath has an
