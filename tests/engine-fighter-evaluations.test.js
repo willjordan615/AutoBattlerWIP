@@ -5,7 +5,7 @@ import {ARENAS,makeChassis,spawn,stats,targetScoreDetails,positionScore,tick,STE
 function scene(arena=ARENAS[0]){
  const b=spawn(['ranged','bruiser','rogue'].map((type,i)=>({name:'P'+i,hp:100,squad:[makeChassis(type)]})),arena,19);
  const [u,a,z]=b.units;
- Object.assign(u,{x:200,y:200});Object.assign(a,{x:300,y:200});Object.assign(z,{x:420,y:200});
+ Object.assign(u,{x:200,y:200});Object.assign(a,{x:300,y:200});Object.assign(z,{x:450,y:200});
  return {b,u,a,z};
 }
 const features=(b,u,e)=>targetScoreDetails(b,u,e).features;
@@ -29,6 +29,9 @@ test('engagement preference distinguishes accessible and occluded targets withou
  b.aiExperiment='engagement';
  assert.ok(Math.abs(features(b,u,a).damage-baseA.damage-.65)<1e-10);
  assert.equal(features(b,u,z).damage,baseZ.damage);
+ z.x=420;
+ assert.ok(Math.abs(features(b,u,z).damage-baseZ.damage-.05)<1e-10);
+ z.x=450;
  assert.deepEqual({...features(b,u,a),damage:baseA.damage},baseA);
  b.arena={name:'Fixture',obstacles:[{x:245,y:160,w:20,h:80}]};
  assert.equal(features(b,u,a).damage,baseA.damage);
