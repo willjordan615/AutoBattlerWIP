@@ -1,14 +1,36 @@
 // Engine subsystem: targeting. See AGENTS.md for ownership and test routes.
-import {clamp,distance} from './geometry.js?v=engine-323-r1';
+import {clamp,distance,clearLine} from './geometry.js?v=engine-323-r1';
 import {stats} from './stats.js?v=engine-323-r1';
 import {METRICS} from './config.js?v=engine-323-r1';
 
 export function healthFraction(u){return clamp(u.hp/u.maxHp,0,1)}
+// Experimental feature evaluators: enabled only by the diagnostic harness.
+export function safetySensitivity(u){return 1+(1-healthFraction(u));}
+export function engagementPreference(state,u,e,st,d){
+ if(!clearLine(u,e,state.arena))return 0;
+ if(d<=st.range)return .65;
+ return .20*Math.max(0,1-(d-st.range)/Math.max(35,st.range*.5));
+}
+// Same measure of an immediate opponent's pressure for target and position scoring.
+// Positive threat weight favors attending to nearby pressure but disfavors exposure.
+export function localThreat(state,u,point,e,es){
+ const intent=e.intent||{x:0,y:0};
+ const future={x:e.x+intent.x*es.speed*.45,y:e.y+intent.y*es.speed*.45};
+ const reach=Math.max(1,es.range+es.radius+35);
+ const exposure=(p)=>clearLine(point,p,state.arena)?Math.max(0,1-distance(point,p)/reach):0;
+ const pressure=Math.max(exposure(e),exposure(future)*.85);
+ const aimed=e.focus===u.id?1.25:1;
+ return pressure*clamp(es.damage/25,0,2)*aimed;
+}
 export function targetScoreDetails(state,u,e){
  const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a.id!==u.id),st=stats(u);
  const d=distance(u,e),ratio=healthFraction(e),enemyStats=stats(e),enemyAllies=state.units.filter(a=>a.hp>0&&a.owner===e.owner&&a.id!==e.id);
  const isolated=enemyAllies.length?Math.min(...enemyAllies.map(a=>distance(a,e)))/200:1,nearAllies=allies.length?Math.min(...allies.map(a=>distance(a,e))):250;
  const features={kill:1-ratio,damage:st.damage/Math.max(1,e.hp),threat:enemyStats.damage/30+(e.focus===u.id?.5:0),distance:1-d/500,allyProximity:1-nearAllies/500,safety:d/500,protection:allies.some(a=>e.focus===a.id)?1:0,ability:u.cd<=0?1:0,isolation:clamp(isolated,0,1),preferredRange:1-Math.abs(d-st.range)/500,coordinated:0,independent:allies.length&&!allies.some(a=>a.focus===e.id)?1:0,opportunist:clamp((e.cd||0)/Math.max(.1,enemyStats.rate),0,1),pursuer:e.disengageUntil>state.time?1:Math.max(0,((e.intent?.x||0)*(e.x-u.x)+(e.intent?.y||0)*(e.y-u.y))/Math.max(1,d)),challenger:ratio};
+ const experiment=state.aiExperiment;
+ if(experiment==='safety')features.safety*=safetySensitivity(u);
+ if(experiment==='engagement')features.damage+=engagementPreference(state,u,e,st,d);
+ if(experiment==='threat')features.threat=localThreat(state,u,u,e,enemyStats);
  const contributions=Object.fromEntries(METRICS.map(k=>[k,(w[k]||0)*(features[k]||0)]));
  const restlessness=u.chassis.mods.restless||0;
  const recent=u.lastAttacked===e.id?Math.max(0,1-(state.time-u.lastAttackAt)/3):0;
