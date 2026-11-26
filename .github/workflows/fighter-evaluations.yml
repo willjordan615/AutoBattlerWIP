@@ -19,7 +19,7 @@ jobs:
           node-version: '22'
       - run: node --test tests/engine-fighter-evaluations.test.js tests/engine-threat-v2.test.js tests/engine-evaluation-combinations.test.js
       - run: node scripts/fighter-evaluations.js ${{ matrix.condition }} ${{ matrix.seed }} 2 > evaluations.json
-      - run: node -e "const r=require('./evaluations.json');console.log(JSON.stringify(r.summary,null,2));const p=r.preferenceBreakdown;console.log('Preference breakdown: '+JSON.stringify(Object.fromEntries(Object.entries(p).map(([k,v])=>[k,{appearances:v.appearances,survivors:v.survivors,frames:v.frames,exposed:v.exposed||0,lowHealthFrames:v.lowHealthFrames||0,lowHealthExposed:v.lowHealthExposed||0,anyAccess:v.anyAccess||0,alternateAccessOnly:v.alternateAccessOnly||0}])))))"
+      - run: node -e "const r=require('./evaluations.json');console.log(JSON.stringify(r.summary,null,2));const p=r.preferenceBreakdown;console.log('Preference breakdown: '+JSON.stringify(Object.fromEntries(Object.entries(p).map(([k,v])=>[k,{appearances:v.appearances,survivors:v.survivors,frames:v.frames,exposed:v.exposed||0,lowHealthFrames:v.lowHealthFrames||0,lowHealthExposed:v.lowHealthExposed||0,anyAccess:v.anyAccess||0,alternateAccessOnly:v.alternateAccessOnly||0}]))))"
       - uses: actions/upload-artifact@v4
         with:
           name: evaluations-${{ matrix.condition }}-${{ matrix.seed }}
