@@ -1,0 +1,40 @@
+name: 3.3 decision follow-up
+on:
+  push:
+    branches: ['audit/3.3-fighter-decisions']
+    paths: ['.github/workflows/33-decision-followup.yml','scripts/33-decision-regressions.js']
+  workflow_dispatch:
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/33-decision-regressions.js
+      - run: node --test tests/engine-core.test.js tests/engine-cooperation.test.js tests/engine-33-production.test.js
+  strategic:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [production, threat-position, position-engagement-mid]
+        seed: [3301, 3401, 3501, 3601]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Set default evaluation arm for this isolated checkout
+        env:
+          ARM: ${{ matrix.arm }}
+        run: |
+          node --input-type=module -e "import fs from 'node:fs';const a=process.env.ARM;for(const p of ['src/engine/targeting.js','src/engine/positioning.js']){const s=fs.readFileSync(p,'utf8'),needle=\"state.aiExperiment??'production'\";if(!s.includes(needle))throw Error(p);fs.writeFileSync(p,s.replace(needle,\"state.aiExperiment??'\"+a+\"'\"));}"
+      - run: node scripts/balance-report.js 16 strategic ${{ matrix.seed }} --json > balance.json
+      - run: |
+          node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('balance.json'));if(r.completed!==r.config.matches)process.exitCode=1;console.log(JSON.stringify({config:r.config,completed:r.completed,combat:r.combat,startingChassis:r.startingChassis,modules:r.modules.filter(m=>m.module.startsWith('target:')),flags:r.flags}));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: strategic-${{ matrix.arm }}-${{ matrix.seed }}
+          path: balance.json

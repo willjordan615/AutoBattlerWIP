@@ -136,11 +136,20 @@ test('mobility distance scales with chassis speed and speed upgrades',()=>{
   const a=b.units.find(u=>u.owner===0),target=b.units.find(u=>u.owner===1);
   a.x=150;a.y=200;target.x=290;target.y=200;
   a.chassis.mods.dash=1;a.chassis.mods.speed=speedMods;a.cd=target.cd=100;
-  tick(b,STEP);return a.x-150;
+  // Isolate displacement from differing default tactical preferences.
+  for(const key of Object.keys(a.chassis.weights))a.chassis.weights[key]=0;
+  a.chassis.weights.distance=4;
+  tick(b,STEP);
+  const dash=b.visualEvents.find(e=>e.kind==='mobility'&&e.ability==='dash'&&e.owner===a.owner);
+  assert.ok(dash,type+' must actually activate Dash in this approach fixture');
+  assert.equal(dash.type,type);
+  return Math.hypot(dash.toX-dash.x,dash.toY-dash.y);
  };
  const bruiser=measure('bruiser'),rogue=measure('rogue'),boosted=measure('bruiser',1);
  assert.ok(bruiser<rogue);assert.ok(boosted>bruiser);
  assert.ok(bruiser<40,'a single Bruiser dash remains bounded after readability tuning');
+ assert.ok(Math.abs(rogue/bruiser-CHASSIS.rogue.speed/CHASSIS.bruiser.speed)<1e-8,'unobstructed dash scales with speed');
+ assert.ok(Math.abs(boosted/bruiser-(CHASSIS.bruiser.speed+18)/CHASSIS.bruiser.speed)<1e-8,'speed upgrades scale dash');
  const battle=spawn(players(),ARENAS[0],7810),a=battle.units[0],enemy=battle.units[1];
  battle.units=[a,enemy];a.x=150;a.y=200;enemy.x=290;enemy.y=200;
  a.chassis.mods.dash=1;a.cd=enemy.cd=100;

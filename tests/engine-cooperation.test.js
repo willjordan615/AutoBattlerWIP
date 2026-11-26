@@ -80,8 +80,21 @@ test('2.12.2 symmetric defensive teams initiate engagement without mutual waitin
   assert.ok(totalAttacks>0,arena.name+' must initiate attacks');
   assert.ok(totalDamage>0,arena.name+' must deliver damage');
   assert.ok(telemetry.maxMutualPassiveFrames<90,arena.name+' must avoid three-second reciprocal inactivity');
-  assert.ok(telemetry.holdingUnitFrames>0,arena.name+' still allows useful tactical holding');
+  // A particular encounter need not choose to hold. Test the availability of
+  // productive holding independently below in each arena.
   assert.ok(telemetry.productiveCombatFrames>0);
+ }
+});
+test('3.3 every arena permits a productive hold at a clear preferred range',()=>{
+ for(const arena of ARENAS){
+  const b=spawn([{hp:100,squad:[makeChassis('ranged')]},{hp:100,squad:[makeChassis('bruiser')]}],arena,7701);
+  const [u,e]=b.units;
+  Object.assign(u,{x:100,y:100,cd:0});Object.assign(e,{x:236,y:100,cd:100});
+  b.time=1;
+  assert.ok(clearLine(u,e,arena));
+  assert.ok(holdingOpportunity(b,u,e,stats(u),[e])>0,arena.name+' offers a hold');
+  assert.deepEqual(chooseMovement(b,u,e,stats(u),[e],STEP),{x:0,y:0},arena.name+' chooses the hold');
+  assert.ok(u.holdingPosition);
  }
 });
 test('2.12.2 tactical telemetry distinguishes holding with attack access from waiting for approach',()=>{
