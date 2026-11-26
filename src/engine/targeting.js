@@ -22,6 +22,23 @@ export function localThreat(state,u,point,e,es){
  const aimed=e.focus===u.id?1.25:1;
  return pressure*clamp(es.damage/25,0,2)*aimed;
 }
+// V2 recognizes engagement likelihood, not potential damage severity.
+// Current sight is required. Short forecasts are discounted and cannot pass terrain.
+export function encounterPressure(state,u,point,e,es){
+ if(e.hp<=0||!clearLine(point,e,state.arena))return 0;
+ const reach=Math.max(1,es.range);
+ const proximity=p=>{
+  const d=distance(point,p);
+  return d<=reach?.6+.4*(1-d/reach):0;
+ };
+ const now=proximity(e);
+ const intent=e.intent||{x:0,y:0};
+ const future={x:e.x+intent.x*es.speed*.45,y:e.y+intent.y*es.speed*.45};
+ const valid=clearLine(e,future,state.arena)&&clearLine(point,future,state.arena);
+ const soon=valid?proximity(future):0;
+ const intentFactor=e.focus===u.id?1:.75;
+ return (.75*now+.25*soon)*intentFactor;
+}
 export function targetScoreDetails(state,u,e){
  const w=u.chassis.weights,allies=state.units.filter(a=>a.hp>0&&a.owner===u.owner&&a.id!==u.id),st=stats(u);
  const d=distance(u,e),ratio=healthFraction(e),enemyStats=stats(e),enemyAllies=state.units.filter(a=>a.hp>0&&a.owner===e.owner&&a.id!==e.id);
@@ -31,6 +48,7 @@ export function targetScoreDetails(state,u,e){
  if(experiment==='safety')features.safety*=safetySensitivity(u);
  if(experiment==='engagement')features.damage+=engagementPreference(state,u,e,st,d);
  if(experiment==='threat')features.threat=localThreat(state,u,u,e,enemyStats);
+ if(experiment==='threat-v2'||experiment==='threat-target')features.threat=encounterPressure(state,u,u,e,enemyStats);
  const contributions=Object.fromEntries(METRICS.map(k=>[k,(w[k]||0)*(features[k]||0)]));
  const restlessness=u.chassis.mods.restless||0;
  const recent=u.lastAttacked===e.id?Math.max(0,1-(state.time-u.lastAttackAt)/3):0;

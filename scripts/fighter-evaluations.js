@@ -7,7 +7,7 @@ import {chooseCpuDraft} from '../src/draft-ai.js';
 
 const types=['bruiser','rogue','ranged'];
 const condition=process.argv[2]||'control',start=Number(process.argv[3]||1),count=Number(process.argv[4]||2);
-assert.ok(['control','safety','engagement','threat'].includes(condition));
+assert.ok(['control','safety','engagement','threat','threat-v2','threat-target','threat-position'].includes(condition));
 assert.ok(Number.isInteger(start)&&Number.isInteger(count)&&count>0&&count<=20);
 const add=(o,k,n=1)=>{o[k]=(o[k]||0)+n;};
 function run(b){
@@ -24,7 +24,13 @@ function run(b){
    const enemies=b.units.filter(e=>e.hp>0&&e.owner!==u.owner),target=enemies.find(e=>e.id===u.focus),st=stats(u);
    if(!enemies.length)continue;
    const access=enemies.some(e=>distance(u,e)<=st.range&&clearLine(u,e,b.arena));
-   const exposed=enemies.some(e=>distance(u,e)<=stats(e).range&&clearLine(u,e,b.arena));
+   const immediate=enemies.filter(e=>distance(u,e)<=stats(e).range&&clearLine(u,e,b.arena));
+   const exposed=immediate.length>0;
+   const focused=immediate.some(e=>e.focus===u.id);
+   if(exposed)add(row,'immediatePressureFrames');
+   if(focused)add(row,'focusedPressureFrames');
+   if(focused&&target&&immediate.some(e=>e.focus===u.id&&e.id===target.id))add(row,'focusedPressureSelected');
+   if(exposed&&target&&immediate.some(e=>e.id===target.id))add(row,'immediatePressureSelected');
    add(row,'frames');if(exposed)add(row,'exposed');
    if(u.hp/u.maxHp<.35){add(row,'lowHealthFrames');if(exposed)add(row,'lowHealthExposed');}
    if(access)add(row,'postTickAccess');

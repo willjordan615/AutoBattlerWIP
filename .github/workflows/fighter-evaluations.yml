@@ -2,7 +2,7 @@ name: Fighter evaluation experiments
 on:
   push:
     branches: ['audit/3.3-fighter-decisions']
-    paths: ['.github/workflows/fighter-evaluations.yml','scripts/fighter-evaluations.js','src/engine/targeting.js','src/engine/positioning.js','tests/engine-fighter-evaluations.test.js']
+    paths: ['.github/workflows/fighter-evaluations.yml','scripts/fighter-evaluations.js','src/engine/targeting.js','src/engine/positioning.js','tests/engine-fighter-evaluations.test.js','tests/engine-threat-v2.test.js']
   workflow_dispatch:
 jobs:
   compare:
@@ -10,14 +10,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        condition: [control, safety, engagement, threat]
+        condition: [control, threat, threat-v2, threat-target, threat-position]
         seed: [1, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test tests/engine-fighter-evaluations.test.js
+      - run: node --test tests/engine-fighter-evaluations.test.js tests/engine-threat-v2.test.js
       - run: node scripts/fighter-evaluations.js ${{ matrix.condition }} ${{ matrix.seed }} 2 > evaluations.json
       - run: node -e "console.log(JSON.stringify(require('./evaluations.json').summary,null,2))"
       - uses: actions/upload-artifact@v4

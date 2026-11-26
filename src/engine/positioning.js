@@ -1,7 +1,7 @@
 // Engine subsystem: positioning. See AGENTS.md for ownership and test routes.
 import {stats,coordinationStacks} from './stats.js?v=engine-323-r1';
 import {distance,clearLine,clamp,rectHit} from './geometry.js?v=engine-323-r1';
-import {healthFraction,safetySensitivity,localThreat} from './targeting.js?v=engine-323-r1';
+import {healthFraction,safetySensitivity,localThreat,encounterPressure} from './targeting.js?v=engine-323-r1';
 import {METRICS,STEP,CHASSIS,radiusOf} from './config.js?v=engine-323-r1';
 import {recentMovement} from './collision.js?v=engine-323-r1';
 
@@ -49,6 +49,7 @@ export function positionScore(state,u,target,point,st,enemies){
  // route commitments, and the safety exposure term in the threat arm stay fixed.
  if(state.aiExperiment==='safety')features.safety*=safetySensitivity(u);
  if(state.aiExperiment==='threat')features.threat=-forecast.reduce((sum,f)=>sum+localThreat(state,u,point,f.e,f.es),0)*.5;
+ if(state.aiExperiment==='threat-v2'||state.aiExperiment==='threat-position')features.threat=-forecast.reduce((sum,f)=>sum+encounterPressure(state,u,point,f.e,f.es),0)*.5;
  let score=METRICS.reduce((sum,k)=>sum+(w[k]||0)*(features[k]||0),0);
  // More safety-conscious allies yield space to teammates who prefer taking risks.
  // The preference is relative: a bold ranged build may stand its ground.
