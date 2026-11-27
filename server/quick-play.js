@@ -3,7 +3,7 @@ import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} 
 import {CHASSIS,STEP,tick,rng} from '../src/simulation.js';
 import {chooseCpuDraft} from '../src/draft-ai.js';
 
-export const RULES=Object.freeze({queueMs:120000,initialMs:20000,missPenaltyMs:2000,minTurnMs:2000,resultMs:3000,queueLeaseMs:20000,finishedMs:600000,abandonedMs:120000,maxSessions:256,maxMatches:16});
+export const RULES=Object.freeze({queueMs:120000,initialMs:20000,missPenaltyMs:3000,minTurnMs:5000,resultMs:3000,queueLeaseMs:20000,finishedMs:600000,abandonedMs:120000,maxSessions:256,maxMatches:16});
 export class QuickError extends Error{constructor(status,message){super(message);this.status=status;}}
 const fail=(status,message)=>{throw new QuickError(status,message);};
 const copy=x=>structuredClone(x);

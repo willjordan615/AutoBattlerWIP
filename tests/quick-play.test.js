@@ -19,7 +19,7 @@ test('four queue players start immediately and clocks run only during their own 
 });
 test('timeout makes exactly one automatic pick and reduces next allowance; reconnect preserves missed streak',()=>{
  const {q,advance}=setup(),a=join4(q);advance(19999);assert.equal(q.get(a[0].token).clocks[0],1);advance(1);
- const s=q.get(a[0].token);assert.equal(s.clocks[0],18000);assert.equal(s.turn,1);assert.equal(s.match.draft.picks.length,1);assert.equal(s.match.draft.picks[0].automatic,true);assert.throws(()=>q.pick(a[0].token,{uid:'1-0',slot:0,passiveSlot:0,revision:1}),/Not your draft turn/);
+ const s=q.get(a[0].token);assert.equal(s.clocks[0],17000);assert.equal(s.turn,1);assert.equal(s.match.draft.picks.length,1);assert.equal(s.match.draft.picks[0].automatic,true);assert.throws(()=>q.pick(a[0].token,{uid:'1-0',slot:0,passiveSlot:0,revision:1}),/Not your draft turn/);
  assert.equal(q.get(a[0].token,s.revision).match,undefined);
 });
 test('invalid and stale picks leave the board unchanged; queue cancellation and abandonment',()=>{
@@ -69,29 +69,29 @@ test('two clients share one match and can resume without resetting a running clo
  }finally{clients.forEach(c=>c.stop(false));await new Promise(r=>server.close(r));}
 });
 
-test('consecutive misses shorten subsequent turns by two seconds, manual pick clears streak',()=>{
+test('consecutive misses shorten subsequent turns by three seconds, manual pick clears streak',()=>{
  const {q,advance}=setup(),a=join4(q);let s=q.get(a[0].token);
  // Everyone times out in the first two rounds; all four remain active.
  for(let round=0;round<2;round++){
   while(s.phase==='draft'){
-   const seat=s.turn,ms=20000-round*2000;
+   const seat=s.turn,ms=20000-round*3000;
    assert.equal(s.clocks[seat],ms);assert.equal(s.missed[seat],round);
    advance(ms);s=q.get(a[0].token);
-   assert.equal(s.missed[seat],round+1);assert.equal(s.clocks[seat],ms-2000);
+   assert.equal(s.missed[seat],round+1);assert.equal(s.clocks[seat],ms-3000);
   }
   assert.equal(s.phase,'combat');advance(s.deadline-s.serverNow);s=q.get(a[0].token);assert.equal(s.phase,'results');
   advance(RULES.resultMs);s=q.get(a[0].token);
  }
  const i=s.turn,p=s.match.players[i],card=s.match.draft.pool.find(c=>legal(p,c)),slot=card.kind==='unit'?0:p.squad.findIndex(u=>canEquip(u,card));
- assert.equal(s.clocks[i],16000);advance(5000);s=q.get(a[i].token);
+ assert.equal(s.clocks[i],14000);advance(5000);s=q.get(a[i].token);
  s=q.pick(a[i].token,{uid:card.uid,slot,passiveSlot:0,revision:s.revision});assert.equal(s.missed[i],0);assert.equal(s.clocks[i],20000);
  for(let seat=0;seat<4;seat++)if(seat!==i)assert.equal(s.missed[seat],2);
 });
 test('miss penalty has a recoverable lower bound and no negative deadlines',()=>{
- const {q,advance}=setup({initialMs:4000,minTurnMs:2000}),a=join4(q);let s=q.get(a[0].token);
+ const {q,advance}=setup({initialMs:8000}),a=join4(q);let s=q.get(a[0].token);
  for(let round=0;round<2;round++){
-  while(s.phase==='draft'){const seat=s.turn;assert.equal(s.clocks[seat],round===0?4000:2000);advance(s.clocks[seat]);s=q.get(a[0].token);assert.equal(s.clocks[seat],2000);}
+  while(s.phase==='draft'){const seat=s.turn;assert.equal(s.clocks[seat],round===0?8000:5000);advance(s.clocks[seat]);s=q.get(a[0].token);assert.equal(s.clocks[seat],5000);}
   advance(s.deadline-s.serverNow);advance(RULES.resultMs);s=q.get(a[0].token);
  }
- assert.equal(s.clocks[s.turn],2000);
+ assert.equal(s.clocks[s.turn],5000);
 });
