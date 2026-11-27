@@ -27,9 +27,9 @@ export function spawnFormation(players,arena=ARENAS[0],seed=1,previousSlots=null
  const changed=sameCount?candidates.filter(p=>p.every((slot,i)=>slot!==previousSlots[active[i]])):candidates;
  const choices=changed.length?changed:candidates;
  const ordered=choices.slice();const offset=Math.floor(random()*ordered.length);
- const angles=n===4?[-3*Math.PI/4]:n===1?[0]:Array.from({length:24},(_,i)=>i*Math.PI/12);
+ const angles=n===4?[-3*Math.PI/4]:Array.from({length:24},(_,i)=>i*Math.PI/12);
  const angleOffset=Math.floor(random()*angles.length);
- const radii=n===4?[160*Math.SQRT2,210,190,170]:n===3?[195,180,165,150]:n===2?[200,185,170,150]:[0];
+ const radii=n===4?[160*Math.SQRT2,210,190,170]:n===3?[195,180,165,150]:n===2?[200,185,170,150]:[0,180,150];
  for(const radius of radii)for(let a=0;a<angles.length;a++){
   const rotation=angles[(a+angleOffset)%angles.length];
   for(let k=0;k<ordered.length;k++){

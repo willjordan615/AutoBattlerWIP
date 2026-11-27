@@ -15,7 +15,7 @@ function verify(state,players){
   return {x:units.reduce((s,u)=>s+u.x,0)/units.length,y:units.reduce((s,u)=>s+u.y,0)/units.length};
  });
  for(let i=0;i<4;i++)if(!active.includes(i)){assert.equal(state.spawnSlots[i],null);assert.ok(!state.units.some(u=>u.owner===i));}
- close(centers.reduce((s,p)=>s+p.x,0)/n,360);close(centers.reduce((s,p)=>s+p.y,0)/n,260);
+ if(n>1){close(centers.reduce((s,p)=>s+p.x,0)/n,360);close(centers.reduce((s,p)=>s+p.y,0)/n,260);}
  const distances=centers.flatMap((a,i)=>centers.slice(i+1).map(b=>distance(a,b))).sort((a,b)=>a-b);
  if(n===3){close(distances[0],distances[1]);close(distances[1],distances[2]);}
  if(n===2)assert.ok(distances[0]>250);
