@@ -4,7 +4,7 @@ const KEY='autobattler-quick-session';
 const save=id=>{try{if(id)sessionStorage.setItem(KEY,id);else sessionStorage.removeItem(KEY);}catch{}};
 export function savedSession(){try{return sessionStorage.getItem(KEY);}catch{return null;}}
 export class QuickClient{
- constructor({onState,onError,fetcher=globalThis.fetch,pollMs=500}={}){
+ constructor({onState,onError,fetcher=(...args)=>globalThis.fetch(...args),pollMs=500}={}){
   this.onState=onState;this.onError=onError;this.fetcher=fetcher;this.pollMs=pollMs;this.token=null;this.revision=null;this.closed=false;this.busy=false;this.pendingPick=false;this.polling=null;this.timer=null;this.generation=0;
  }
  async request(path,method='GET',data,token=this.token){

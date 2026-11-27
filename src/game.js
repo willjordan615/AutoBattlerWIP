@@ -3,7 +3,7 @@ import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} 
 import {cardDetail,cardSummary} from './module-info.js?v=engine-360-r1';
 import {chooseCpuDraft} from './draft-ai.js?v=engine-360-r1';
 import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION,teamFill} from './mobility-visual.js?v=engine-360-r1';
-import {QuickClient,savedSession} from './quick-client.js?v=engine-360-r1';
+import {QuickClient,savedSession} from './quick-client.js?v=engine-360-r2';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let mode='solo',localSeat=0,online=null,onlineState=null,onlineObserved=0,onlineClock=null,replayDone=false,connectionMessage='';

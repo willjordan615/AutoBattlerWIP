@@ -18,3 +18,10 @@ test('confirm during a poll waits for the poll instead of silently dropping the 
  }});
  try{await client.start('ranged');const poll=client.poll();const pick=client.pick('1-0',0,0);unblock();await poll;assert.equal(await pick,true);assert.equal(calls.filter(x=>x.endsWith('pick')).length,1);}finally{client.stop(false);}
 });
+
+ test('default browser fetch is invoked with the global receiver',async()=>{
+ const original=globalThis.fetch,states=[];let error;
+ globalThis.fetch=function(path,opts){assert.equal(this,globalThis,'native fetch requires Window receiver');assert.equal(path,'./api/quick/join');return Promise.resolve(response({token:'test',status:'queued',queueCount:1}));};
+ const client=new QuickClient({onState:s=>states.push(s),onError:e=>error=e,pollMs:1e9});
+ try{await client.start('rogue');assert.equal(error,undefined);assert.equal(states[0]?.status,'queued');}finally{client.stop(false);globalThis.fetch=original;}
+});
