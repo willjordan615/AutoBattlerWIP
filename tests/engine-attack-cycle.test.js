@@ -118,3 +118,10 @@ test('Dodge can interrupt uncommitted windup and enforces a brief retry delay',(
  assert.equal(a.attack,null);
  assert.ok(a.cd>0);
 });
+
+test('Rogue base attack interval is 0.82 seconds, with unchanged commitment phases',()=>{
+ assert.equal(CHASSIS.rogue.rate,.82);assert.equal(stats({type:'rogue',chassis:makeChassis('rogue')}).rate,.82);
+ assert.equal(CHASSIS.rogue.speed,95.45);assert.equal(CHASSIS.rogue.damage,18);
+ assert.equal(ATTACK_TIMING.rogue.windup,.18);assert.equal(ATTACK_TIMING.rogue.recovery,.12);
+ assert.equal(CHASSIS.bruiser.rate,1.25);assert.equal(CHASSIS.ranged.rate,1.12);
+});
