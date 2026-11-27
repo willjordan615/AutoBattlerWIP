@@ -3,20 +3,21 @@ import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {createMatch,draftPool,assign,beginCombat,completeCombat,legal,canEquip} from '../src/headless.js';
 import {CHASSIS,tick,STEP,makeChassis} from '../src/simulation.js';
-import {chooseCpuDraft,draftPersonality,draftContext,evaluateDraft,evaluateDraftLegacy,TRAITS} from '../src/draft-ai.js';
+import {chooseCpuDraft,draftPersonality,draftContext,draftEvaluator,TRAITS} from '../src/draft-ai.js';
+import {buildCoherence,coherenceDelta} from '../src/draft-coherence.js';
 const TYPES=Object.keys(CHASSIS),POLICIES=['legacy','candidate'];
 const inc=(o,k,n=1)=>o[k]=(o[k]||0)+n;
 const safe=(n,d)=>d?n/d:null;
 const mean=xs=>safe(xs.reduce((s,x)=>s+x,0),xs.length);
 const jaccard=(a,b)=>{const x=new Set(a),y=new Set(b),union=new Set([...x,...y]);return union.size?1-[...x].filter(k=>y.has(k)).length/union.size:0};
-export function allocations(seed){
+export function allocations(seed,control='legacy',challenger='candidate'){
  const other=1+seed%3;
- const a=Array.from({length:4},(_,i)=>i===0||i===other?'candidate':'legacy');
+ const a=Array.from({length:4},(_,i)=>i===0||i===other?challenger:control);
  return [
   {mode:'mixed-a',policies:a},
-  {mode:'mixed-b',policies:a.map(x=>x==='candidate'?'legacy':'candidate')},
-  {mode:'all-legacy',policies:Array(4).fill('legacy')},
-  {mode:'all-candidate',policies:Array(4).fill('candidate')}
+  {mode:'mixed-b',policies:a.map(x=>x===challenger?control:challenger)},
+  {mode:'all-legacy',policies:Array(4).fill(control)},
+  {mode:'all-candidate',policies:Array(4).fill(challenger)}
  ];
 }
 export function startingTypes(seed){
@@ -24,7 +25,7 @@ export function startingTypes(seed){
  return initial.map((_,i)=>initial[(i+offset)%4]);
 }
 export function runMatch(seed,{mode,policies}){
- const types=startingTypes(seed),match=createMatch(types,seed),picks=Array.from({length:4},()=>[]),rounds=[];
+ const types=startingTypes(seed),match=createMatch(types,seed),picks=Array.from({length:4},()=>[]),rounds=[],usage=Array.from({length:4},()=>({unitRounds:0,damage:0,attacks:0,hits:0,moduleDamage:{},moduleExposure:{}}));
  draftPool(match);
  while(match.phase!=='finished'&&match.round<=250){
   while(match.phase==='draft'){
@@ -33,9 +34,19 @@ export function runMatch(seed,{mode,policies}){
    const {card,chassisIndex,passiveSlot}=choice,u=player.squad[chassisIndex];
    const old=u?.passives.length>=2?u.passives[passiveSlot]:null;
    const replacing=(card.kind==='passive'||card.kind==='utility')&&old&&old!==card.key&&!(card.kind==='utility'&&u.passives.includes(card.key));
-   const neutral=(policy==='legacy'?evaluateDraftLegacy:evaluateDraft)(player,card,chassisIndex,passiveSlot,{},draftContext(match,seat)).score;
+   const ctx=draftContext(match,seat),before=buildCoherence(player,ctx);
+   const neutral=draftEvaluator(policy)(player,card,chassisIndex,passiveSlot,{},ctx).score;
+   const delta=coherenceDelta(player,card,chassisIndex,passiveSlot,ctx,before).delta;
+   let availableGain=0;
+   for(const option of match.draft.pool)if(legal(player,option)){
+    for(let slot=0;slot<(option.kind==='unit'?1:player.squad.length);slot++){
+     if(option.kind!=='unit'&&!canEquip(player.squad[slot],option))continue;
+     const n=['utility','passive'].includes(option.kind)&&player.squad[slot].passives.length>=2?2:1;
+     for(let ps=0;ps<n;ps++)availableGain=Math.max(availableGain,coherenceDelta(player,option,slot,ps,ctx,before).delta);
+    }
+   }
    picks[seat].push({round:match.round,kind:card.kind,key:card.key,slot:chassisIndex,type:card.kind==='unit'?card.key:u.type,
-    score:choice.baseScore,personalityContribution:choice.baseScore-neutral,replaced:replacing?old:null,
+    score:choice.baseScore,personalityContribution:choice.baseScore-neutral,replaced:replacing?old:null,coherenceDelta:delta,availableGain,
     reasons:choice.reasons,breakdown:choice.breakdown});
    assign(match,seat,card.uid,chassisIndex,passiveSlot,choice);
   }
@@ -43,6 +54,12 @@ export function runMatch(seed,{mode,policies}){
   for(let i=0;i<900;i++){end=tick(battle,STEP);if(end!==null)break;}
   assert.notEqual(end,null,'combat did not complete');
   const result=completeCombat(match,battle);
+  for(const row of result.combatReport){
+   const u=battle.units.find(x=>x.id===row.id),r=usage[row.owner];
+   r.unitRounds++;r.damage+=row.damage;r.attacks+=row.attacks;r.hits+=row.hits;
+   for(const [key,v] of Object.entries(row.moduleDamage||{}))inc(r.moduleDamage,key,v);
+   for(const key of ['momentum','precision','burning','hazardous','expose','resonance','chain','sunder'])if(u?.chassis.mods[key]>0)inc(r.moduleExposure,key);
+  }
   rounds.push({round:result.round,ranking:result.ranking,remaining:result.remaining,timeout:result.time>=30-1e-6,time:result.time});
  }
  assert.equal(match.phase,'finished');
@@ -50,7 +67,7 @@ export function runMatch(seed,{mode,policies}){
  const eliminated=match.players.map((p,i)=>({i,death:rounds.findIndex(r=>r.remaining[i]===0)})).filter(x=>x.i!==winner).sort((a,b)=>b.death-a.death||a.i-b.i);
  const finalOrder=[winner,...eliminated.map(x=>x.i)];
  const seats=match.players.map((p,i)=>({seat:i,policy:policies[i],starting:types[i],personality:draftPersonality(seed,i),rank:finalOrder.indexOf(i)+1,
-  won:i===winner,roster:p.squad.map(u=>({type:u.type,mods:u.mods,weights:u.weights,passives:u.passives})),picks:picks[i]}));
+  won:i===winner,usage:usage[i],finalCoherence:buildCoherence(p).total,roster:p.squad.map(u=>({type:u.type,mods:u.mods,weights:u.weights,passives:u.passives})),picks:picks[i]}));
  return {seed,mode,winner,rounds,seats};
 }
 function groupMetrics(seats){
@@ -64,18 +81,21 @@ function groupMetrics(seats){
  }
  for(const p of all){inc(counts,p.kind+':'+p.key);inc(categories,p.kind);}
  const entropy=-Object.values(counts).reduce((n,x)=>{const p=x/Math.max(1,all.length);return n+p*Math.log2(p)},0);
- return {players:seats.length,wins:seats.filter(s=>s.won).length,rankSum:seats.reduce((n,s)=>n+s.rank,0),picks:all.length,
+ const usage={unitRounds:0,damage:0,attacks:0,hits:0,moduleDamage:{},moduleExposure:{}};
+ for(const s of seats){for(const k of ['unitRounds','damage','attacks','hits'])usage[k]+=s.usage[k];for(const k of ['moduleDamage','moduleExposure'])for(const [key,v] of Object.entries(s.usage[k]))inc(usage[k],key,v);}
+ const opportunities=all.filter(p=>p.availableGain>1e-8);
+ return {coherence:{finalSum:seats.reduce((n,s)=>n+s.finalCoherence,0),opportunities:opportunities.length,positivePicks:opportunities.filter(p=>p.coherenceDelta>1e-8).length,chosenDelta:all.reduce((n,p)=>n+p.coherenceDelta,0),possibleGain:opportunities.reduce((n,p)=>n+p.availableGain,0),chosenGain:opportunities.reduce((n,p)=>n+Math.max(0,p.coherenceDelta),0),lostPicks:all.filter(p=>p.coherenceDelta< -1e-8).length},usage,players:seats.length,wins:seats.filter(s=>s.won).length,rankSum:seats.reduce((n,s)=>n+s.rank,0),picks:all.length,
   moduleCounts:counts,categories,starts,finalSizes,firstRecruit:{n:firstRecruit.length,sum:firstRecruit.reduce((n,x)=>n+x,0)},
   thirdRecruit:{n:thirdRecruit.length,sum:thirdRecruit.reduce((n,x)=>n+x,0)},replacements:all.filter(p=>p.replaced).length,
   personalitySum:all.reduce((n,p)=>n+p.personalityContribution,0),entropy,
   distinctPerPlayerSum:seats.reduce((n,s)=>n+new Set(s.picks.filter(p=>p.kind!=='unit').map(p=>p.kind+':'+p.key)).size,0)};
 }
-function summarize(games){
+function summarize(games,policies=POLICIES){
  const groups={};
  for(const mode of ['mixed','all-legacy','all-candidate']){
   const ms=games.filter(g=>mode==='mixed'?g.mode.startsWith('mixed'):g.mode===mode);
   const seats=ms.flatMap(g=>g.seats),metrics={};
-  for(const p of POLICIES)metrics[p]=groupMetrics(seats.filter(s=>s.policy===p));
+  for(const p of policies)metrics[p]=groupMetrics(seats.filter(s=>s.policy===p));
   const diversity=ms.flatMap(g=>g.seats.flatMap((s,i)=>g.seats.slice(i+1).map(t=>jaccard(s.picks.filter(p=>p.kind!=='unit').map(p=>p.kind+':'+p.key),t.picks.filter(p=>p.kind!=='unit').map(p=>p.kind+':'+p.key)))));
   const allRounds=ms.flatMap(g=>g.rounds);
   groups[mode]={matches:ms.length,rounds:allRounds.length,timeouts:allRounds.filter(r=>r.timeout).length,
@@ -84,10 +104,10 @@ function summarize(games){
  return groups;
 }
 // Same legal offer pool, same chassis and weights, no RNG for scoring.
-export function profileProbe(seed,count){
+export function profileProbe(seed,count,policies=POLICIES){
  const results={};
- for(const policy of POLICIES){
-  const evaluate=policy==='legacy'?evaluateDraftLegacy:evaluateDraft;
+ for(const policy of policies){
+  const evaluate=draftEvaluator(policy);
   const metrics=results[policy]={fixtures:0,traitComparisons:0,changedChoices:0,changedCard:0,distinctSum:0,byTrait:{}};
   for(let i=0;i<count;i++)for(const type of TYPES)for(const size of [1,2,3]){
    const m=createMatch([type,'bruiser','rogue','ranged'],seed+i);
@@ -115,13 +135,13 @@ export function profileProbe(seed,count){
  }
  return results;
 }
-export function runAudit({seed=4101,count=8}={}){
+export function runAudit({seed=4101,count=8,control='legacy',challenger='candidate'}={}){
  assert.ok(Number.isInteger(seed)&&Number.isInteger(count)&&count>0&&count<=30);
  const games=[];
- for(let i=0;i<count;i++)for(const spec of allocations(seed+i))games.push(runMatch(seed+i,spec));
- return {seed,count,completed:games.length,summary:summarize(games),profiles:profileProbe(seed,count),games};
+ for(let i=0;i<count;i++)for(const spec of allocations(seed+i,control,challenger))games.push(runMatch(seed+i,spec));
+ return {seed,count,control,challenger,completed:games.length,summary:summarize(games,[control,challenger]),profiles:profileProbe(seed,count,[control,challenger]),games};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
- const report=runAudit({seed:Number(process.argv[2]||4101),count:Number(process.argv[3]||8)});
+ const report=runAudit({seed:Number(process.argv[2]||4101),count:Number(process.argv[3]||8),control:process.argv[4]||'legacy',challenger:process.argv[5]||'candidate'});
  console.log(JSON.stringify(report));
 }
