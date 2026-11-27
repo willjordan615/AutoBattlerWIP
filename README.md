@@ -4,8 +4,8 @@ Mobile-first, deterministic four-player autobattler with shared drafting, contin
 
 ## Play and develop
 
-- [Playable build](https://willjordan615.github.io/AutoBattlerWIP/) — version shown in the game.
-- Serve the repository statically for local browser play; do not open via file://.
+- [Playable build](https://quick-play-production-4fff294f.up.railway.app/) — one launch menu for Solo and Quick Play; Ranked and Options are disabled until implemented.
+- Serve the repository statically for local Solo play; do not open via file://. Quick Play requires the Node server.
 - Multiplayer server: `npm start` (Node 22+); open its URL for Solo and Quick Play. See [Quick Play](docs/quick-play.md).
 - Node 22+: `npm test`, `npm run balance:report -- 100 strategic 1`, `npm run diagnose:navigation -- 8 1`.
 - Scripted player harness: `node scripts/agent-playtest.js 12 1`. See [PLAYTESTING.md](PLAYTESTING.md).

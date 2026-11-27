@@ -1,6 +1,6 @@
 # Agent guide — AutoBattlerWIP
 
-Mobile-first deterministic JavaScript ES modules; Node 22+, no runtime dependencies. Repository: https://github.com/willjordan615/AutoBattlerWIP. Playable: https://willjordan615.github.io/AutoBattlerWIP/.
+Mobile-first deterministic JavaScript ES modules; Node 22+, no runtime dependencies. Repository: https://github.com/willjordan615/AutoBattlerWIP. Playable: https://quick-play-production-4fff294f.up.railway.app/.
 
 ## Workflow
 - Read this guide and the relevant subsystem/test; fetch current branch head before editing. Prefer the GitHub connector; no clone by default. Check githubstatus.com on unexpected service errors. Batch related changes, verify writes and branch heads, and never overwrite concurrent work.
@@ -15,6 +15,7 @@ Mobile-first deterministic JavaScript ES modules; Node 22+, no runtime dependenc
 - Prioritize low-end Android performance, readability and responsiveness. No new runtime dependencies or combat rollouts during normal draft selection. Keep files focused; measure before optimizing.
 
 ## Quick Play
+- Main is the canonical release source for both modes. Launch menu: Solo, Quick Play, Ranked (disabled), Options (disabled). Railway serves the single game URL; the legacy public Pages URL redirects there.
 - No hosted/private rooms. Solo is local and untimed; Quick Play has a single 120-second queue, then fills seats with bots. Four humans launch immediately. Human clocks are 20+4 seconds, max bank 30, active turn only; expired turns auto-draft and grant four seconds. Server owns state and results; browser replays only. No custom names or chat. Keep backend lightweight and use same engine. See docs/quick-play.md.
 
 ## Current rules
