@@ -1,7 +1,7 @@
 // Engine subsystem: navigation. See AGENTS.md for ownership and test routes.
-import {segmentRect,rectHit,clamp,clearLine,distance} from './geometry.js?v=engine-360-r1';
-import {stats} from './stats.js?v=engine-360-r1';
-import {CHASSIS,radiusOf} from './config.js?v=engine-360-r1';
+import {segmentRect,rectHit,clamp,clearLine,distance} from './geometry.js?v=engine-360-r3';
+import {stats} from './stats.js?v=engine-360-r3';
+import {CHASSIS,radiusOf} from './config.js?v=engine-360-r3';
 
 // Exact physical clearance is used only to connect a chassis already hugging
 // a corner to the stable terrain graph. Ordinary graph edges remain conservative.
