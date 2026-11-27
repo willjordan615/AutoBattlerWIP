@@ -1,6 +1,6 @@
 // Pure draft valuation: no engine rule changes, no hidden information, no RNG.
 import {CHASSIS,BASE_WEIGHTS,METRICS} from './engine/config.js?v=engine-330-r1';
-import {UTILITY_MODULES,TARGET_STAT_BONUSES} from './engine/module-registry.js?v=engine-330-r1';
+import {UTILITY_MODULES,TARGET_MODULES,TARGET_STAT_BONUSES} from './engine/module-registry.js?v=engine-330-r1';
 
 const clamp=(v,l,h)=>Math.min(h,Math.max(l,v));
 const sum=(xs,f)=>xs.reduce((n,x)=>n+f(x),0);
@@ -67,7 +67,7 @@ export function refineDraftParts({player,card,chassisIndex,passiveSlot,preferenc
  }
  if(key==='challenger'&&stack('precision'))add('Uses healthy-target bonus',Math.min(5,stack('precision')*2.5));
  if(card.kind==='target'){
-  const metric=Object.keys({executioner:{kill:1},guardian:{protection:1},skirmisher:{preferredRange:1},coward:{safety:1},duelist:{isolation:1},hunter:{distance:1},aggressor:{damage:1},opportunist:{opportunist:1},pursuer:{pursuer:1},challenger:{challenger:1}}[key]||{})[0];
+  const metric=Object.keys(TARGET_MODULES[key]||{})[0];
   const copies=metric?Math.max(0,(w[metric]||0)-baseWeight(u,metric)):0;
   add('Additional preference concentration',-Math.min(5,Math.max(0,copies-1)*1.25));
   if(TARGET_STAT_BONUSES[key])add('Hybrid stat benefit',key==='duelist'?2.5:2);
@@ -84,7 +84,8 @@ export function refineDraftParts({player,card,chassisIndex,passiveSlot,preferenc
   if(key==='rally'&&peers.length)add('Mobile teammates',Math.min(3,sum(peers,x=>Number(x.type!=='ranged'))*1.5));
   if(key==='resolve')add('Opposing slows',clamp((c.opponentSlowShare||0)*5,0,3));
   if(key==='velocity'&&type==='ranged'&&stack('projectiles'))add('Improve existing spread delivery',2);
-  if(coverageKeys.has(key)&&c.opponentUnits===1)add('No secondary opponent available',-8);
+  if(coverageKeys.has(key)&&c.opponentUnits===1)add('Reduced secondary-target opportunities',['chain','piercing'].includes(key)?-8:-3);
+  if(key==='range'&&type!=='ranged')add('Opposing ranged presence',clamp((c.rangedShare||0)*3,0,2));
  }
  if(card.kind==='passive'||card.kind==='utility'){
   const previous=slots.length>=2?slots[passiveSlot]:null;

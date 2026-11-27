@@ -1,0 +1,39 @@
+name: 3.4 draft intelligence audit
+on:
+  push:
+    branches: ['audit/3.4-draft-intelligence']
+    paths: ['.github/workflows/draft-intelligence-audit.yml','src/draft-ai.js','src/draft-policy.js','scripts/draft-intelligence-audit.js']
+  workflow_dispatch:
+jobs:
+  crossover:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [4101, 4201, 4301, 4401]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/draft-intelligence-audit.js ${{ matrix.seed }} 8 > draft-audit.json
+      - run: |
+          node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('draft-audit.json','utf8'));console.log(JSON.stringify({seed:r.seed,count:r.count,completed:r.completed,summary:r.summary,profiles:r.profiles}));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: draft-audit-${{ matrix.seed }}
+          path: draft-audit.json
+  player:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/33-playtest.js 4101 > play.json
+      - run: |
+          node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('play.json','utf8'));console.log(JSON.stringify({completed:r.completed,games:r.games.map(g=>({seed:g.seed,starting:g.starting,winner:g.winner,rounds:g.rounds,timeouts:g.timeouts,picks:g.picks,finalSquad:g.finalSquad}))}));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scripted-player
+          path: play.json
