@@ -1,5 +1,5 @@
 // Stable seeded lobby profiles: style and ability are independent.
-import {EMPIRICAL_MODEL} from './draft-empirical-model.js?v=engine-340-r1';
+import {EMPIRICAL_MODEL} from './draft-empirical-model.js?v=engine-350-r1';
 export const BOT_STYLES=Object.freeze([
  {id:'versatile',name:'Versatile',traits:{}},
  {id:'mobile',name:'Mobile',traits:{mobility:1,control:.2}},

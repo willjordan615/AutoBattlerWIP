@@ -1,8 +1,5 @@
-name: 3.5 bot profile calibration
+name: Bot profile calibration
 on:
-  push:
-    branches: ['audit/3.5-bot-profiles']
-    paths: ['.github/workflows/bot-profile-audit.yml','src/bot-profiles.js','src/draft-ai.js','scripts/bot-profile-audit.js']
   workflow_dispatch:
 jobs:
   calibration:

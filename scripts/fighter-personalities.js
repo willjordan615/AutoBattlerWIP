@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
 import {ARENAS,STEP,makeChassis,spawn,spawnSlots,tick,stats,distance,clearLine,placementGroups} from '../src/simulation.js';
-import {TARGET_MODULES} from '../src/engine/module-registry.js?v=engine-340-r1';
+import {TARGET_MODULES} from '../src/engine/module-registry.js?v=engine-350-r1';
 
 export const TYPES=['bruiser','rogue','ranged'];
 export const CONDITIONS=['control','threat-position','position-engagement-mid','position-safety-pressure'];

@@ -1,16 +1,16 @@
 // Engine subsystem: loop. See AGENTS.md for ownership and test routes.
-import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-340-r1';
-import {chooseTarget} from './targeting.js?v=engine-340-r1';
-import {distance,clearLine,bound} from './geometry.js?v=engine-340-r1';
-import {measure} from './telemetry.js?v=engine-340-r1';
-import {stats,resolveResistance,syncLivingAllies} from './stats.js?v=engine-340-r1';
-import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-340-r1';
-import {startAttack,attackMovementMultiplier,advanceAttack,attackWindup} from './combat.js?v=engine-340-r1';
-import {chooseMovement} from './movement.js?v=engine-340-r1';
-import {advanceFollowthrough,resolveFollowthroughImpacts,finishFollowthrough} from './followthrough.js?v=engine-340-r1';
-import {resolveCollision} from './collision.js?v=engine-340-r1';
-import {advanceProjectiles} from './projectiles.js?v=engine-340-r1';
-import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-340-r1';
+import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-350-r1';
+import {chooseTarget} from './targeting.js?v=engine-350-r1';
+import {distance,clearLine,bound} from './geometry.js?v=engine-350-r1';
+import {measure} from './telemetry.js?v=engine-350-r1';
+import {stats,resolveResistance,syncLivingAllies} from './stats.js?v=engine-350-r1';
+import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-350-r1';
+import {startAttack,attackMovementMultiplier,advanceAttack,attackWindup} from './combat.js?v=engine-350-r1';
+import {chooseMovement} from './movement.js?v=engine-350-r1';
+import {advanceFollowthrough,resolveFollowthroughImpacts,finishFollowthrough} from './followthrough.js?v=engine-350-r1';
+import {resolveCollision} from './collision.js?v=engine-350-r1';
+import {advanceProjectiles} from './projectiles.js?v=engine-350-r1';
+import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-350-r1';
 
 export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];syncLivingAllies(state);
  // Snapshot intentions for all units before sequential movement begins.
