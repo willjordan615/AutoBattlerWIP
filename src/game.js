@@ -69,7 +69,7 @@ function showResult(result,draft){
 }
 function next(){if(online||view!=='results')return;view='draft';chosen=null;processBots();render()}
 function render(){$('layout').setAttribute('data-phase',view);$('seedInfo').textContent=match?'Seed: '+match.seed+' · Starting fighters: '+initialTypes.join(', '):'Start a match to see reproducibility data.';$('exportMatch').disabled=!match;const root=$('choices');root.replaceChildren();$('round').textContent='Round '+(view==='results'&&lastResult?lastResult.round:match?.round||1);const phase=$('phaseTitle'),info=$('phaseInfo'),status=$('status'),advance=$('advance');advance.style.display='none';advance.disabled=true;
- if(view==='mode'){status.textContent='Choose mode';phase.textContent='Play';info.textContent='Choose how to play.';const solo=button('Solo','Instant match · three bots · untimed',()=>{mode='solo';view='start';render()}),quick=button('Quick Play','Find other players · 20+4 draft clocks',()=>{mode='quick';view='start';render()}),ranked=button('Ranked','Coming soon',null),options=button('Options','Coming soon',null);ranked.disabled=true;options.disabled=true;for(const b of [solo,quick,ranked,options]){b.classList.add('mode-choice');root.append(b);}}
+ if(view==='mode'){status.textContent='Choose mode';phase.textContent='Play';info.textContent='Choose how to play.';const solo=button('Solo','Instant match · three bots · untimed',()=>{mode='solo';view='start';render()}),quick=button('Quick Play','Find other players · 20s per draft turn',()=>{mode='quick';view='start';render()}),ranked=button('Ranked','Coming soon',null),options=button('Options','Coming soon',null);ranked.disabled=true;options.disabled=true;for(const b of [solo,quick,ranked,options]){b.classList.add('mode-choice');root.append(b);}}
  if(view==='queue'){status.textContent='Quick Play';phase.textContent='Finding players';info.textContent=connectionMessage||'Joining the queue…';}
  if(view==='start'){status.textContent='Choose a chassis';phase.textContent='Choose your starting chassis';info.textContent=(mode==='quick'?'Choose your fighter before entering Quick Play. Up to two minutes to find players. ':'Choose a fighter, then draft one upgrade each round. ')+(connectionMessage||'Combat is automatic.');for(const [id,c] of Object.entries(CHASSIS))root.append(button(c.name,c.desc+' · HP '+c.hp+' · Damage '+c.damage,()=>create(id)))}
  if(view==='draft'||view==='fight'||view==='results'||view==='over'){const draft=view==='results'||view==='over'?completedDraft:match.draft;status.textContent='Shared draft';phase.textContent='Round '+match.round+' draft';info.textContent=view==='draft'?(online?(onlineState?.turn===localSeat?'Your turn · choose one upgrade.':'Waiting for '+(match.players[onlineState?.turn]?.name||'other players')+'.'):'Choose one upgrade.'):'Round picks';for(const card of draft.originalPool){
@@ -314,7 +314,7 @@ function updateOnlineClock(){
   let ms=onlineState.clocks?.[i];
   if(ms===null||ms===undefined){el.textContent='Bot';continue;}
   if(onlineState.phase==='draft'&&onlineState.turn===i)ms=Math.max(0,ms-Math.max(0,performance.now()-onlineObserved));
-  el.textContent=(ms/1000).toFixed(1)+'s';el.style.color=onlineState.turn===i?'#f4d16f':'#a4b5ce';
+  el.textContent=(ms/1000).toFixed(1)+'s';const missed=onlineState.missed?.[i]||0;el.title=missed?missed+' consecutive missed picks · next manual pick restores 20s':'20 seconds per turn';el.style.color=onlineState.turn===i?'#f4d16f':'#a4b5ce';
  }
 }
 function connectQuick(type,resume=null){

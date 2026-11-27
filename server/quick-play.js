@@ -3,7 +3,7 @@ import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} 
 import {CHASSIS,STEP,tick,rng} from '../src/simulation.js';
 import {chooseCpuDraft} from '../src/draft-ai.js';
 
-export const RULES=Object.freeze({queueMs:120000,initialMs:20000,incrementMs:4000,capMs:30000,resultMs:3000,queueLeaseMs:20000,finishedMs:600000,abandonedMs:120000,maxSessions:256,maxMatches:16});
+export const RULES=Object.freeze({queueMs:120000,initialMs:20000,missPenaltyMs:2000,minTurnMs:2000,resultMs:3000,queueLeaseMs:20000,finishedMs:600000,abandonedMs:120000,maxSessions:256,maxMatches:16});
 export class QuickError extends Error{constructor(status,message){super(message);this.status=status;}}
 const fail=(status,message)=>{throw new QuickError(status,message);};
 const copy=x=>structuredClone(x);
@@ -17,16 +17,15 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
  function removeQueued(s){const i=queue.indexOf(s);if(i>=0)queue.splice(i,1);if(!queue.length)queueDeadline=null;}
  function authenticate(id){const s=sessions.get(id);if(!s||s.left)fail(401,'Session expired');return s;}
  function activeSeat(g){return g.match.phase==='draft'?g.match.draft.order[g.match.draft.turn]:null;}
- function charge(g,seat,t){g.banks[seat]=Math.max(0,g.banks[seat]-Math.max(0,t-g.turnStart));}
- function increment(g,seat){if(g.humans[seat])g.banks[seat]=Math.min(rules.capMs,g.banks[seat]+rules.incrementMs);}
+ function allowance(g,seat){return Math.max(rules.minTurnMs,rules.initialMs-g.missed[seat]*rules.missPenaltyMs);}
  function botPick(g,seat,t){
   const human=g.humans[seat];
-  if(human){charge(g,seat,t);if(!human.left)g.banks[seat]=0;}
+  if(human&&!human.left)g.missed[seat]++;
   const p=chooseCpuDraft(g.match,seat);
   assign(g.match,seat,p.card.uid,p.chassisIndex,p.passiveSlot,p);
   g.match.draft.picks.at(-1).passiveSlot=p.passiveSlot;
   g.match.draft.picks.at(-1).automatic=true;
-  increment(g,seat);g.revision++;g.turnStart=null;
+  g.revision++;g.turnStart=null;
  }
  function startFight(g){
   g.replay=publicMatch(g.match);g.battle=beginCombat(g.match);
@@ -41,7 +40,7 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
    const seat=activeSeat(g),human=g.humans[seat];
    if(!human){g.turnStart=t;botPick(g,seat,t);continue;}
    if(g.turnStart===null)g.turnStart=t;
-   if(human.left||t>=g.turnStart+g.banks[seat]){botPick(g,seat,t);continue;}
+   if(human.left||t>=g.turnStart+allowance(g,seat)){botPick(g,seat,t);continue;}
    return;
   }
   if(g.match.phase==='combat')startFight(g);
@@ -51,7 +50,7 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
   while(types.length<4)types.push(Object.keys(CHASSIS)[Math.floor(random()*3)]);
   const m=createMatch(types,s),humans=Array.from({length:4},(_,i)=>group[i]||null);
   m.players.forEach((p,i)=>{p.name=humans[i]?'Player '+(i+1):'Bot '+(i+1);});
-  const g={id,match:m,humans,types,banks:humans.map(x=>x?rules.initialMs:null),phase:'draft',revision:1,turnStart:null,deadline:null,startedAt:null,replay:null,battle:null,completedDraft:null,result:null,finishedAt:null};
+  const g={id,match:m,humans,types,missed:humans.map(()=>0),phase:'draft',revision:1,turnStart:null,deadline:null,startedAt:null,replay:null,battle:null,completedDraft:null,result:null,finishedAt:null};
   games.set(id,g);
   group.forEach((p,i)=>{p.game=id;p.seat=i;});
   draftPool(m);advanceDraft(g,t);return g;
@@ -82,8 +81,8 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
   if(!s.game)return {status:'queued',serverNow:t,queueCount:queue.length,queueDeadline};
   const g=games.get(s.game);if(!g)fail(401,'Match expired');
   const seat=activeSeat(g),turn=g.phase==='draft'?seat:null;
-  const clocks=g.banks.map((v,i)=>v===null?null:Math.max(0,v-(i===turn&&g.turnStart!==null?Math.max(0,t-g.turnStart):0)));
-  const out={status:'matched',revision:g.revision,seat:s.seat,phase:g.phase,serverNow:t,turn,clocks,deadline:g.phase==='draft'&&turn!==null?g.turnStart+g.banks[turn]:g.deadline,startedAt:g.startedAt,humans:g.humans.map(x=>Boolean(x&&!x.left))};
+  const clocks=g.humans.map((human,i)=>!human||human.left?null:Math.max(0,allowance(g,i)-(i===turn&&g.turnStart!==null?Math.max(0,t-g.turnStart):0)));
+  const out={status:'matched',revision:g.revision,seat:s.seat,phase:g.phase,serverNow:t,turn,clocks,missed:g.missed.slice(),deadline:g.phase==='draft'&&turn!==null?g.turnStart+allowance(g,turn):g.deadline,startedAt:g.startedAt,humans:g.humans.map(x=>Boolean(x&&!x.left))};
   if(revision!==g.revision)Object.assign(out,{match:g.phase==='combat'?copy(g.replay):publicMatch(g.match),types:[...g.types],completedDraft:copy(g.completedDraft),result:copy(g.result)});
   return out;
  }
@@ -105,10 +104,10 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
   const card=g.match.draft.pool.find(c=>c.uid===input.uid),p=g.match.players[s.seat];
   if(!card||!legal(p,card)||card.kind!=='unit'&&(!p.squad[input.slot]||!canEquip(p.squad[input.slot],card)))fail(400,'Illegal pick');
   // All user input is validated before mutation; stale or late picks cannot spend time twice.
-  if(t>=g.turnStart+g.banks[s.seat]){advanceDraft(g,t);fail(409,'Draft clock expired');}
+  if(t>=g.turnStart+allowance(g,s.seat)){advanceDraft(g,t);fail(409,'Draft clock expired');}
   assign(g.match,s.seat,card.uid,input.slot,input.passiveSlot);
   g.match.draft.picks.at(-1).passiveSlot=input.passiveSlot;
-  charge(g,s.seat,t);increment(g,s.seat);g.turnStart=null;g.revision++;advanceDraft(g,t);
+  g.missed[s.seat]=0;g.turnStart=null;g.revision++;advanceDraft(g,t);
   return state(s);
  }
  function leave(id){const s=authenticate(id);s.left=true;removeQueued(s);sessions.delete(id);pump();return {status:'left'};}
