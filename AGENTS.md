@@ -14,6 +14,9 @@ Mobile-first deterministic JavaScript ES modules; Node 22+, no runtime dependenc
 - Team cooperation, holding and outlasting are legitimate. Do not enforce constant aggression. Distinguish physical navigation stalls from strategic waiting. Target threat/position evaluation and Damage Opportunity are distinct; preserve engagement awareness and additive draft weights.
 - Prioritize low-end Android performance, readability and responsiveness. No new runtime dependencies or combat rollouts during normal draft selection. Keep files focused; measure before optimizing.
 
+## Quick Play
+- No hosted/private rooms. Solo is local and untimed; Quick Play has a single 120-second queue, then fills seats with bots. Four humans launch immediately. Human clocks are 20+4 seconds, max bank 30, active turn only; expired turns auto-draft and grant four seconds. Server owns state and results; browser replays only. No custom names or chat. Keep backend lightweight and use same engine. See docs/quick-play.md.
+
 ## Current rules
 - Four-player FFA, 30 Hz, 30-second rounds. Shared draft before each round; active players + 2 offers, duplicates contested; maximum three chassis. Winner takes no persistent HP loss. Use shared headless ranking and placement rules.
 - Morphology is unique (-1, 0, +1), opposite cards replace; no utility slot. Duplicate movement utilities shorten cooldown, not travel distance; other passives are unique. Coordinated is a unique utility with +10% HP, damage, speed, attack frequency and reach only while another teammate lives; expiry preserves current HP fraction; no squad-penalty change. Resolve is a unique attack module: 80% slow resistance, +2 defense. Flat defense capped at 10 before Sunder.

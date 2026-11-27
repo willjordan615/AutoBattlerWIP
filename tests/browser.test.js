@@ -22,6 +22,9 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  Object.defineProperty(globalThis,'crypto',{configurable:true,value:{getRandomValues(values){values[0]=20261121;return values}}});
  await import('../src/game.js');
  const $=id=>document.getElementById(id);
+ assert.equal($('phaseTitle').textContent,'Play');
+ assert.equal($('layout')['data-phase'],'mode');
+ $('choices').children[0].onclick();
  assert.equal($('phaseTitle').textContent,'Choose your starting chassis');
  assert.equal($('layout')['data-phase'],'start');
  $('choices').children[0].onclick();
