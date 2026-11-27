@@ -41,14 +41,4 @@ The four exported deterministic policies are `balanced`, `aggressive`, `defensiv
 
 Each combat report now includes per-owner and total `targetSwitches`, `blockedUnitTicks`, `stationaryUnitTicks`, `aliveUnitTicks`, `travelDistance`, and `damageTaken`. The movement counters sample every simulation tick, including when full frame tracing is disabled.
 
-**Navigation experiment note (2026-11-21):** A destination-search prototype increased timeouts in a 12-match trial, so it was reverted. The existing obstacle waypoint system remains in production. Don't infer a navigation fix from the new diagnostics alone.
-
-## Persistent navigation update (2026-11-21)
-
-The combat engine now uses persistent visibility-graph routes around obstacle corners. Route-following is deterministic and independent of the player's tactical weights while a direct route is obstructed. Routes are recalculated when the target changes, moves materially, or a waypoint becomes inaccessible; corners may be skipped once later waypoints become visible. When an agent begins near a wall's inflated clearance boundary and no graph route exists, it slides toward a reachable obstacle corner instead of remaining motionless. The endpoint is projected outside inflated walls when the enemy's center is inaccessible to the moving chassis. The route stores coordinate copies, not references to live units.
-
-Regression tests cover both the previously observed Twin Pillars and Central Barrier deadlock positions. All 47 headless/simulation/harness tests passed in an in-process JavaScript test evaluation.
-
-**Matched 32-match harness run** (seed 20261121, `playBatch`): 392 rounds, 12 timeouts (3.1%), compared with 37/393 (9.4%) in the intermediate pre-fix build using the same harness configuration. A separate 32-match seat-zero CPU-policy run produced 20 timeouts across 392 rounds (5.1%); these are different test setups and should not be conflated. In that run, stationary time was 4.2% of live unit ticks overall and 10.1% within timeout battles. Timeout rules are unchanged.
-
-The `navigationBlocked` flag means direct line of sight with chassis clearance is obstructed; it does **not** mean the agent is physically stuck. Use stationary movement and route tracing to diagnose actual stalls.
+The navigationBlocked flag indicates obstruction of the direct path, not physical immobility. Use stationary ticks and route traces to diagnose stalls.

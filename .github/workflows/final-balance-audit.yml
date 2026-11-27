@@ -1,8 +1,5 @@
-name: Final balance audit
+name: Balance audit
 on:
-  push:
-    branches:
-      - diagnostics/final-32-matrix
   workflow_dispatch:
 jobs:
   audit:
