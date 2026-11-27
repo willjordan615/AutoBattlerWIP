@@ -1,8 +1,8 @@
-import {draftContext,refineDraftParts} from './draft-policy.js?v=engine-330-r1';
-import {refineCoherenceParts} from './draft-coherence.js?v=engine-330-r1';
-import {measuredParts} from './draft-empirical.js?v=engine-330-r1';
-import {EMPIRICAL_MODEL} from './draft-empirical-model.js?v=engine-330-r1';
-import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-330-r1';
+import {draftContext,refineDraftParts} from './draft-policy.js?v=engine-340-r1';
+import {refineCoherenceParts} from './draft-coherence.js?v=engine-340-r1';
+import {measuredParts} from './draft-empirical.js?v=engine-340-r1';
+import {EMPIRICAL_MODEL} from './draft-empirical-model.js?v=engine-340-r1';
+import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-340-r1';
 
 // A seeded, persistent tactical inclination, not a preselected build.
 export const TRAITS=['mobility','control','survival','focusFire','teamwork','coverage'];

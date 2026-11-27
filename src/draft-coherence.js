@@ -1,7 +1,7 @@
 // Marginal value of equipped combinations, not a fixed build recipe.
-import {CHASSIS,BASE_WEIGHTS,METRICS} from './engine/config.js?v=engine-330-r1';
-import {TARGET_MODULES,UTILITY_MODULES,PASSIVE_MODULES} from './engine/module-registry.js?v=engine-330-r1';
-import {assign,legal,canEquip} from './headless.js?v=engine-330-r1';
+import {CHASSIS,BASE_WEIGHTS,METRICS} from './engine/config.js?v=engine-340-r1';
+import {TARGET_MODULES,UTILITY_MODULES,PASSIVE_MODULES} from './engine/module-registry.js?v=engine-340-r1';
+import {assign,legal,canEquip} from './headless.js?v=engine-340-r1';
 const cap=(x,max)=>Math.min(max,Math.max(0,x));
 const CAPS={chain:4,sunder:3,burning:6,hazardous:5,restless:3,resonance:4,expose:4,fortify:4,siphon:4,steadfast:4,patience:4,rally:4,disruption:6};
 const targetMetric=key=>Object.keys(TARGET_MODULES[key]||{})[0];

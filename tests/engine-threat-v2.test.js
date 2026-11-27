@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {ARENAS,makeChassis,spawn,stats,targetScoreDetails,positionScore} from '../src/simulation.js';
-import {encounterPressure} from '../src/engine/targeting.js?v=engine-330-r1';
+import {encounterPressure} from '../src/engine/targeting.js?v=engine-340-r1';
 
 function fixture(){
  const b=spawn(['ranged','bruiser','rogue'].map((type,i)=>({name:'P'+i,hp:100,squad:[makeChassis(type)]})),ARENAS[0],21);

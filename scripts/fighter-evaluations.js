@@ -5,7 +5,7 @@ import {ARENAS,STEP,makeChassis,spawn,tick,placementGroups,teamPercent,stats,cle
 import {createMatch,draftPool,assign,beginCombat,completeCombat} from '../src/headless.js';
 import {chooseCpuDraft} from '../src/draft-ai.js';
 
-import {EVALUATION_ARMS} from '../src/engine/targeting.js?v=engine-330-r1';
+import {EVALUATION_ARMS} from '../src/engine/targeting.js?v=engine-340-r1';
 const types=['bruiser','rogue','ranged'];
 const condition=process.argv[2]||'control',start=Number(process.argv[3]||1),count=Number(process.argv[4]||2);
 assert.ok(['control','safety','engagement','threat','threat-v2','threat-target','threat-position',...Object.keys(EVALUATION_ARMS)].includes(condition));

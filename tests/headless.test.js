@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createMatch,draftPool,assign,autoDraft,fight,simulate,legal,beginCombat,completeCombat,rankRound} from '../src/headless.js';
 import {tick,STEP,spawn,makeChassis} from '../src/simulation.js';
-import {scoreDraft,evaluateDraft,evaluateDraftLegacy,draftPersonality,chooseCpuDraft} from '../src/draft-ai.js';
+import {evaluateDraftProfile,evaluateDraft,evaluateDraftLegacy,draftPersonality,chooseCpuDraft} from '../src/draft-ai.js';
+const profileScore=(...args)=>evaluateDraftProfile(...args).score;
 test('initial draft precedes first combat',()=>{const m=createMatch();draftPool(m);assert.equal(m.phase,'draft');assert.equal(m.round,1);assert.equal(m.draft.pool.length,6)});
 test('chassis cards consume shared pick and cannot exceed three',()=>{const m=createMatch();draftPool(m);const card=m.draft.pool.find(x=>x.kind==='unit');if(!card)return;assign(m,0,card.uid);assert.equal(m.players[0].squad.length,2);assert.equal(m.draft.pool.length,5);m.players[0].squad.push(m.players[0].squad[0]);assert.equal(legal(m.players[0],{kind:'unit'}),false)});
 test('draft order after a round reverses placement',()=>{const m=createMatch();m.lastRanking=[0,2,1,3];draftPool(m);assert.deepEqual(m.draft.order,[3,1,2,0])});
@@ -55,36 +56,36 @@ test('2.9 seeded personalities are stable, seat-distinct, and independent of dra
 });
 test('2.9 symmetric synergies reward multi-lane and control combinations',()=>{
  const p=createMatch().players[0],u=p.squad[0],c=(key)=>({kind:'attack',key,name:key});
- const baseline=scoreDraft(p,c('piercing'));u.mods.projectiles=2;
- assert.ok(scoreDraft(p,c('piercing'))>baseline);
- const other=scoreDraft(p,c('hazardous'));u.mods.disruption=2;
- assert.ok(scoreDraft(p,c('hazardous'))>other);
- const earlier=scoreDraft(p,c('disruption'));u.mods.hazardous=1;
- assert.ok(scoreDraft(p,c('disruption'))>earlier);
+ const baseline=profileScore(p,c('piercing'));u.mods.projectiles=2;
+ assert.ok(profileScore(p,c('piercing'))>baseline);
+ const other=profileScore(p,c('hazardous'));u.mods.disruption=2;
+ assert.ok(profileScore(p,c('hazardous'))>other);
+ const earlier=profileScore(p,c('disruption'));u.mods.hazardous=1;
+ assert.ok(profileScore(p,c('disruption'))>earlier);
 });
 test('2.9 Expose and Intercept value nearby allies, without banning solo builds',()=>{
  const p=createMatch().players[0];
  const expose={kind:'attack',key:'expose',name:'Expose'};
  const intercept={kind:'utility',key:'intercept',name:'Intercept'};
- const soloExpose=scoreDraft(p,expose),soloIntercept=scoreDraft(p,intercept);
+ const soloExpose=profileScore(p,expose),soloIntercept=profileScore(p,intercept);
  p.squad.push(makeChassis('ranged'));
- assert.ok(scoreDraft(p,expose)>soloExpose);
- assert.ok(scoreDraft(p,intercept)>soloIntercept);
+ assert.ok(profileScore(p,expose)>soloExpose);
+ assert.ok(profileScore(p,intercept)>soloIntercept);
  assert.ok(Number.isFinite(soloExpose));
 });
 test('2.9 target weights affect module evaluation and replacement costs are contextual',()=>{
  const p=createMatch().players[0],u=p.squad[0],card={kind:'attack',key:'burning'};
- const old=scoreDraft(p,card);u.weights.safety+=3;
- assert.ok(scoreDraft(p,card)>old);
+ const old=profileScore(p,card);u.weights.safety+=3;
+ assert.ok(profileScore(p,card)>old);
  u.passives=['bulwark','dash'];
  const utility={kind:'utility',key:'flank'};
- const replacing=scoreDraft(p,utility,0,0);
+ const replacing=profileScore(p,utility,0,0);
  const empty=createMatch().players[0];
- assert.ok(scoreDraft(empty,utility)>replacing);
+ assert.ok(profileScore(empty,utility)>replacing);
 });
 test('2.9 full draft records explainable reasons without breaking chosen card assignment',()=>{
  const m=createMatch(undefined,71);draftPool(m);
- const index=m.draft.order[m.draft.turn],choice=chooseCpuDraft(m,index);
+ const index=m.draft.order[m.draft.turn],choice=chooseCpuDraft(m,index,{policy:'candidate'});
  assert.ok(Number.isFinite(choice.baseScore));
  assert.ok(choice.breakdown.some(x=>x.reason==='Base usefulness'||x.reason==='Another active fighter'));
  const oldSquadSize=m.players[index].squad.length;
@@ -105,7 +106,7 @@ test('3.1.2 draft valuation reduces unconditional premium while preserving pierc
   assert.equal(evaluateDraftLegacy(p,card('attack','piercing')).score,16);
   assert.equal(evaluateDraftLegacy(p,card('utility','coordinated')).score,22);
   p.squad[0].mods.projectiles=2;
-  assert.ok(scoreDraft(p,card('attack','piercing'))>16);
+  assert.ok(profileScore(p,card('attack','piercing'))>16);
  }
 });
 

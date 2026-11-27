@@ -1,6 +1,6 @@
-# Modular Arena Autobattler — Prototype 3.3
+# Modular Arena Autobattler — Prototype 3.4
 
-Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. Prototype 3.3 improves fighter decision evaluation and introduces hybrid targeting cards.
+Mobile-first, deterministic, four-player arena autobattler. Native ES modules with zero runtime npm dependencies. Prototype 3.4 adopts empirically calibrated bot drafting and corrects Coordinated's living-ally condition.
 
 ## Run
 - Browser: serve the repository statically or open the GitHub Pages build. Do not open via file://.
@@ -28,3 +28,8 @@ Release verification (commit 5c0b9c6): 180/180 tests, four combat fixtures and e
 - Engagement-aware Damage Opportunity is separate from Kill Opportunity; positional pressure is damage-independent with short movement forecasts. Safety and preferred-range preferences are retained. Duelist adds 4.5 base movement speed and Guardian adds 5 base maximum HP per copy; no slot changes. Aggressor has no flat stat bonus.
 - Candidate `266448890e9169ababf05dd860afa7fac56683dd`: [209/209 tests](https://github.com/willjordan615/AutoBattlerWIP/actions/runs/45853054238), [192 strategic comparison matches](https://github.com/willjordan615/AutoBattlerWIP/actions/runs/45853054509), [128 drafted matches and four scripted player games](https://github.com/willjordan615/AutoBattlerWIP/actions/runs/45851850231). Current candidate strategic sample: 64 matches, 747 rounds, 20 timeouts; starting chassis wins 17/96 Bruiser, 26/80 Rogue, 21/80 Ranged. Guardian association remains a small-sample observation, not a causal balance finding. No device/visual performance claim.
 - Next: human playtesting and strategic diversity; position-only is historical, not a candidate. See docs/3.3-provisional-implementation.md and docs/3.3-decision-followup.md.
+
+## 3.4 release
+- Adopt the empirical draft scorer trained under corrected Coordinated mechanics. Model: 394 boards, 2,065 training options, 567 fitted coefficients. [Validated audit](https://github.com/willjordan615/AutoBattlerWIP/actions/runs/46059454958): 7,130 counterfactual simulations including holdout, 128 completed matches, 39–25 empirical wins in 64 mixed-policy games; held-out placement utility 65.3% vs 63.3%. [Pre-release regression](https://github.com/willjordan615/AutoBattlerWIP/actions/runs/46059455080): 231/231. Exact fitted scorer retains seeded personality and choice noise; no claim of optimal play or calibrated skill levels.
+- Coordinated grants its unique +10% package only while another teammate lives; expiry preserves HP fraction. Original squad-size penalty remains. No other fighter mechanics changed.
+- Bot goal: a range of competence and playstyles, not universal optimality. Preserve distinct personalities and imperfect decisions. Future skill calibration should vary judgment predictably per bot, not simply make all bots maximize win probability. See docs/3.4-empirical-draft.md and docs/coordinated-correction.md.
