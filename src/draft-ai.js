@@ -1,4 +1,4 @@
-import {CHASSIS} from './simulation.js?v=engine-330-r1';
+import {draftContext,refineDraftParts} from './draft-policy.js?v=engine-330-r1';
 import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-330-r1';
 
 // A seeded, persistent tactical inclination, not a preselected build.
@@ -50,7 +50,7 @@ export function draftPersonality(seed,index){
  }
  return preferences;
 }
-export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={}){
+export function evaluateDraftLegacy(player,card,chassisIndex=0,passiveSlot=0,preferences={}){
  if(!legal(player,card)||card.kind!=='unit'&&!canEquip(player.squad[chassisIndex],card))
   return {score:-Infinity,parts:[],reasons:['Unavailable']};
  const parts=[];const unit=player.squad[chassisIndex],count=player.squad.length;
@@ -154,11 +154,20 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
  return {score,parts,reasons:parts.filter(p=>p.reason!=='Base usefulness'&&p.reason!=='Another active fighter')
   .sort((a,b)=>Math.abs(b.points)-Math.abs(a.points)).slice(0,3).map(p=>p.reason+' '+(p.points>=0?'+':'')+p.points)};
 }
-export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={}){
- return evaluateDraft(player,card,chassisIndex,passiveSlot,preferences).score;
+export {draftContext};
+export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={}){
+ const legacy=evaluateDraftLegacy(player,card,chassisIndex,passiveSlot,preferences);
+ if(!Number.isFinite(legacy.score))return legacy;
+ const parts=refineDraftParts({player,card,chassisIndex,passiveSlot,preferences,context,parts:legacy.parts,traits:TRAITS_BY_CARD,legacyEvaluate:evaluateDraftLegacy});
+ return {score:Number(parts.reduce((n,p)=>n+p.points,0).toFixed(4)),parts,
+  reasons:parts.filter(p=>p.reason!=='Base usefulness'&&p.reason!=='Another active fighter').sort((a,b)=>Math.abs(b.points)-Math.abs(a.points)).slice(0,3).map(p=>p.reason+' '+(p.points>=0?'+':'')+p.points)};
 }
-export function chooseCpuDraft(match,index){
- const player=match.players[index],preferences=draftPersonality(match.seed,index);
+export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={}){
+ return evaluateDraft(player,card,chassisIndex,passiveSlot,preferences,context).score;
+}
+export function chooseCpuDraft(match,index,{policy='candidate'}={}){
+ const player=match.players[index],preferences=draftPersonality(match.seed,index),context=draftContext(match,index);
+ const evaluator=policy==='legacy'?evaluateDraftLegacy:evaluateDraft;
  let best=null;
  for(const card of match.draft.pool){
   if(!legal(player,card))continue;
@@ -169,7 +178,7 @@ export function chooseCpuDraft(match,index){
     (card.kind==='passive'||card.kind==='utility')&&
     player.squad[chassisIndex].passives.length>=2?2:1;
    for(let passiveSlot=0;passiveSlot<passiveSlots;passiveSlot++){
-    const evaluation=evaluateDraft(player,card,chassisIndex,passiveSlot,preferences);
+    const evaluation=evaluator(player,card,chassisIndex,passiveSlot,preferences,context);
     const variation=match.random()*2.5; // bounded seeded tie-breaking
     const adjusted=evaluation.score+variation;
     if(!best||adjusted>best.score)best={card,chassisIndex,passiveSlot,score:adjusted,

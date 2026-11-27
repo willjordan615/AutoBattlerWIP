@@ -2,8 +2,8 @@
 // A human or AI agent chooses seat 0 drafts; the other seats use the existing CPU.
 // Decisions are explicit: no hidden automatic picks for the tested player.
 import {CHASSIS,STEP,METRICS,stats,targetScoreDetails} from '../src/simulation.js';
-import {createMatch,draftPool,assign,legal,beginCombat,completeCombat} from '../src/headless.js';
-import {chooseCpuDraft,scoreDraft} from '../src/draft-ai.js';
+import {createMatch,draftPool,assign,legal,canEquip,beginCombat,completeCombat} from '../src/headless.js';
+import {chooseCpuDraft,scoreDraft,draftContext} from '../src/draft-ai.js';
 import {tick} from '../src/simulation.js';
 
 const copy=value=>JSON.parse(JSON.stringify(value));
@@ -15,15 +15,16 @@ const unitView=(unit,index)=>({
 });
 const playerView=(p,index)=>({seat:index,name:p.name,hp:p.hp,streak:p.streak,squad:p.squad.map(unitView)});
 function choices(match,seat){
- const p=match.players[seat];
+ const p=match.players[seat],context=draftContext(match,seat);
  return match.draft.pool.flatMap(card=>{
   if(!legal(p,card))return [];
   const slots=card.kind==='unit'?1:p.squad.length;
   return Array.from({length:slots},(_,slot)=>slot).flatMap(slot=>{
-   const count=card.kind==='passive'&&p.squad[slot].passives.length>=2?2:1;
+   if(card.kind!=='unit'&&!canEquip(p.squad[slot],card))return [];
+   const count=(card.kind==='passive'||card.kind==='utility')&&p.squad[slot].passives.length>=2?2:1;
    return Array.from({length:count},(_,passiveSlot)=>({
     uid:card.uid,card:card.name,kind:card.kind,key:card.key,
-    slot,passiveSlot,botScore:scoreDraft(p,card,slot,passiveSlot)
+    slot,passiveSlot,botScore:scoreDraft(p,card,slot,passiveSlot,{},context)
    }));
   });
  });
