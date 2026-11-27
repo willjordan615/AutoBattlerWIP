@@ -10,6 +10,7 @@
     "diagnose:navigation": "node scripts/navigation-diagnostics.js",
     "balance:modules": "node scripts/module-comparison.js",
     "balance:audit": "node scripts/build-audit.js",
-    "verify:parity": "node scripts/verify-engine-parity.js"
+    "verify:parity": "node scripts/verify-engine-parity.js",
+    "start": "node server/index.js"
   }
 }
