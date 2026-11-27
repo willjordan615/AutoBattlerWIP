@@ -1,4 +1,5 @@
 import {draftContext,refineDraftParts} from './draft-policy.js?v=engine-330-r1';
+import {refineCoherenceParts} from './draft-coherence.js?v=engine-330-r1';
 import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-330-r1';
 
 // A seeded, persistent tactical inclination, not a preselected build.
@@ -155,19 +156,32 @@ export function evaluateDraftLegacy(player,card,chassisIndex=0,passiveSlot=0,pre
   .sort((a,b)=>Math.abs(b.points)-Math.abs(a.points)).slice(0,3).map(p=>p.reason+' '+(p.points>=0?'+':'')+p.points)};
 }
 export {draftContext};
-export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={}){
+export function evaluateDraftProfile(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={}){
  const legacy=evaluateDraftLegacy(player,card,chassisIndex,passiveSlot,preferences);
  if(!Number.isFinite(legacy.score))return legacy;
  const parts=refineDraftParts({player,card,chassisIndex,passiveSlot,preferences,context,parts:legacy.parts,traits:TRAITS_BY_CARD,legacyEvaluate:evaluateDraftLegacy});
  return {score:Number(parts.reduce((n,p)=>n+p.points,0).toFixed(4)),parts,
   reasons:parts.filter(p=>p.reason!=='Base usefulness'&&p.reason!=='Another active fighter').sort((a,b)=>Math.abs(b.points)-Math.abs(a.points)).slice(0,3).map(p=>p.reason+' '+(p.points>=0?'+':'')+p.points)};
 }
+export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={}){
+ const baseline=evaluateDraftProfile(player,card,chassisIndex,passiveSlot,preferences,context);
+ if(!Number.isFinite(baseline.score))return baseline;
+ const parts=refineCoherenceParts(player,card,chassisIndex,passiveSlot,context,baseline.parts);
+ return {score:Number(parts.reduce((n,p)=>n+p.points,0).toFixed(4)),parts,
+  reasons:parts.filter(p=>p.reason!=='Base usefulness'&&p.reason!=='Another active fighter').sort((a,b)=>Math.abs(b.points)-Math.abs(a.points)).slice(0,3).map(p=>p.reason+' '+(p.points>=0?'+':'')+p.points)};
+}
+export function draftEvaluator(policy){
+ if(policy==='legacy')return evaluateDraftLegacy;
+ if(policy==='candidate')return evaluateDraftProfile;
+ if(policy==='coherent')return evaluateDraft;
+ throw Error('Unknown draft policy '+policy);
+}
 export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={}){
  return evaluateDraft(player,card,chassisIndex,passiveSlot,preferences,context).score;
 }
-export function chooseCpuDraft(match,index,{policy='candidate'}={}){
+export function chooseCpuDraft(match,index,{policy='coherent'}={}){
  const player=match.players[index],preferences=draftPersonality(match.seed,index),context=draftContext(match,index);
- const evaluator=policy==='legacy'?evaluateDraftLegacy:evaluateDraft;
+ const evaluator=draftEvaluator(policy);
  let best=null;
  for(const card of match.draft.pool){
   if(!legal(player,card))continue;
