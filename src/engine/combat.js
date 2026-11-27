@@ -1,9 +1,9 @@
 // Engine subsystem: combat. See AGENTS.md for ownership and test routes.
-import {ATTACK_TIMING,CHASSIS,radiusOf,attackTimeScale,morphologyTier} from './config.js?v=engine-360-r3';
-import {clearLine,distance,inRearSector} from './geometry.js?v=engine-360-r3';
-import {measure} from './telemetry.js?v=engine-360-r3';
-import {spawnProjectileVolley} from './projectiles.js?v=engine-360-r3';
-import {stats} from './stats.js?v=engine-360-r3';
+import {ATTACK_TIMING,CHASSIS,radiusOf,attackTimeScale,morphologyTier} from './config.js?v=engine-360-r4';
+import {clearLine,distance,inRearSector} from './geometry.js?v=engine-360-r4';
+import {measure} from './telemetry.js?v=engine-360-r4';
+import {spawnProjectileVolley} from './projectiles.js?v=engine-360-r4';
+import {stats} from './stats.js?v=engine-360-r4';
 
 // Each firing cycle fans out into independent lanes. A lane can pierce deeper,
 // but an enemy can only be hit once across all lanes in that cycle.

@@ -75,9 +75,9 @@ test('taunt forces the struck enemy to target its attacker and expires',()=>{
 test('Rogue baseline and reduced flat modules match new values',()=>{
  const rogue=makeChassis('rogue');rogue.mods.hp=1;rogue.mods.damage=1;
  const st=stats({type:'rogue',chassis:rogue});
- assert.equal(CHASSIS.rogue.hp,105);assert.equal(CHASSIS.rogue.damage,18);
+ assert.equal(CHASSIS.rogue.hp,95);assert.equal(CHASSIS.rogue.damage,18);
  assert.equal(CHASSIS.rogue.speed,95.45);
- assert.equal(st.hp,125);assert.equal(st.damage,20);
+ assert.equal(st.hp,115);assert.equal(st.damage,20);
 });
 test('multishot creates independent shots and damages an enemy at most once per volley',()=>{
  const p=players();p[0].squad[0]=makeChassis('ranged');

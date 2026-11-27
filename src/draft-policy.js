@@ -1,6 +1,6 @@
 // Pure draft valuation: no engine rule changes, no hidden information, no RNG.
-import {CHASSIS,BASE_WEIGHTS,METRICS} from './engine/config.js?v=engine-360-r3';
-import {UTILITY_MODULES,TARGET_MODULES,TARGET_STAT_BONUSES} from './engine/module-registry.js?v=engine-360-r3';
+import {CHASSIS,BASE_WEIGHTS,METRICS} from './engine/config.js?v=engine-360-r4';
+import {UTILITY_MODULES,TARGET_MODULES,TARGET_STAT_BONUSES} from './engine/module-registry.js?v=engine-360-r4';
 
 const clamp=(v,l,h)=>Math.min(h,Math.max(l,v));
 const sum=(xs,f)=>xs.reduce((n,x)=>n+f(x),0);

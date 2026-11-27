@@ -4,7 +4,7 @@
 // Deterministic, renderer-independent combat backend. Values are provisional balance defaults.
 export const CHASSIS={
  bruiser:{name:'Bruiser',hp:155,damage:16,range:58,speed:48,rate:1.25,defense:4,radius:15,delivery:'melee',fill:'#eeb878',desc:'Durable melee frontliner'},
- rogue:{name:'Rogue',hp:105,damage:18,range:60,speed:95.45,rate:.82,defense:1,radius:11,delivery:'melee',fill:'#c2a1fa',desc:'Fast opportunistic melee'},
+ rogue:{name:'Rogue',hp:95,damage:18,range:60,speed:95.45,rate:.82,defense:1,radius:11,delivery:'melee',fill:'#c2a1fa',desc:'Fast opportunistic melee'},
  ranged:{name:'Ranged',hp:80,damage:14,range:160,speed:62,rate:1.12,defense:0,radius:11,delivery:'projectile',fill:'#8ce7bd',desc:'Long-range projectile attacker'}
 };
 export const METRICS=['kill','damage','threat','distance','allyProximity','safety','protection','ability','isolation','preferredRange','coordinated','independent','opportunist','pursuer','challenger'];

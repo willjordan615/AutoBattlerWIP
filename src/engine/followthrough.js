@@ -1,9 +1,9 @@
 // Engine subsystem: followthrough. See AGENTS.md for ownership and test routes.
-import {resolveCollision} from './collision.js?v=engine-360-r3';
-import {stats} from './stats.js?v=engine-360-r3';
-import {radiusOf} from './config.js?v=engine-360-r3';
-import {startAttack,advanceAttack,attackWindup} from './combat.js?v=engine-360-r3';
-import {bound,distance,clearLine,rectHit} from './geometry.js?v=engine-360-r3';
+import {resolveCollision} from './collision.js?v=engine-360-r4';
+import {stats} from './stats.js?v=engine-360-r4';
+import {radiusOf} from './config.js?v=engine-360-r4';
+import {startAttack,advanceAttack,attackWindup} from './combat.js?v=engine-360-r4';
+import {bound,distance,clearLine,rectHit} from './geometry.js?v=engine-360-r4';
 
 // Destination-based movement. A bounded commitment prefers the opposite side
 // at two copies, and never moves through terrain or unrelated units.

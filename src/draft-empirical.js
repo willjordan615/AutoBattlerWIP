@@ -1,7 +1,7 @@
 // Runtime scoring is a small sparse dot product, not a combat simulation.
 // Features describe what changed; their signs and magnitudes are learned.
-import {ATTACK_MODULES,TARGET_MODULES,UTILITY_MODULES,PASSIVE_MODULES,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-360-r3';
-import {equippedStrength,projectDraft} from './draft-coherence.js?v=engine-360-r3';
+import {ATTACK_MODULES,TARGET_MODULES,UTILITY_MODULES,PASSIVE_MODULES,MORPHOLOGY_MODULES} from './engine/module-registry.js?v=engine-360-r4';
+import {equippedStrength,projectDraft} from './draft-coherence.js?v=engine-360-r4';
 const keys=[...ATTACK_MODULES,...Object.keys(TARGET_MODULES),...UTILITY_MODULES,...PASSIVE_MODULES,...MORPHOLOGY_MODULES];
 const add=(x,k,v)=>{if(v)x[k]=(x[k]||0)+v;};
 export function rosterFeatures(p,context={}){
