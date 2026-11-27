@@ -9,3 +9,12 @@ test('client serializes authenticated revision-bound picks and never forwards to
 test('static-only hosting returns actionable Quick Play error',async()=>{
  let error;const client=new QuickClient({onError:(e,t)=>error=[e.message,t],fetcher:async()=>response({},404,'text/html')});await client.start('bruiser');assert.match(error[0],/hosted multiplayer server/);assert.equal(error[1],true);client.stop(false);
 });
+
+test('confirm during a poll waits for the poll instead of silently dropping the pick',async()=>{
+ let unblock;const calls=[];const client=new QuickClient({pollMs:1e9,fetcher:async(path,opts)=>{
+  calls.push(path);if(path.endsWith('join'))return response({token:'secret',status:'matched',revision:1});
+  if(path.includes('state'))return new Promise(resolve=>{unblock=()=>resolve(response({status:'matched',revision:1}));});
+  return response({status:'matched',revision:2});
+ }});
+ try{await client.start('ranged');const poll=client.poll();const pick=client.pick('1-0',0,0);unblock();await poll;assert.equal(await pick,true);assert.equal(calls.filter(x=>x.endsWith('pick')).length,1);}finally{client.stop(false);}
+});
