@@ -31,7 +31,7 @@ const PAIRS=[
 const ownPair=(a,b)=>Math.min(1.6,Math.sqrt(a*b));
 const positive=(u,key)=>equippedStrength(u,key)>0;
 const utilityUsers=u=>u.passives.filter(k=>['dash','dodge','backstep','flank','intercept','haste','focus','bulwark','aegis','anchor','repulsion'].includes(k)).length;
-const receiveRate=u=>(1/CHASSIS[u.type].rate)*(positive(u,'shrink')?1.15:positive(u,'growth')?.9:1)*(positive(u,'coordinated')?1.1:1);
+const receiveRate=(u,hasAlly)=>(1/CHASSIS[u.type].rate)*(positive(u,'shrink')?1.15:positive(u,'growth')?.9:1)*(hasAlly&&positive(u,'coordinated')?1.1:1);
 export function buildCoherence(player,context={}){
  const edges=[],squad=player.squad;
  const add=(label,value)=>{if(value>0)edges.push({label,value});};
@@ -45,7 +45,7 @@ export function buildCoherence(player,context={}){
    // Expose and Resonance work only with a different teammate. A quick
    // follow-up increases opportunity, but the same two fighters need not
    // both equip the same effect. Count provider -> recipient separately.
-   const rate=cap(receiveRate(v)/1.25,1.3);
+   const rate=cap(receiveRate(v,squad.length>1)/1.25,1.3);
    if(positive(u,'expose'))add(slot+'->'+other+':expose follow-up',1.6*Math.sqrt(cap(equippedStrength(u,'expose'),4))*rate);
    if(positive(u,'resonance'))add(slot+'<-'+other+':resonance setup',1.4*Math.sqrt(cap(equippedStrength(u,'resonance'),4))*rate);
    if(positive(u,'inspiration')&&utilityUsers(v))add(slot+'->'+other+':inspiration cooldowns',1.8*utilityUsers(v));

@@ -3,7 +3,7 @@ import {STEP,ATTACK_TIMING,CHASSIS,DURATION} from './config.js?v=engine-330-r1';
 import {chooseTarget} from './targeting.js?v=engine-330-r1';
 import {distance,clearLine,bound} from './geometry.js?v=engine-330-r1';
 import {measure} from './telemetry.js?v=engine-330-r1';
-import {stats,resolveResistance} from './stats.js?v=engine-330-r1';
+import {stats,resolveResistance,syncLivingAllies} from './stats.js?v=engine-330-r1';
 import {tacticalAssessment,reactToThreat,utilityMove,disengageDirection} from './utilities.js?v=engine-330-r1';
 import {startAttack,attackMovementMultiplier,advanceAttack,attackWindup} from './combat.js?v=engine-330-r1';
 import {chooseMovement} from './movement.js?v=engine-330-r1';
@@ -12,7 +12,7 @@ import {resolveCollision} from './collision.js?v=engine-330-r1';
 import {advanceProjectiles} from './projectiles.js?v=engine-330-r1';
 import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-330-r1';
 
-export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];
+export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];syncLivingAllies(state);
  // Snapshot intentions for all units before sequential movement begins.
  for(const unit of state.units){
   if(unit.hp<=0)continue;
@@ -207,6 +207,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   if(applied>0)state.visualEvents.push({kind:directTargets.has(target)?'damage':'dotDamage',
    targetId:target.id,x:target.x,y:target.y,value:applied,owner:target.owner});
  }
+ syncLivingAllies(state);
  for(const u of state.units){if(u.pendingSiphon){if(u.hp>0){const before=u.hp;u.hp=Math.min(u.maxHp,u.hp+u.pendingSiphon);measure(state,u,'siphon','actualHealing',u.hp-before);measure(state,u,'siphon','overhealing',u.pendingSiphon-(u.hp-before));}u.pendingSiphon=0;}}
  // Taunt begins on a landed attack. Repeated hits refresh the duration; stacks increase it.
  // Multiple simultaneous taunts resolve deterministically in attack processing order.

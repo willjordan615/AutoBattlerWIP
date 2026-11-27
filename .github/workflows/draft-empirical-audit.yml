@@ -2,7 +2,7 @@ name: 3.4 empirical draft valuation
 on:
   push:
     branches: ['audit/3.4-draft-intelligence']
-    paths: ['.github/workflows/draft-empirical-audit.yml','scripts/draft-choice-trials.js','scripts/fit-draft-model.js']
+    paths: ['.github/workflows/draft-empirical-audit.yml','scripts/draft-choice-trials.js','scripts/fit-draft-model.js','src/engine/stats.js']
   workflow_dispatch:
 jobs:
   train:

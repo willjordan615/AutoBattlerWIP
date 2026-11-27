@@ -18,7 +18,7 @@ const EXTRA_TRAITS={
 };
 // Weak priors only: 3.2 matched first-copy findings predate the 3.3 AI.
 // No direct conversion of card win correlations to scores. Keep all shifts small.
-const PRIORS={range:1.5,regen:1.5,coordinated:2,resolve:2,bulwark:1,hazardous:1,piercing:-1,area:-1};
+const PRIORS={range:1.5,regen:1.5,resolve:2,bulwark:1,hazardous:1,piercing:-1,area:-1};
 const CAPS={sunder:3,chain:4,burning:6,hazardous:5,restless:3,resonance:4,fortify:4,siphon:4,steadfast:4,patience:4};
 const coverageKeys=new Set(['projectiles','piercing','area','chain']);
 const traitValue=(profile,prefs)=>sum(Object.entries(profile||{}),([k,v])=>(prefs[k]||0)*v);
@@ -106,7 +106,7 @@ export function refineDraftParts({player,card,chassisIndex,passiveSlot,preferenc
    add('Ally utility cooldowns',uses?Math.min(5,uses*2):-5);
   }
   if(key==='aegis'&&peers.length)add('Shield recipients',Math.min(3,peers.length*1.5));
-  if(key==='coordinated')add('Unique general-stat package',1);
+  if(key==='coordinated')add('Requires living teammate',count>1?0:-12);
  }
  return parts;
 }
