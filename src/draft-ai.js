@@ -1,5 +1,7 @@
 import {draftContext,refineDraftParts} from './draft-policy.js?v=engine-330-r1';
 import {refineCoherenceParts} from './draft-coherence.js?v=engine-330-r1';
+import {measuredParts} from './draft-empirical.js?v=engine-330-r1';
+import {EMPIRICAL_MODEL} from './draft-empirical-model.js?v=engine-330-r1';
 import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-330-r1';
 
 // A seeded, persistent tactical inclination, not a preselected build.
@@ -170,16 +172,25 @@ export function evaluateDraft(player,card,chassisIndex=0,passiveSlot=0,preferenc
  return {score:Number(parts.reduce((n,p)=>n+p.points,0).toFixed(4)),parts,
   reasons:parts.filter(p=>p.reason!=='Base usefulness'&&p.reason!=='Another active fighter').sort((a,b)=>Math.abs(b.points)-Math.abs(a.points)).slice(0,3).map(p=>p.reason+' '+(p.points>=0?'+':'')+p.points)};
 }
+export function evaluateDraftEmpirical(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={},model=EMPIRICAL_MODEL){
+ const profile=evaluateDraftProfile(player,card,chassisIndex,passiveSlot,preferences,context);
+ if(!Number.isFinite(profile.score)||!model)return profile;
+ const neutral=evaluateDraftProfile(player,card,chassisIndex,passiveSlot,{},context);
+ const parts=measuredParts(player,card,chassisIndex,passiveSlot,context,profile,neutral,model);
+ return {score:Number(parts.reduce((n,p)=>n+p.points,0).toFixed(4)),parts,
+  reasons:parts.map(p=>p.reason+' '+p.points)};
+}
 export function draftEvaluator(policy){
  if(policy==='legacy')return evaluateDraftLegacy;
  if(policy==='candidate')return evaluateDraftProfile;
  if(policy==='coherent')return evaluateDraft;
+ if(policy==='empirical')return evaluateDraftEmpirical;
  throw Error('Unknown draft policy '+policy);
 }
 export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={}){
- return evaluateDraft(player,card,chassisIndex,passiveSlot,preferences,context).score;
+ return evaluateDraftEmpirical(player,card,chassisIndex,passiveSlot,preferences,context).score;
 }
-export function chooseCpuDraft(match,index,{policy='coherent'}={}){
+export function chooseCpuDraft(match,index,{policy='empirical'}={}){
  const player=match.players[index],preferences=draftPersonality(match.seed,index),context=draftContext(match,index);
  const evaluator=draftEvaluator(policy);
  let best=null;

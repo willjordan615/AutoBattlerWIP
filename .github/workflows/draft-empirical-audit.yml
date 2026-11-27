@@ -1,0 +1,88 @@
+name: 3.4 empirical draft valuation
+on:
+  push:
+    branches: ['audit/3.4-draft-intelligence']
+    paths: ['.github/workflows/draft-empirical-audit.yml','scripts/draft-choice-trials.js','scripts/fit-draft-model.js']
+  workflow_dispatch:
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [5101, 5201, 5301, 5401, 5501, 5601, 5701, 5801]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/draft-choice-trials.js ${{ matrix.seed }} 8 2 > train.json
+      - run: |
+          node --input-type=module -e "import fs from 'node:fs';import {auditBoards} from './scripts/draft-choice-trials.js';const r=JSON.parse(fs.readFileSync('train.json'));console.log(JSON.stringify({seed:r.seed,count:r.count,sourceRounds:r.sourceRounds,audit:auditBoards(r.boards)}));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: train-${{ matrix.seed }}
+          path: train.json
+  fit:
+    needs: train
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: train-*
+          path: data
+      - run: node scripts/fit-draft-model.js src/draft-empirical-model.js data/train-*/train.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: empirical-model
+          path: src/draft-empirical-model.js
+  holdout:
+    needs: fit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [6101, 6201, 6301, 6401]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: empirical-model
+          path: src
+      - run: node scripts/draft-choice-trials.js ${{ matrix.seed }} 8 2 > holdout.json
+      - run: |
+          node --input-type=module -e "import fs from 'node:fs';import {auditBoards} from './scripts/draft-choice-trials.js';const r=JSON.parse(fs.readFileSync('holdout.json'));console.log(JSON.stringify({seed:r.seed,count:r.count,sourceRounds:r.sourceRounds,audit:auditBoards(r.boards)}));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: holdout-${{ matrix.seed }}
+          path: holdout.json
+  match:
+    needs: fit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [6501, 6601, 6701, 6801]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: empirical-model
+          path: src
+      - run: node scripts/draft-intelligence-audit.js ${{ matrix.seed }} 8 candidate empirical > match.json
+      - run: |
+          node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('match.json'));console.log(JSON.stringify({seed:r.seed,count:r.count,control:r.control,challenger:r.challenger,completed:r.completed,summary:r.summary,profiles:r.profiles}));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: empirical-match-${{ matrix.seed }}
+          path: match.json
