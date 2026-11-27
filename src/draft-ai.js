@@ -2,6 +2,7 @@ import {draftContext,refineDraftParts} from './draft-policy.js?v=engine-340-r1';
 import {refineCoherenceParts} from './draft-coherence.js?v=engine-340-r1';
 import {measuredParts} from './draft-empirical.js?v=engine-340-r1';
 import {EMPIRICAL_MODEL} from './draft-empirical-model.js?v=engine-340-r1';
+import {botProfile,modelForBot} from './bot-profiles.js?v=engine-340-r1';
 import {legal,canEquip,TARGET_MODULES,COOPERATIVE_KEYS} from './headless.js?v=engine-340-r1';
 
 // A seeded, persistent tactical inclination, not a preselected build.
@@ -190,9 +191,11 @@ export function draftEvaluator(policy){
 export function scoreDraft(player,card,chassisIndex=0,passiveSlot=0,preferences={},context={}){
  return evaluateDraftEmpirical(player,card,chassisIndex,passiveSlot,preferences,context).score;
 }
-export function chooseCpuDraft(match,index,{policy='empirical'}={}){
- const player=match.players[index],preferences=draftPersonality(match.seed,index),context=draftContext(match,index);
- const evaluator=draftEvaluator(policy);
+export function chooseCpuDraft(match,index,{policy='profiled',profile:override={}}={}){
+ const player=match.players[index],basePreferences=draftPersonality(match.seed,index),context=draftContext(match,index);
+ const profile=policy==='profiled'?botProfile(match.seed,index,basePreferences,override):null;
+ const preferences=profile?.preferences||basePreferences;
+ const evaluator=profile?(...args)=>evaluateDraftEmpirical(...args,modelForBot(profile)):draftEvaluator(policy);
  let best=null;
  for(const card of match.draft.pool){
   if(!legal(player,card))continue;
@@ -204,11 +207,11 @@ export function chooseCpuDraft(match,index,{policy='empirical'}={}){
     player.squad[chassisIndex].passives.length>=2?2:1;
    for(let passiveSlot=0;passiveSlot<passiveSlots;passiveSlot++){
     const evaluation=evaluator(player,card,chassisIndex,passiveSlot,preferences,context);
-    const variation=match.random()*2.5; // bounded seeded tie-breaking
+    const variation=match.random()*(profile?.noise??2.5); // one existing RNG draw per legal option
     const adjusted=evaluation.score+variation;
     if(!best||adjusted>best.score)best={card,chassisIndex,passiveSlot,score:adjusted,
      baseScore:evaluation.score,reasons:evaluation.reasons,breakdown:evaluation.parts,
-     preferences:{...preferences},variation:Number(variation.toFixed(3))};
+     preferences:{...preferences},variation:Number(variation.toFixed(3)),...(profile?{profile:{id:profile.id,style:profile.style,skill:profile.skill}}:{})};
    }
   }
  }

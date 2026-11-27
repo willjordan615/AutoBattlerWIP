@@ -1,0 +1,37 @@
+name: 3.5 bot profile calibration
+on:
+  push:
+    branches: ['audit/3.5-bot-profiles']
+    paths: ['.github/workflows/bot-profile-audit.yml','src/bot-profiles.js','src/draft-ai.js','scripts/bot-profile-audit.js']
+  workflow_dispatch:
+jobs:
+  calibration:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [7101, 7201, 7301, 7401]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/bot-profile-audit.js ${{ matrix.seed }} 8 > profiles.json
+      - run: |
+          node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync('profiles.json','utf8'));console.log(JSON.stringify({seed:r.seed,count:r.count,rotation:r.rotation,random:r.random}));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: profiles-${{ matrix.seed }}
+          path: profiles.json
+  player:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/33-playtest.js 7501 > play.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: profiled-player
+          path: play.json
