@@ -53,6 +53,14 @@ export function createApp({history=openHistory(),service=createQuickPlay({onFini
      const result=accounts.signIn(v.code);if(!result)throw new QuickError(401,'Invalid recovery code');
      res.setHeader('Set-Cookie',result.cookie);return json(res,200,{account:true,name:result.account.name});
     }
+    if(path==='/api/account/rename'){
+     if(!exact(['name'])||typeof v.name!=='string')throw new QuickError(400,'Expected a display name');
+     if(!account)throw new QuickError(401,'Sign in first');
+     requireIdle(account.id);
+     const result=accounts.rename(account.id,v.name);
+     if(result.status!==200)throw new QuickError(result.status,result.error);
+     return json(res,200,{account:true,name:result.name});
+    }
     if(path==='/api/account/sign-out'){
      if(!exact([]))throw new QuickError(400,'Expected an empty request');
      requireIdle(account?.id);res.setHeader('Set-Cookie',accounts.signOut(req.headers.cookie));return json(res,200,{account:false});

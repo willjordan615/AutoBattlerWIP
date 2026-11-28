@@ -1,4 +1,5 @@
-import {createHash,randomBytes,timingSafeEqual} from 'node:crypto';
+import {createHash,randomBytes,randomInt,timingSafeEqual} from 'node:crypto';
+import {validateDisplayName,RENAME_INTERVAL} from './display-names.js';
 const COOKIE='ab_account',TTL=30*86400,MAX_ACCOUNTS=10000,MAX_SESSIONS=8;
 const CODE=/^ab1_[A-Za-z0-9_-]{43}$/;
 const TOKEN=/^[a-f0-9]{64}$/;
@@ -13,10 +14,20 @@ export function openAccounts(db,{now=Date.now,secure=!!process.env.RAILWAY_ENVIR
   expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL
  );
  CREATE INDEX IF NOT EXISTS account_sessions_owner ON account_sessions(account_id,created_at);
- CREATE INDEX IF NOT EXISTS account_sessions_expiry ON account_sessions(expires_at);`);
+ CREATE INDEX IF NOT EXISTS account_sessions_expiry ON account_sessions(expires_at);
+ CREATE TABLE IF NOT EXISTS account_display_tags (
+  account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+  tag INTEGER NOT NULL UNIQUE CHECK(tag BETWEEN 0 AND 9999),
+  changed_at INTEGER NOT NULL
+ );`);
  const byId=db.prepare('SELECT id,name,recovery_hash FROM accounts WHERE id=?');
  const byCode=db.prepare('SELECT id,name FROM accounts WHERE recovery_hash=?');
  const bySession=db.prepare('SELECT a.id,a.name FROM account_sessions s JOIN accounts a ON a.id=s.account_id WHERE s.token_hash=? AND s.expires_at>?');
+ const tagFor=db.prepare('SELECT tag,changed_at FROM account_display_tags WHERE account_id=?');
+ const tagOwner=db.prepare('SELECT 1 FROM account_display_tags WHERE tag=?');
+ const insertTag=db.prepare('INSERT INTO account_display_tags VALUES(?,?,?)');
+ const touchTag=db.prepare('UPDATE account_display_tags SET changed_at=? WHERE account_id=?');
+ const updateName=db.prepare('UPDATE accounts SET name=? WHERE id=?');
  const insertAccount=db.prepare('INSERT INTO accounts VALUES(?,?,?,?)');
  const insertSession=db.prepare('INSERT INTO account_sessions VALUES(?,?,?,?)');
  const clean=db.prepare('DELETE FROM account_sessions WHERE expires_at<=?');
@@ -48,5 +59,23 @@ export function openAccounts(db,{now=Date.now,secure=!!process.env.RAILWAY_ENVIR
  function signIn(code){if(typeof code!=='string'||!CODE.test(code))return null;return transaction(()=>{const a=byCode.get(digest(code));return a?session(a):null;});}
  function signOut(header){const token=cookieValue(header);if(TOKEN.test(token||''))revoke.run(digest(token));return cookie('',0);}
  function deleteAccount(id,code){if(typeof code!=='string'||!CODE.test(code))return false;return transaction(()=>{const a=byId.get(id);if(!a||!timingSafeEqual(Buffer.from(a.recovery_hash,'hex'),Buffer.from(digest(code),'hex')))return false;deleteHistory.run(id);remove.run(id);return true;});}
- return {read,create,signIn,signOut,deleteAccount};
+ function rename(id,value){
+  const validation=validateDisplayName(value);if(!validation.ok)return {status:400,error:validation.error};
+  return transaction(()=>{
+   const a=byId.get(id);if(!a)return {status:401,error:'Sign in first'};
+   const prior=tagFor.get(id),t=now();
+   if(prior&&a.name===validation.name+'#'+String(prior.tag).padStart(4,'0'))return {status:200,name:a.name};
+   if(prior&&t-prior.changed_at<RENAME_INTERVAL)return {status:429,error:'You can change your name once every 24 hours.'};
+   let tag=prior?.tag;
+   if(tag===undefined){
+    const start=randomInt(10000);
+    for(let i=0;i<10000;i++){const candidate=(start+i)%10000;if(!tagOwner.get(candidate)){tag=candidate;break;}}
+    if(tag===undefined)return {status:503,error:'Name capacity reached'};
+    insertTag.run(id,tag,t);
+   }else touchTag.run(t,id);
+   const name=validation.name+'#'+String(tag).padStart(4,'0');
+   updateName.run(name,id);return {status:200,name};
+  });
+ }
+ return {read,create,signIn,signOut,deleteAccount,rename};
 }

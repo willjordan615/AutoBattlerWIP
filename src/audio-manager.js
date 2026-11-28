@@ -42,7 +42,7 @@ export function selectAudioEvents(events){
 }
 export function createAudioManager({createContext=()=>{const C=globalThis.AudioContext||globalThis.webkitAudioContext;return C?new C():null;},fetchAsset=url=>fetch(url),makeMedia=url=>typeof Audio==='function'?new Audio(url):null,random=Math.random,onStatus=()=>{}}={}){
  let ctx=null,master=null,combat=null,ui=null,hidden=false,unsupported=false,loading=null,backend='web',loadFailed=false;
- const assetUrl=name=>new URL('../assets/audio/'+cueFile(name)+'?v=2026-11-28-accounts-420',import.meta.url).href;
+ const assetUrl=name=>new URL('../assets/audio/'+cueFile(name)+'?v=2026-11-28-accounts-421',import.meta.url).href;
  const media=new Map();let previewMedia=null;
  const status=(message)=>{try{onStatus(message);}catch{}};
  const enabled=()=>prefs.soundEnabled&&!hidden&&!!(prefs.combatVolume||prefs.interfaceVolume);

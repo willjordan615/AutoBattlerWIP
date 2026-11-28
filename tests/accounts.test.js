@@ -57,3 +57,19 @@ test('account endpoints: guest access, strict body/origin, cross-device history 
   assert.equal((await (await get('/api/account',account)).json()).account,false);
  }finally{await new Promise(r=>server.close(r));}
 });
+
+test('display names preserve identity, unique stable tags, cooldown and login',()=>{
+ let now=1000;const h=openHistory(':memory:',{now:()=>now}),guests=createGuests({key});
+ try{
+  const a=h.accounts.create(guests.issue().profile),b=h.accounts.create(guests.issue().profile);
+  for(const bad of ['ab','a'.repeat(17),'123','<script>','a b','Admin','Bot123','test@example.com','Sljp#0679','f_u_c_k','sh1t'])assert.equal(h.accounts.rename(a.account.id,bad).status,400,bad);
+  const x=h.accounts.rename(a.account.id,'Sljp'),y=h.accounts.rename(b.account.id,'sljp');
+  assert.match(x.name,/^Sljp#[0-9]{4}$/);assert.notEqual(x.name.slice(-4),y.name.slice(-4));
+  assert.equal(h.accounts.read(raw(a.cookie)).name,x.name);
+  assert.equal(h.accounts.signIn(a.code).account.name,x.name);
+  assert.equal(h.accounts.rename(a.account.id,'Sljp').status,200);
+  assert.equal(h.accounts.rename(a.account.id,'Other').status,429);
+  now+=86400000;const z=h.accounts.rename(a.account.id,'Other');assert.equal(z.name,'Other'+x.name.slice(-5));
+  assert.equal(h.accounts.read(raw(a.cookie)).id,a.account.id);
+ }finally{h.close();}
+});
