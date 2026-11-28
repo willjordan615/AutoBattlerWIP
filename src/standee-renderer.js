@@ -1,4 +1,4 @@
-import {paintStandee,STANDEE_TYPES} from './standee-art.js?v=2026-11-28-audio-413';
+import {paintStandee,STANDEE_TYPES} from './standee-art.js?v=2026-11-28-audio-414';
 // All inputs are presentation snapshots; never mutate units, terrain, or engine RNG.
 const makeDefaultCanvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
 const TAU=Math.PI*2;

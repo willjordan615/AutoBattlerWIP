@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {CUES,MAX_VOICES,selectAudioEvents,classifyAudioEvent,createAudioManager} from '../src/audio-manager.js';
+import {CUES,MAX_VOICES,cueVariation,selectAudioEvents,classifyAudioEvent,createAudioManager} from '../src/audio-manager.js';
 import {normalizeSettings} from '../src/performance-settings.js';
 test('audio defaults quiet and saved preferences validate',()=>{const p=normalizeSettings(null);assert.equal(p.combatVolume,30);assert.equal(p.interfaceVolume,25);assert.equal(normalizeSettings({soundEnabled:false,combatVolume:300}).combatVolume,100);assert.equal(normalizeSettings({soundEnabled:false}).soundEnabled,false);});
 test('cue files bundled; no routine DOT or wall noise; priority coalesces attacks',()=>{for(const name of Object.keys(CUES))assert.equal(readFileSync(new URL('../assets/audio/'+name+'.wav',import.meta.url)).subarray(0,4).toString(),'RIFF');assert.equal(classifyAudioEvent({kind:'dotDamage'}),null);assert.equal(classifyAudioEvent({kind:'wallImpact'}),null);assert.deepEqual(selectAudioEvents([{kind:'attackRelease',type:'rogue'},{kind:'attackRelease',type:'bruiser'},{kind:'reaction',ability:'bulwark'}]).map(x=>x.cue),['guard','light']);assert.equal(MAX_VOICES,6);});
@@ -33,4 +33,22 @@ test('Hazardous ranged release selects one distinct sound without extra voice',(
  assert.equal(classifyAudioEvent({...e,modifiers:{hazardous:false}}),'pluck');
  assert.equal(classifyAudioEvent({...e,kind:'attackCommit'}),null);
  assert.deepEqual(selectAudioEvents([{kind:'attackRelease',type:'ranged'},e]).map(x=>x.cue),['hazard']);
+});
+
+test('per-cue cosmetic variation is bounded and keeps UI stable',()=>{
+ for(const name of Object.keys(CUES)){
+  const lo=cueVariation(name,()=>0),hi=cueVariation(name,()=>1);
+  assert.ok(lo.rate>=.88&&hi.rate<=1.12);assert.ok(lo.gain>=.82&&hi.gain===1);
+  assert.ok(lo.rate<hi.rate&&lo.gain<hi.gain);
+ }
+ assert.equal(cueVariation('heavy',()=>0).rate,.9);
+ assert.equal(cueVariation('light',()=>0).rate,.88);
+ assert.equal(cueVariation('confirm',()=>0).rate,.98);
+});
+test('native fallback changes pitch and gain on successive previews',async()=>{
+ const values=[];let n=0;
+ const el={preservesPitch:true,currentTime:0,volume:0,playbackRate:1,play(){values.push([this.playbackRate,this.volume,this.preservesPitch]);return Promise.resolve();},pause(){}};
+ const a=createAudioManager({createContext:()=>null,makeMedia:()=>el,random:()=>n++<2?0:1});
+ await a.preview('heavy');await a.preview('heavy');
+ assert.equal(values.length,2);assert.ok(values[0][0]<values[1][0]);assert.ok(values[0][1]<values[1][1]);assert.equal(values[0][2],false);a.stop();
 });

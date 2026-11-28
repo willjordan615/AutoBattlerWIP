@@ -8,6 +8,15 @@ export const CUES=Object.freeze({
  impact:['impact',1,.40],guard:['defense',4,.56],utility:['utility',3,.48],
  click:['ui',1,.52],confirm:['ui',3,.58],start:['transition',5,.50],finish:['transition',5,.50]
 });
+// Variation is presentation-local, never uses the simulation RNG.
+export function cueVariation(name,random=Math.random){
+ const group=CUES[name]?.[0],combat=group&&group!=='ui'&&group!=='transition';
+ const spread=name==='heavy'?.10:name==='light'?.12:combat?.075:.02;
+ const rate=1+(clamp(random(),0,1)*2-1)*spread;
+ // Attenuate rather than amplify, preserving the existing gain ceiling.
+ const gain=combat?.82+clamp(random(),0,1)*.18:.96+clamp(random(),0,1)*.04;
+ return {rate,gain};
+}
 const GAP={attack:.15,impact:.18,defense:.23,utility:.30,ui:.12,transition:.6};
 const clipLength=group=>group==='transition'?.65:group==='ui'?.28:.40;
 export function classifyAudioEvent(e){
@@ -29,7 +38,7 @@ export function selectAudioEvents(events){
 }
 export function createAudioManager({createContext=()=>{const C=globalThis.AudioContext||globalThis.webkitAudioContext;return C?new C():null;},fetchAsset=url=>fetch(url),makeMedia=url=>typeof Audio==='function'?new Audio(url):null,random=Math.random,onStatus=()=>{}}={}){
  let ctx=null,master=null,combat=null,ui=null,hidden=false,unsupported=false,loading=null,backend='web',loadFailed=false;
- const assetUrl=name=>new URL('../assets/audio/'+name+'.wav?v=2026-11-28-audio-413',import.meta.url).href;
+ const assetUrl=name=>new URL('../assets/audio/'+name+'.wav?v=2026-11-28-audio-414',import.meta.url).href;
  const media=new Map();let previewMedia=null;
  const status=(message)=>{try{onStatus(message);}catch{}};
  const enabled=()=>prefs.soundEnabled&&!hidden&&!!(prefs.combatVolume||prefs.interfaceVolume);
@@ -51,7 +60,7 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
  function configure(value){
   prefs={soundEnabled:value.soundEnabled,combatVolume:value.combatVolume,interfaceVolume:value.interfaceVolume};
   levels();
-  for(const v of voices)if(v.element)v.element.volume=mediaVolume(v.name);
+  for(const v of voices)if(v.element)v.element.volume=mediaVolume(v.name)*v.variation;
   if(!prefs.soundEnabled||(!prefs.combatVolume&&!prefs.interfaceVolume)){stop();ctx?.suspend().catch(()=>{});}
   else{if(!prefs.combatVolume)stop('combat');if(!prefs.interfaceVolume)stop('ui');}
  }
@@ -104,9 +113,14 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
    let element=media.get(name);
    if(!element){element=makeMedia(assetUrl(name));if(!element)return false;element.preload='auto';media.set(name,element);}
    if([...voices].some(v=>v.element===element)){if(!preview)return false;for(const v of [...voices])if(v.element===element)v.stop();}
-   element.volume=mediaVolume(name);element.playbackRate=.97+random()*.06;element.currentTime=0;
+   const variation=cueVariation(name,random);
+   element.volume=mediaVolume(name)*variation.gain;element.playbackRate=variation.rate;
+   // Native media otherwise preserves pitch even when playback rate changes.
+   if('preservesPitch' in element)element.preservesPitch=false;
+   if('webkitPreservesPitch' in element)element.webkitPreservesPitch=false;
+   element.currentTime=0;
    let timer=null;
-   const voice={element,name,channel,priority,stop:()=>{clearTimeout(timer);element.pause();voices.delete(voice);if(previewMedia===element)previewMedia=null;}};
+   const voice={element,name,channel,priority,variation:variation.gain,stop:()=>{clearTimeout(timer);element.pause();voices.delete(voice);if(previewMedia===element)previewMedia=null;}};
    element.onended=()=>voice.stop();
    element.onerror=()=>{voice.stop();if(preview){if(ctx)backend='web';status('Audio file could not be played. Check browser media support.');}};
    voices.add(voice);if(preview)previewMedia=element;
@@ -134,9 +148,10 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
   }
   try{
    const source=ctx.createBufferSource();source.buffer=buffers.get(name);
-   source.playbackRate.value=.97+random()*.06;
+   const variation=cueVariation(name,random);source.playbackRate.value=variation.rate;
+   const variedLevel=level*variation.gain;
    const gain=ctx.createGain(),length=Math.min(source.buffer.duration/source.playbackRate.value,clipLength(group));
-   gain.gain.setValueAtTime(level,now);gain.gain.setValueAtTime(level,now+Math.max(0,length-.025));gain.gain.linearRampToValueAtTime(0,now+length);
+   gain.gain.setValueAtTime(variedLevel,now);gain.gain.setValueAtTime(variedLevel,now+Math.max(0,length-.025));gain.gain.linearRampToValueAtTime(0,now+length);
    source.connect(gain);const target=channel==='ui'?ui:combat;
    const pan=channel==='combat'&&ctx.createStereoPanner?ctx.createStereoPanner():null;
    if(pan){pan.pan.value=clamp((Number.isFinite(x)?x:360)/360-1,-1,1)*.3;gain.connect(pan);pan.connect(target);}else gain.connect(target);

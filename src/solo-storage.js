@@ -1,5 +1,5 @@
 import {rng,CHASSIS} from './simulation.js?v=engine-360-r4';
-import {summarizeMatch} from './match-summary.js?v=2026-11-28-audio-413';
+import {summarizeMatch} from './match-summary.js?v=2026-11-28-audio-414';
 const SAVE='ab-solo-checkpoint-v1',HISTORY='ab-solo-history-v1',OPT='ab-solo-history-opt-v1';
 const RULES='engine-360-r4';
 const get=k=>{try{return localStorage.getItem(k);}catch{return null;}};

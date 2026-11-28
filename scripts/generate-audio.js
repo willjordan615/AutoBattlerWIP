@@ -4,7 +4,7 @@ import {mkdirSync,writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 export const CUE_NAMES=Object.freeze(["heavy","light","pluck","hazard","impact","guard","utility","click","confirm","start","finish"]);
 export function renderCue(name){
- const sampleRate=22050, durations={heavy:.29,light:.19,pluck:.22,hazard:.39,impact:.22,guard:.31,utility:.23,click:.09,confirm:.16,start:.48,finish:.62};
+ const sampleRate=22050, durations={heavy:.32,light:.25,pluck:.22,hazard:.39,impact:.22,guard:.31,utility:.23,click:.09,confirm:.16,start:.48,finish:.62};
  if(!Object.hasOwn(durations,name))throw Error("Unknown cue "+name);
  const n=Math.ceil(sampleRate*durations[name]),data=new Float64Array(n),tau=2*Math.PI;
  let seed=0x7a3b9c12;for(const c of name)seed=(Math.imul(seed,31)+c.charCodeAt(0))|0;
@@ -21,8 +21,17 @@ export function renderCue(name){
   const string=(time)=>modal(time,[[183,.39,.045],[369,.19,.031],[554,.095,.022],[742,.075,.014],[1117,.05,.011]]);
   let v=0;
   switch(name){
-   case "heavy":v=.8*thump(t)+modal(t,[[307,.21,.07],[487,.15,.04],[731,.12,.028],[1289,.06,.016]])+.33*air*env(t,.0015,.024)+.12*grain*env(t,.001,.012);break;
-   case "light":v=air*env(t,.012,.038)*1.45+grain*env(t,.008,.025)*.54+modal(t-.025,[[611,.09,.018],[955,.055,.013]]);break;
+   case "heavy":{
+    // Dense, dry, low-frequency tabletop impact with a short granular tail.
+    const body=.90*Math.sin(tau*(68*t+4.5*(1-Math.exp(-t/.034))))*Math.exp(-t/.045);
+    const grit=(.65*lo+.80*air+.33*grain)*(env(t,.0015,.048)+.40*env(t-.022,.003,.025));
+    v=body+modal(t,[[123,.32,.033],[203,.18,.023],[346,.10,.016]])+grit+.22*wood(t-.016);break;
+   }
+   case "light":{
+    // Broad, smooth air sweep with a brighter center, no pitched metallic note.
+    const sweep=Math.exp(-Math.pow((t-.065)/.038,2));
+    v=(1.22*air+.48*grain)*sweep+(1.05*lo+.30*air)*env(t,.026,.069)+.26*grain*env(t-.041,.009,.038);break;
+   }
    case "pluck":v=string(t)*.85+.38*air*env(t,.001,.023)+.16*thump(t);break;
    case "hazard":v=.48*string(t)+.58*thump(t)+.46*air*env(t,.018,.105)+.24*grain*env(t,.016,.09)+modal(t-.045,[[127,.18,.085],[219,.10,.065],[347,.055,.05]]);break;
    case "impact":v=.91*thump(t)+.64*lo*env(t,.002,.048)+.35*air*env(t,.002,.035);break;
