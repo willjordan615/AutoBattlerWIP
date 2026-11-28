@@ -1,7 +1,7 @@
 // One local, looped background track. Independent of simulation and SFX voices.
-export const MUSIC_URL=new URL('../assets/audio/music.ogg?v=2026-11-28-audio-416',import.meta.url).href;
+export const MUSIC_URL=new URL('../assets/audio/music.ogg?v=2026-11-28-audio-417',import.meta.url).href;
 export function createMusicManager({makeMedia=url=>typeof Audio==='function'?new Audio(url):null,onStatus=()=>{}}={}){
- let element=null,enabled=true,volume=12,hidden=false,activated=false,pending=null,generation=0;
+ let element=null,enabled=true,volume=6,hidden=false,activated=false,pending=null,generation=0;
  const status=s=>{try{onStatus(s);}catch{}};
  const wanted=()=>enabled&&volume>0&&!hidden&&activated;
  function pause(){generation++;pending=null;try{element?.pause();}catch{}}
@@ -28,7 +28,7 @@ export function createMusicManager({makeMedia=url=>typeof Audio==='function'?new
  }
  function configure(p){
   enabled=p.soundEnabled!==false&&p.musicEnabled!==false;
-  volume=Number.isFinite(p.musicVolume)?Math.min(100,Math.max(0,p.musicVolume)):12;
+  volume=Number.isFinite(p.musicVolume)?Math.min(100,Math.max(0,p.musicVolume)):6;
   if(element)element.volume=volume/100;
   if(!wanted()){pause();if(!enabled||!volume)status('Music off');}
   else resume();

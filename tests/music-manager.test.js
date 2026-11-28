@@ -5,7 +5,7 @@ import {createMusicManager} from '../src/music-manager.js';
 import {normalizeSettings} from '../src/performance-settings.js';
 test('music asset and conservative preferences',()=>{
  assert.equal(readFileSync(new URL('../assets/audio/music.ogg',import.meta.url)).subarray(0,4).toString(),'OggS');
- assert.equal(normalizeSettings(null).musicVolume,12);
+ assert.equal(normalizeSettings(null).musicVolume,6);
  assert.equal(normalizeSettings({musicEnabled:false,musicVolume:150}).musicEnabled,false);
  assert.equal(normalizeSettings({musicVolume:150}).musicVolume,100);
 });

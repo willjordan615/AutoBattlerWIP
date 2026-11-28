@@ -13,3 +13,5 @@ test('procedural samples are bounded, mono PCM, non-silent, deterministic and bu
  }
  assert.notDeepEqual(renderCue('pluck'),renderCue('hazard'));
 });
+
+test('UI selection cues remain extremely short and quiet',()=>{for(const name of ['click','confirm']){const a=renderCue(name);assert.ok((a.length-44)/44100<.06);assert.ok(CUES[name][2]<=.26);}});
