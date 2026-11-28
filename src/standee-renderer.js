@@ -1,7 +1,9 @@
-import {paintStandee,STANDEE_TYPES} from './standee-art.js?v=2026-11-28-standees-401';
+import {paintStandee,STANDEE_TYPES} from './standee-art.js?v=2026-11-28-standees-402';
 // All inputs are presentation snapshots; never mutate units, terrain, or engine RNG.
 const makeDefaultCanvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
 const TAU=Math.PI*2;
+export const STANDEE_SCALE=4.05;
+const artScale=(r,y,bob=0)=>Math.min(r*STANDEE_SCALE/96,Math.max(.2,(y-bob-2)/91));
 const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,x));
 const ellipse=(ctx,x,y,rx,ry,fill,stroke=null,width=1)=>{
  ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,TAU);
@@ -75,31 +77,33 @@ export function createStandeeRenderer({makeCanvas=makeDefaultCanvas,makePath=typ
  function base(ctx,p,ghost=false){
   const {x,y,r,color}=p;
   ctx.save();
-  if(!ghost){ellipse(ctx,x+2,y+3,r+3,r*.73+3,'rgba(0,0,0,.33)');ellipse(ctx,x,y,r+2,r+2,null,'rgba(225,229,219,.20)',1);}
-  ellipse(ctx,x,y+2,r+1,r*.69,'#20252a',null);
-  ellipse(ctx,x,y,r+1,r*.69,color,p.selected?'#ffffff':p.local?'#eef0e7':'#20252a',p.selected||p.local?2:1);
-  ellipse(ctx,x,y,r-1.4,r*.51,'#373d40',null);
+  if(!ghost){ellipse(ctx,x+2,y+4,r+5,r*.78+4,'rgba(0,0,0,.33)');ellipse(ctx,x,y,r+2,r+2,null,'rgba(225,229,219,.20)',1);}
+  ellipse(ctx,x,y+3,r+3,r*.77,'#171d22',null);
+  ellipse(ctx,x,y+1,r+3,r*.77,color,p.selected?'#ffffff':p.local?'#eef0e7':'#20252a',p.selected||p.local?2:1.5);
+  ellipse(ctx,x,y,r*.64,r*.36,'#373d40',null);
   ctx.restore();
  }
  function piece(ctx,p,time,animate=true){
   const art=sprite(p.type);if(!art)return false;
-  const {x,y,r}=p,pose=poseFor(p,time,animate),s=Math.min(r*3.55/96,Math.max(.2,(y-pose.bob-2)/91));
+  const {x,y,r}=p,pose=poseFor(p,time,animate),s=artScale(r,y,pose.bob);
   base(ctx,p);
   ctx.save();ctx.translate(x,y-pose.bob);ctx.scale(pose.flip,1);ctx.rotate(pose.lean);
   ctx.drawImage(art,-48*s,-96*s,96*s,112*s);ctx.restore();
+  // Draw the near edge over the artwork so boots and equipment cannot hide affiliation.
+  ctx.save();ctx.beginPath();ctx.ellipse(x,y+1,r+1.5,r*.69,0,.16,Math.PI-.16);ctx.strokeStyle=p.color;ctx.lineWidth=3;ctx.lineCap='round';ctx.stroke();ctx.restore();
   return true;
  }
  function label(ctx,p){
-  ctx.save();const width=Math.max(24,p.r*2.45),y=clamp(p.y-p.r*3.42-5,3,510),fraction=clamp(p.hp/p.maxHp,0,1);
+  ctx.save();const width=Math.max(24,p.r*2.45),y=clamp(p.y-artScale(p.r,p.y,2)*91-8,3,510),fraction=clamp(p.hp/p.maxHp,0,1);
   ctx.fillStyle='#20252a';ctx.fillRect(p.x-width/2-1,y-1,width+2,5);
   ctx.fillStyle='#8fdfac';ctx.fillRect(p.x-width/2,y,width*fraction,3);
   // Small class rune beneath the base, distinct from team color.
   ctx.font='bold 10px system-ui';ctx.textAlign='center';ctx.textBaseline='top';ctx.lineWidth=3;ctx.strokeStyle='#20252a';
-  const text=p.type==='bruiser'?'B':p.type==='rogue'?'R':'A';ctx.strokeText(text,p.x,p.y+p.r*.7+3);ctx.fillStyle='#eee9d9';ctx.fillText(text,p.x,p.y+p.r*.7+3);ctx.restore();
+  const text=p.type==='bruiser'?'B':p.type==='rogue'?'R':'A';ctx.strokeText(text,p.x,p.y+p.r*.77+6);ctx.fillStyle='#eee9d9';ctx.fillText(text,p.x,p.y+p.r*.77+6);ctx.restore();
  }
  function ghost(ctx,p,t){
   const art=sprite(p.type);if(!art)return false;
-  ctx.save();ctx.globalAlpha=(1-t)*.36;const s=p.r*3.55/96;
+  ctx.save();ctx.globalAlpha=(1-t)*.36;const s=artScale(p.r,p.y);
   ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.toX,p.toY);ctx.stroke();
   ctx.translate(p.x,p.y);ctx.scale(p.toX<p.x?-1:1,1);ctx.drawImage(art,-48*s,-96*s,96*s,112*s);ctx.restore();return true;
  }
@@ -108,7 +112,7 @@ export function createStandeeRenderer({makeCanvas=makeDefaultCanvas,makePath=typ
   const ctx=canvas.getContext('2d');if(!ctx)return false;
   ctx.fillStyle='#393f42';ctx.fillRect(0,0,canvas.width,canvas.height);
   STANDEE_TYPES.forEach((type,i)=>{
-   const x=(i+.5)*canvas.width/3,y=canvas.height-28;
+   const x=(i+.5)*canvas.width/3,y=canvas.height-31;
    piece(ctx,{x,y,r:18,type,id:i,color:['#64b3ff','#f58086','#f4d16f'][i]},0,false);
    ctx.fillStyle='#e8e3d6';ctx.font='12px system-ui';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(type[0].toUpperCase()+type.slice(1),x,y+14);
   });return true;

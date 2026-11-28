@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createStandeeRenderer,poseFor} from '../src/standee-renderer.js';
+import {createStandeeRenderer,poseFor,STANDEE_SCALE} from '../src/standee-renderer.js';
 import {STANDEE_PARTS,STANDEE_TYPES} from '../src/standee-art.js';
 import {normalizeSettings} from '../src/performance-settings.js';
 function harness(){
@@ -30,4 +30,13 @@ test('pose is deterministic and reduced motion retains only facing',()=>{
 test('classic is a persistent choice and unsupported vector backend is harmless',()=>{
  assert.equal(normalizeSettings({theme:'classic'}).theme,'classic');assert.equal(normalizeSettings(null).theme,'standees');
  const r=createStandeeRenderer({makePath:null});assert.equal(r.available(),false);
+});
+
+test('larger art and foreground team rim keep the simulation radius untouched',()=>{
+ const {renderer,calls,ctx}=harness();
+ const p=Object.freeze({id:1,type:'rogue',x:100,y:100,r:11,hp:10,maxHp:20,color:'#64b3ff',facing:0});
+ assert.equal(STANDEE_SCALE,4.05);renderer.piece(ctx,p,0,false);
+ const draw=calls.find(c=>c[0]==='drawImage');assert.ok(Math.abs(draw[4]-11*4.05)<1e-9);
+ const front=calls.filter(c=>c[0]==='ellipse').at(-1);assert.equal(front[3],12.5);assert.equal(p.r,11);
+ assert.equal(ctx.strokeStyle,p.color);
 });
