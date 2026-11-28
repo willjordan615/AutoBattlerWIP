@@ -2,9 +2,9 @@
 // Deterministic noise and damped resonances; no external samples or engine RNG.
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
-export const CUE_NAMES=Object.freeze(["heavy","light","pluck","hazard","impact","guard","utility","click","confirm","start","finish"]);
+export const CUE_NAMES=Object.freeze(["heavy","light","pluck","hazard","miss","impact","guard","utility","click","confirm","start","finish"]);
 export function renderCue(name){
- const sampleRate=22050, durations={heavy:.32,light:.25,pluck:.22,hazard:.39,impact:.22,guard:.31,utility:.23,click:.09,confirm:.16,start:.48,finish:.62};
+ const sampleRate=22050, durations={heavy:.32,light:.25,pluck:.22,hazard:.39,miss:.18,impact:.22,guard:.31,utility:.23,click:.09,confirm:.16,start:.48,finish:.62};
  if(!Object.hasOwn(durations,name))throw Error("Unknown cue "+name);
  const n=Math.ceil(sampleRate*durations[name]),data=new Float64Array(n),tau=2*Math.PI;
  let seed=0x7a3b9c12;for(const c of name)seed=(Math.imul(seed,31)+c.charCodeAt(0))|0;
@@ -34,6 +34,7 @@ export function renderCue(name){
    }
    case "pluck":v=string(t)*.85+.38*air*env(t,.001,.023)+.16*thump(t);break;
    case "hazard":v=.48*string(t)+.58*thump(t)+.46*air*env(t,.018,.105)+.24*grain*env(t,.016,.09)+modal(t-.045,[[127,.18,.085],[219,.10,.065],[347,.055,.05]]);break;
+   case "miss":v=(.85*air+.16*grain)*Math.exp(-Math.pow((t-.047)/.027,2))+.18*lo*env(t,.012,.043);break;
    case "impact":v=.91*thump(t)+.64*lo*env(t,.002,.048)+.35*air*env(t,.002,.035);break;
    case "guard":v=modal(t,[[437,.27,.086],[681,.22,.064],[1019,.15,.04],[1493,.08,.022],[2187,.045,.016]])+.24*air*env(t,.001,.018)+.18*thump(t);break;
    case "utility":v=.91*air*env(t,.016,.06)+.24*lo*env(t,.022,.08)+.23*wood(t-.043);break;

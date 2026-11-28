@@ -4,7 +4,7 @@ export const MAX_VOICES=6;
 export const MAX_COMBAT_BURST=3;
 const BURST_WINDOW=.25;
 export const CUES=Object.freeze({
- heavy:['attack',2,.65],light:['attack',2,.60],pluck:['attack',2,.62],hazard:['attack',3,.60],
+ heavy:['attack',2,.65],light:['attack',2,.32],pluck:['attack',2,.62],hazard:['attack',3,.60],miss:['attack',1,.20],
  impact:['impact',1,.40],guard:['defense',4,.56],utility:['utility',3,.48],
  click:['ui',1,.52],confirm:['ui',3,.58],start:['transition',5,.50],finish:['transition',5,.50]
 });
@@ -20,8 +20,10 @@ export function cueVariation(name,random=Math.random){
 const GAP={attack:.15,impact:.18,defense:.23,utility:.30,ui:.12,transition:.6};
 const clipLength=group=>group==='transition'?.65:group==='ui'?.28:.40;
 export function classifyAudioEvent(e){
+ if(e.kind==='attackMiss')return 'miss';
+ if(e.kind==='attackRelease'&&e.outcome==='miss')return 'miss';
  if(e.kind==='attackRelease')return e.type==='ranged'&&e.modifiers?.hazardous?'hazard':({bruiser:'heavy',rogue:'light',ranged:'pluck'}[e.type]||null);
- if(e.kind==='impact'||e.kind==='damage')return 'impact';
+ if(e.kind==='damage'||e.kind==='attackContact')return 'impact';
  if(e.kind==='reaction')return ['bulwark','guard','block','resolve'].includes(e.ability)?'guard':'utility';
  if(e.kind==='mobility')return e.ability==='dodge'?'light':'utility';
  if(e.kind==='chain')return 'utility';
@@ -38,7 +40,7 @@ export function selectAudioEvents(events){
 }
 export function createAudioManager({createContext=()=>{const C=globalThis.AudioContext||globalThis.webkitAudioContext;return C?new C():null;},fetchAsset=url=>fetch(url),makeMedia=url=>typeof Audio==='function'?new Audio(url):null,random=Math.random,onStatus=()=>{}}={}){
  let ctx=null,master=null,combat=null,ui=null,hidden=false,unsupported=false,loading=null,backend='web',loadFailed=false;
- const assetUrl=name=>new URL('../assets/audio/'+name+'.wav?v=2026-11-28-audio-414',import.meta.url).href;
+ const assetUrl=name=>new URL('../assets/audio/'+name+'.wav?v=2026-11-28-audio-415',import.meta.url).href;
  const media=new Map();let previewMedia=null;
  const status=(message)=>{try{onStatus(message);}catch{}};
  const enabled=()=>prefs.soundEnabled&&!hidden&&!!(prefs.combatVolume||prefs.interfaceVolume);

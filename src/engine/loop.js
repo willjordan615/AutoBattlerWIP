@@ -12,6 +12,24 @@ import {resolveCollision} from './collision.js?v=engine-360-r4';
 import {advanceProjectiles} from './projectiles.js?v=engine-360-r4';
 import {resolveAttackModules,environmentalAttacks,applyRicochetSlide} from './effects.js?v=engine-360-r4';
 
+// Presentation-only outcomes, derived from existing evasion-filtered contacts.
+// A volley remains unresolved until its final lane expires; one successful
+// contact prevents a false miss when another lane expires later.
+export function emitAttackOutcomes(state,landed,before){
+ const landedIds=new Set(landed.filter(a=>!a.indirect&&a.attackId!=null).map(a=>a.attackId));
+ for(const e of state.visualEvents){
+  if(e.kind==='attackRelease'&&e.delivery!=='projectile')e.outcome=landedIds.has(e.attackId)?'hit':'miss';
+ }
+ if(!before.length)return;
+ const active=new Set((state.projectiles||[]).map(p=>p.volley));
+ const volleys=new Map();
+ for(const shot of before)if(shot.volley)volleys.set(shot.volley,shot);
+ for(const [volley,shot] of volleys){
+  if(landedIds.has(volley.attackId))volley.presentationContact=true;
+  if(!active.has(volley)&&!volley.presentationContact)state.visualEvents.push({kind:'attackMiss',type:shot.source.type,x:shot.x,y:shot.y,owner:shot.owner,attackId:volley.attackId});
+ }
+}
+
 export function tick(state,dt=STEP){if(state.phase!=='fight')return null;state.time+=dt;state.tick++;state.visualEvents=[];syncLivingAllies(state);
  // Snapshot intentions for all units before sequential movement begins.
  for(const unit of state.units){
@@ -140,6 +158,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   else t.mutualPassiveStreak=0;
   t.maxMutualPassiveFrames=Math.max(t.maxMutualPassiveFrames,t.mutualPassiveStreak);
  }
+ const projectilesBefore=state.projectiles||[];
  advanceProjectiles(state,dt,attacks);
  // Evasion blocks impacts and their on-hit effects before any status is applied.
  const landed=attacks.filter(a=>{
@@ -147,6 +166,7 @@ const attacks=[],wasAlive=new Set(state.units.filter(u=>u.hp>0).map(u=>u.owner))
   a.target.combatStats&&(a.target.combatStats.evaded++);
   return false;
  });
+ emitAttackOutcomes(state,landed,projectilesBefore);
  const resolved=resolveAttackModules(state,landed).concat(environmentalAttacks(state,dt));
  // Preserve a visual distinction between direct hits and fractional DoT ticks.
  const directTargets=new Set(resolved.filter(a=>!a.indirect).map(a=>a.target));

@@ -52,3 +52,11 @@ test('native fallback changes pitch and gain on successive previews',async()=>{
  await a.preview('heavy');await a.preview('heavy');
  assert.equal(values.length,2);assert.ok(values[0][0]<values[1][0]);assert.ok(values[0][1]<values[1][1]);assert.equal(values[0][2],false);a.stop();
 });
+
+test('miss cue replaces unsuccessful melee sound and raw collisions are silent',()=>{
+ assert.equal(classifyAudioEvent({kind:'attackRelease',type:'bruiser',outcome:'miss'}),'miss');
+ assert.equal(classifyAudioEvent({kind:'attackRelease',type:'rogue',outcome:'hit'}),'light');
+ assert.equal(classifyAudioEvent({kind:'attackMiss'}),'miss');
+ assert.equal(classifyAudioEvent({kind:'impact'}),null);
+ assert.equal(CUES.light[2],.32);assert.ok(CUES.miss[2]<CUES.light[2]);
+});

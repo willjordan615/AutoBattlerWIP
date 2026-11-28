@@ -60,7 +60,7 @@ export function createApp({history=openHistory(),service=createQuickPlay({onFini
    if(path==='/health'&&req.method==='GET')return json(res,200,{ok:true});
    if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Method not allowed'});
    const p=decodeURIComponent(path==='/'?'/index.html':path);
-   if(!/^\/(?:index\.html|style\.css|build\.json|src\/[a-zA-Z0-9_/-]+\.js|assets\/audio\/(?:heavy|light|pluck|hazard|impact|guard|utility|click|confirm|start|finish)\.wav)$/.test(p))return json(res,404,{error:'Not found'});
+   if(!/^\/(?:index\.html|style\.css|build\.json|src\/[a-zA-Z0-9_/-]+\.js|assets\/audio\/(?:heavy|light|pluck|hazard|miss|impact|guard|utility|click|confirm|start|finish)\.wav)$/.test(p))return json(res,404,{error:'Not found'});
    const file=resolve(root,'.'+p);if(!file.startsWith(root.endsWith(sep)?root:root+sep))return json(res,404,{error:'Not found'});
    let data;try{data=await readFile(file);}catch{return json(res,404,{error:'Not found'});}
    res.writeHead(200,{...headers,'Content-Type':MIME[extname(file)]});res.end(req.method==='HEAD'?undefined:data);

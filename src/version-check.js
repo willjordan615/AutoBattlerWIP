@@ -1,7 +1,7 @@
 (function(){
  // The old static public link opens the same hosted game as Quick Play.
  if(location.hostname==='willjordan615.github.io'&&location.pathname.startsWith('/AutoBattlerWIP')){location.replace('https://quick-play-production-4fff294f.up.railway.app/');return;}
- const current='2026-11-28-audio-414';
+ const current='2026-11-28-audio-415';
  const url=new URL(location.href);
  const already=url.searchParams.get('build');
  // A stale HTML shell can still run this inline checker.
