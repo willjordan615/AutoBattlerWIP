@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {resolve,sep,extname} from 'node:path';
 import {createQuickPlay,QuickError} from './quick-play.js';
+import {createPlaytestSink} from './playtest.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8'};
 const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
@@ -13,10 +14,14 @@ async function body(req){
  for await(const chunk of req){n+=chunk.length;if(n>2048)throw new QuickError(413,'Request too large');parts.push(chunk);}
  try{const value=JSON.parse(Buffer.concat(parts).toString('utf8'));if(!value||typeof value!=='object'||Array.isArray(value))throw Error();return value;}catch{throw new QuickError(400,'Invalid JSON');}
 }
-export function createApp({service=createQuickPlay(),pulseMs=100}={}){
+export function createApp({service=createQuickPlay(),pulseMs=100,playtest=createPlaytestSink()}={}){
  const server=createServer(async(req,res)=>{
   try{
    const url=new URL(req.url,'http://localhost'),path=url.pathname;
+   if(path==='/api/playtest'&&req.method==='POST'){
+    if(req.headers['sec-fetch-site']==='cross-site')throw new QuickError(403,'Cross-site request rejected');
+    const status=playtest(await body(req));return json(res,status,{ok:status===200});
+   }
    if(path.startsWith('/api/quick/')){
     if(req.headers['sec-fetch-site']==='cross-site')throw new QuickError(403,'Cross-site request rejected');
     const auth=req.headers.authorization||'',id=auth.startsWith('Bearer ')?auth.slice(7):'';
