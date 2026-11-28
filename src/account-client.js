@@ -1,4 +1,4 @@
-import {loadGuest,invalidateGuest} from './guest-client.js?v=2026-11-28-accounts-421';
+import {loadGuest,invalidateGuest} from './guest-client.js?v=2026-11-28-presentation-501';
 async function accountRequest(action,data){
  const res=await fetch('./api/account/'+action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(10000)});
  const value=await res.json();if(!res.ok)throw Error(typeof value.error==='string'?value.error:'Account request failed');return value;
