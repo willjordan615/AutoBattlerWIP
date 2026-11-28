@@ -1,6 +1,6 @@
 # Quick Play
 
-Solo remains local and untimed. Quick Play chooses starting chassis before queueing. A single FIFO queue starts when four humans join, or 120 seconds after its oldest waiting cohort begins. Remaining seats get seeded bot profiles. No private rooms, registered accounts, custom names, chat, skill divisions or progression.
+Solo remains local and untimed. Quick Play chooses starting chassis before the initial queue entry. On the final results screen, Play Again explicitly rejoins the same shared queue with the player's prior starting chassis; Return to Menu allows a different selection. Replay creates a fresh match session, not a private rematch. A single FIFO queue starts when four humans join, or 120 seconds after its oldest waiting cohort begins. Remaining seats get seeded bot profiles. No private rooms, registered accounts, custom names, chat, skill divisions or progression.
 
 Server owns all drafts, combat outcomes, ranking and HP. Human draft turns receive a fresh 20 seconds; no unused time carries forward. Each consecutive timed-out turn auto-picks and reduces the next allowance by three seconds, with a five-second floor. Any timely manual selection resets the streak and restores 20 seconds for the following round. Disconnects do not pause time; returning via the same browser tab's session token restores the seat. Explicit leave transfers seat to bots immediately. Queue cancellation is free. Inactive queued sessions expire after 20 seconds without polling; all-abandoned matches and finished sessions are eventually cleaned up.
 

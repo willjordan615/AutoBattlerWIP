@@ -98,3 +98,29 @@ test('miss penalty has a recoverable lower bound and no negative deadlines',()=>
  }
  assert.equal(s.clocks[s.turn],5000);
 });
+
+test('finished guests can rejoin the same FIFO with newcomers and old leave cannot remove new seat',()=>{
+ const {q,advance}=setup();
+ const guests=Array.from({length:5},(_,i)=>({id:'guest-'+i,name:'Guest-'+i}));
+ const types=['rogue','ranged','bruiser','rogue'];
+ const old=types.map((type,i)=>q.join(type,guests[i]));
+ const read=()=>q.get(old[0].token,undefined,guests[0].id);
+ let s=read();
+ for(let i=0;i<250&&s.phase!=='finished';i++){
+  if(s.phase==='draft'){const seat=s.turn,p=s.match.players[seat],card=s.match.draft.pool.find(c=>legal(p,c)),slot=card.kind==='unit'?0:p.squad.findIndex(u=>canEquip(u,card));q.pick(old[seat].token,{uid:card.uid,slot,passiveSlot:0,revision:s.revision},guests[seat].id);}
+  else advance(Math.max(1,s.deadline-s.serverNow));
+  s=read();
+ }
+ assert.equal(s.phase,'finished');
+ const newcomer=q.join('bruiser',guests[4]);
+ const replay=q.join(types[0],guests[0]);
+ assert.equal(replay.queueDeadline,newcomer.queueDeadline);
+ assert.notEqual(replay.token,old[0].token);
+ assert.throws(()=>q.join('ranged',guests[0]),/already queued/);
+ q.leave(old[0].token,guests[0].id);
+ assert.equal(q.get(replay.token,undefined,guests[0].id).status,'queued');
+ q.join(types[1],guests[1]);q.join(types[2],guests[2]);
+ const next=q.get(replay.token,undefined,guests[0].id);
+ assert.equal(next.phase,'draft');assert.equal(next.seat,1);assert.equal(next.types[1],types[0]);assert.equal(next.match.round,1);assert.equal(next.match.players[1].hp,100);assert.equal(next.missed[1],0);
+ assert.deepEqual(next.humans,[true,true,true,true]);assert.equal(q.get(newcomer.token,undefined,guests[4].id).seat,0);
+});
