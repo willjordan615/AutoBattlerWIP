@@ -11,7 +11,7 @@ const token=()=>randomBytes(32).toString('hex');
 const seed=()=>randomBytes(4).readUInt32LE();
 const publicMatch=m=>({seed:m.seed,round:m.round,phase:m.phase,players:copy(m.players),lastRanking:[...m.lastRanking],lastSpawnSlots:m.lastSpawnSlots?.slice()||null,draft:copy(m.draft),history:copy(m.history)});
 
-export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rules=RULES}={}){
+export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rules=RULES,onFinished=()=>{}}={}){
  const sessions=new Map(),games=new Map(),queue=[];
  let queueDeadline=null;
  function removeQueued(s){const i=queue.indexOf(s);if(i>=0)queue.splice(i,1);if(!queue.length)queueDeadline=null;}
@@ -70,7 +70,7 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
    else if(g.phase==='combat'&&t>=g.deadline){
     g.completedDraft=copy(g.match.draft);g.result=completeCombat(g.match,g.battle);g.battle=null;g.replay=null;
     g.phase=g.match.phase==='finished'?'finished':'results';g.deadline=t+rules.resultMs;g.revision++;
-    if(g.phase==='finished')g.finishedAt=t;
+    if(g.phase==='finished'){g.finishedAt=t;for(const human of g.humans){if(human?.guestId&&!human.left){try{onFinished({guestId:human.guestId,matchId:g.id,match:g.match,seat:human.seat,joinedAt:human.joined});}catch{console.error('Match history write failed');}}}}
    }else if(g.phase==='results'&&t>=g.deadline){
     g.phase='draft';g.turnStart=null;g.revision++;advanceDraft(g,t);
    }
