@@ -1,7 +1,7 @@
-// Optional, first-party playtest measurements. No persistent identifier.
-const KEY='autobattler-share-playtest';
+// Optional first-party playtest measurements; server may link to a scoped guest pseudonym.
+const KEY='autobattler-share-playtest-v2';
 export function analyticsPreference(){try{return localStorage.getItem(KEY)==='yes';}catch{return false;}}
-export function createPlayAnalytics({now=()=>performance.now(),visible=()=>!document.hidden,send=data=>fetch('./api/playtest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),keepalive:true}).then(r=>{if(!r.ok)throw Error('Playtest unavailable');}),makeId=()=>globalThis.crypto?.randomUUID?.()}={}){
+export function createPlayAnalytics({now=()=>performance.now(),visible=()=>!document.hidden,send=data=>fetch('./api/playtest/guest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),keepalive:true}).then(r=>{if(!r.ok)throw Error('Playtest unavailable');}),makeId=()=>globalThis.crypto?.randomUUID?.()}={}){
  let enabled=false,id=null,last=now(),active=false,shown=visible(),mode=null,matchActive=false,seconds=0,soloSeconds=0,quickSeconds=0,starts=0,finishes=0,exits=0,seq=0,lastSnapshot='';
  const accrue=()=>{const t=now();if(enabled&&active&&shown){const dt=Math.max(0,t-last)/1000;seconds+=dt;if(mode==='solo')soloSeconds+=dt;else if(mode==='quick')quickSeconds+=dt;}last=t;};
  const flush=()=>{accrue();if(!enabled||!id||!starts)return;const snapshot={seconds:Math.floor(seconds),soloSeconds:Math.floor(soloSeconds),quickSeconds:Math.floor(quickSeconds),starts,finishes,exits};const signature=JSON.stringify(snapshot);if(signature===lastSnapshot)return;lastSnapshot=signature;try{Promise.resolve(send({id,seq:++seq,...snapshot})).catch(()=>{lastSnapshot='';});}catch{lastSnapshot='';}};

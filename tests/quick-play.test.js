@@ -34,9 +34,10 @@ test('HTTP adapter serves game and isolates session credentials',async()=>{
  try{
   const page=await fetch(url);assert.equal(page.status,200);assert.match(await page.text(),/AutoBattler/);
   assert.equal((await fetch(url+'/server/quick-play.js')).status,404);
-  const response=await fetch(url+'/api/quick/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'rogue'})});assert.equal(response.status,200);const a=await response.json();
+  const profile=await fetch(url+'/api/guest',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const cookie=profile.headers.get('set-cookie').split(';')[0];
+  const response=await fetch(url+'/api/quick/join',{method:'POST',headers:{'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify({type:'rogue'})});assert.equal(response.status,200);const a=await response.json();
   assert.equal((await fetch(url+'/api/quick/state')).status,401);
-  const state=await (await fetch(url+'/api/quick/state',{headers:{Authorization:'Bearer '+a.token}})).json();assert.equal(state.status,'queued');assert.equal(state.token,undefined);
+  const state=await (await fetch(url+'/api/quick/state',{headers:{Authorization:'Bearer '+a.token,Cookie:cookie}})).json();assert.equal(state.status,'queued');assert.equal(state.token,undefined);
  }finally{await new Promise(r=>server.close(r));}
 });
 
@@ -58,12 +59,14 @@ test('manual picks always receive 20 seconds next round regardless of unused tim
 });
 test('two clients share one match and can resume without resetting a running clock',async()=>{
  const {q,advance}=setup(),server=createApp({service:q});await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port+'/';
- const state=[null,null],clients=[0,1].map(i=>new QuickClient({onState:s=>state[i]=s,pollMs:1e9,fetcher:(path,opts)=>fetch(new URL(path,url),opts)}));
+ const cookies=await Promise.all([0,1].map(async()=>{const res=await fetch(url+'api/guest',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});return res.headers.get('set-cookie').split(';')[0];}));
+ const fetchFor=i=>(path,opts)=>fetch(new URL(path,url),{...opts,headers:{...opts.headers,Cookie:cookies[i]}});
+ const state=[null,null],clients=[0,1].map(i=>new QuickClient({onState:s=>state[i]=s,pollMs:1e9,fetcher:fetchFor(i)}));
  try{
   await clients[0].start('rogue');advance(60000);await clients[1].start('ranged');advance(60000);
   await clients[0].poll();await clients[1].poll();assert.deepEqual(state[0].humans,[true,true,false,false]);assert.equal(state[0].seat,0);assert.equal(state[1].seat,1);assert.equal(state[0].match.seed,state[1].match.seed);
   advance(2000);const token=clients[0].token;clients[0].stop(false);
-  const resumed=new QuickClient({onState:s=>state[0]=s,pollMs:1e9,fetcher:(path,opts)=>fetch(new URL(path,url),opts)});clients[0]=resumed;await resumed.resume(token);assert.equal(state[0].clocks[0],18000);
+  const resumed=new QuickClient({onState:s=>state[0]=s,pollMs:1e9,fetcher:fetchFor(0)});clients[0]=resumed;await resumed.resume(token);assert.equal(state[0].clocks[0],18000);
   assert.ok(await resumed.pick(state[0].match.draft.pool[0].uid,0,0));await clients[1].poll();assert.equal(state[1].turn,1);assert.ok(await clients[1].pick(state[1].match.draft.pool[0].uid,0,0));await resumed.poll();assert.equal(state[0].phase,'combat');assert.equal(state[1].phase,'combat');assert.deepEqual(state[0].match.draft.picks,state[1].match.draft.picks);
   advance(state[0].deadline-state[0].serverNow);await resumed.poll();await clients[1].poll();assert.deepEqual(state[0].result,state[1].result);assert.equal(state[0].clocks[0],20000);
  }finally{clients.forEach(c=>c.stop(false));await new Promise(r=>server.close(r));}

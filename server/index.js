@@ -4,6 +4,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {resolve,sep,extname} from 'node:path';
 import {createQuickPlay,QuickError} from './quick-play.js';
 import {createPlaytestSink} from './playtest.js';
+import {createGuests} from './guest.js';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8'};
 const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'};
@@ -14,21 +15,29 @@ async function body(req){
  for await(const chunk of req){n+=chunk.length;if(n>2048)throw new QuickError(413,'Request too large');parts.push(chunk);}
  try{const value=JSON.parse(Buffer.concat(parts).toString('utf8'));if(!value||typeof value!=='object'||Array.isArray(value))throw Error();return value;}catch{throw new QuickError(400,'Invalid JSON');}
 }
-export function createApp({service=createQuickPlay(),pulseMs=100,playtest=createPlaytestSink()}={}){
+export function createApp({service=createQuickPlay(),pulseMs=100,playtest=createPlaytestSink(),guests=createGuests()}={}){
  const server=createServer(async(req,res)=>{
   try{
    const url=new URL(req.url,'http://localhost'),path=url.pathname;
-   if(path==='/api/playtest'&&req.method==='POST'){
+   if(path==='/api/guest'&&req.method==='POST'){
     if(req.headers['sec-fetch-site']==='cross-site')throw new QuickError(403,'Cross-site request rejected');
-    const status=playtest(await body(req));return json(res,status,{ok:status===200});
+    await body(req);
+    const {profile,cookie}=guests.issue(guests.read(req.headers.cookie));
+    res.setHeader('Set-Cookie',cookie);return json(res,200,{name:profile.name});
+   }
+   if((path==='/api/playtest'||path==='/api/playtest/guest')&&req.method==='POST'){
+    if(req.headers['sec-fetch-site']==='cross-site')throw new QuickError(403,'Cross-site request rejected');
+    const status=playtest(await body(req),path==='/api/playtest/guest'?guests.read(req.headers.cookie)?.analyticsId:undefined);return json(res,status,{ok:status===200});
    }
    if(path.startsWith('/api/quick/')){
     if(req.headers['sec-fetch-site']==='cross-site')throw new QuickError(403,'Cross-site request rejected');
+    const guest=guests.read(req.headers.cookie);
+    if(!guest)throw new QuickError(401,'Guest profile required. Reload the game and allow first-party cookies.');
     const auth=req.headers.authorization||'',id=auth.startsWith('Bearer ')?auth.slice(7):'';
-    if(path==='/api/quick/join'&&req.method==='POST')return json(res,200,service.join((await body(req)).type));
-    if(path==='/api/quick/state'&&req.method==='GET')return json(res,200,service.get(id,url.searchParams.has('revision')?Number(url.searchParams.get('revision')):undefined));
-    if(path==='/api/quick/pick'&&req.method==='POST')return json(res,200,service.pick(id,await body(req)));
-    if(path==='/api/quick/leave'&&req.method==='POST')return json(res,200,service.leave(id));
+    if(path==='/api/quick/join'&&req.method==='POST')return json(res,200,service.join((await body(req)).type,guest));
+    if(path==='/api/quick/state'&&req.method==='GET')return json(res,200,service.get(id,url.searchParams.has('revision')?Number(url.searchParams.get('revision')):undefined,guest.id));
+    if(path==='/api/quick/pick'&&req.method==='POST')return json(res,200,service.pick(id,await body(req),guest.id));
+    if(path==='/api/quick/leave'&&req.method==='POST')return json(res,200,service.leave(id,guest.id));
     return json(res,404,{error:'Unknown endpoint'});
    }
    if(path==='/health'&&req.method==='GET')return json(res,200,{ok:true});
@@ -44,4 +53,4 @@ export function createApp({service=createQuickPlay(),pulseMs=100,playtest=create
  server.requestTimeout=10000;server.headersTimeout=10000;
  return server;
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){const port=Number(process.env.PORT||3000);createApp().listen(port,'0.0.0.0',()=>console.log('Quick Play listening on '+port));}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){if(process.env.RAILWAY_ENVIRONMENT_ID&&!process.env.GUEST_SIGNING_KEY)throw Error('Configure GUEST_SIGNING_KEY before starting Railway');const port=Number(process.env.PORT||3000);createApp().listen(port,'0.0.0.0',()=>console.log('Quick Play listening on '+port));}

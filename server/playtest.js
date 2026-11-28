@@ -1,5 +1,5 @@
 // Strictly bounded, optional first-party telemetry. Logs contain no IP, UA,
-// account, match token, seed, actions or persistent client identifier.
+// account credential, match token, seed or actions. Opted-in events may include a scoped guest pseudonym.
 const keys=['id','seq','seconds','soloSeconds','quickSeconds','starts','finishes','exits'];
 export function validPlaytest(v){
  if(Object.keys(v).length!==keys.length||!keys.every(k=>Object.hasOwn(v,k)))return false;
@@ -9,10 +9,10 @@ export function validPlaytest(v){
 }
 export function createPlaytestSink({write=entry=>console.log(JSON.stringify(entry)),now=Date.now}={}){
  let start=now(),count=0;
- return v=>{
+ return (v,guestAnalyticsId)=>{
   if(!validPlaytest(v))return 400;
   const t=now();if(t-start>=60000){start=t;count=0;}
   if(count>=600)return 429;
-  count++;write({event:'playtest_session_v1',...Object.fromEntries(keys.map(k=>[k,v[k]]))});return 200;
+  count++;write({event:guestAnalyticsId?'playtest_session_v2':'playtest_session_v1',...(guestAnalyticsId?{guest:guestAnalyticsId}:{}),...Object.fromEntries(keys.map(k=>[k,v[k]]))});return 200;
  };
 }

@@ -15,7 +15,7 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
  const sessions=new Map(),games=new Map(),queue=[];
  let queueDeadline=null;
  function removeQueued(s){const i=queue.indexOf(s);if(i>=0)queue.splice(i,1);if(!queue.length)queueDeadline=null;}
- function authenticate(id){const s=sessions.get(id);if(!s||s.left)fail(401,'Session expired');return s;}
+ function authenticate(id,guestId){const s=sessions.get(id);if(!s||s.left||s.guestId!==guestId)fail(401,'Session expired');return s;}
  function activeSeat(g){return g.match.phase==='draft'?g.match.draft.order[g.match.draft.turn]:null;}
  function allowance(g,seat){return Math.max(rules.minTurnMs,rules.initialMs-g.missed[seat]*rules.missPenaltyMs);}
  function botPick(g,seat,t){
@@ -49,7 +49,7 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
   const id=makeToken(),s=makeSeed()>>>0,random=rng(s),types=group.map(p=>p.type);
   while(types.length<4)types.push(Object.keys(CHASSIS)[Math.floor(random()*3)]);
   const m=createMatch(types,s),humans=Array.from({length:4},(_,i)=>group[i]||null);
-  m.players.forEach((p,i)=>{p.name=humans[i]?'Player '+(i+1):'Bot '+(i+1);});
+  m.players.forEach((p,i)=>{p.name=humans[i]?(humans[i].guestName||'Player '+(i+1)):'Bot '+(i+1);});
   const g={id,match:m,humans,types,missed:humans.map(()=>0),phase:'draft',revision:1,turnStart:null,deadline:null,startedAt:null,replay:null,battle:null,completedDraft:null,result:null,finishedAt:null};
   games.set(id,g);
   group.forEach((p,i)=>{p.game=id;p.seat=i;});
@@ -86,17 +86,18 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
   if(revision!==g.revision)Object.assign(out,{match:g.phase==='combat'?copy(g.replay):publicMatch(g.match),types:[...g.types],completedDraft:copy(g.completedDraft),result:copy(g.result)});
   return out;
  }
- function join(type){
+ function join(type,guest){
   if(!Object.hasOwn(CHASSIS,type))fail(400,'Unknown starting chassis');
   pump();
+  if(guest&&[...sessions.values()].some(s=>s.guestId===guest.id&&!s.left&&(!s.game||games.get(s.game)?.phase!=='finished')))fail(409,'This guest is already queued or playing. Return to your original tab.');
   if(sessions.size>=rules.maxSessions||games.size>=rules.maxMatches)fail(503,'Quick Play is busy');
-  const t=now(),id=makeToken(),s={id,type,joined:t,lastSeen:t,game:null,seat:null,left:false};
+  const t=now(),id=makeToken(),s={id,type,guestId:guest?.id,guestName:guest?.name,joined:t,lastSeen:t,game:null,seat:null,left:false};
   sessions.set(id,s);if(!queue.length)queueDeadline=t+rules.queueMs;queue.push(s);pump();
   return {token:id,...state(s)};
  }
- function get(id,revision){const s=authenticate(id);s.lastSeen=now();pump();if(!sessions.has(id))fail(401,'Session expired');return state(s,revision);}
- function pick(id,input){
-  const s=authenticate(id);s.lastSeen=now();pump();
+ function get(id,revision,guestId){const s=authenticate(id,guestId);s.lastSeen=now();pump();if(!sessions.has(id))fail(401,'Session expired');return state(s,revision);}
+ function pick(id,input,guestId){
+  const s=authenticate(id,guestId);s.lastSeen=now();pump();
   const g=games.get(s.game),t=now();
   if(!g||g.phase!=='draft'||activeSeat(g)!==s.seat)fail(409,'Not your draft turn');
   if(input.revision!==g.revision)fail(409,'Draft changed');
@@ -110,6 +111,6 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
   g.missed[s.seat]=0;g.turnStart=null;g.revision++;advanceDraft(g,t);
   return state(s);
  }
- function leave(id){const s=authenticate(id);s.left=true;removeQueued(s);sessions.delete(id);pump();return {status:'left'};}
+ function leave(id,guestId){const s=authenticate(id,guestId);s.left=true;removeQueued(s);sessions.delete(id);pump();return {status:'left'};}
  return {join,get,pick,leave,pump,counts:()=>({queued:queue.length,matches:games.size,sessions:sessions.size})};
 }
