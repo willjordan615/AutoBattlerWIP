@@ -1,12 +1,15 @@
 // Client presentation only; no simulation imports or engine RNG.
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-export const MAX_VOICES=4;
+export const MAX_VOICES=6;
+export const MAX_COMBAT_BURST=3;
+const BURST_WINDOW=.25;
 export const CUES=Object.freeze({
- heavy:['attack',2,.72],light:['attack',2,.65],pluck:['attack',2,.7],
- impact:['impact',1,.48],guard:['defense',4,.63],utility:['utility',3,.55],
- click:['ui',1,.6],confirm:['ui',3,.65],start:['transition',5,.65],finish:['transition',5,.55]
+ heavy:['attack',2,.65],light:['attack',2,.60],pluck:['attack',2,.62],
+ impact:['impact',1,.40],guard:['defense',4,.56],utility:['utility',3,.48],
+ click:['ui',1,.52],confirm:['ui',3,.58],start:['transition',5,.50],finish:['transition',5,.50]
 });
-const GAP={attack:.23,impact:.28,defense:.32,utility:.4,ui:.12,transition:.6};
+const GAP={attack:.15,impact:.18,defense:.23,utility:.30,ui:.12,transition:.6};
+const clipLength=group=>group==='transition'?.65:group==='ui'?.28:.40;
 export function classifyAudioEvent(e){
  if(e.kind==='attackCommit')return {bruiser:'heavy',rogue:'light',ranged:'pluck'}[e.type]||null;
  if(e.kind==='impact'||e.kind==='damage')return 'impact';
@@ -26,12 +29,14 @@ export function selectAudioEvents(events){
 }
 export function createAudioManager({createContext=()=>{const C=globalThis.AudioContext||globalThis.webkitAudioContext;return C?new C():null;},fetchAsset=url=>fetch(url),makeMedia=url=>typeof Audio==='function'?new Audio(url):null,random=Math.random,onStatus=()=>{}}={}){
  let ctx=null,master=null,combat=null,ui=null,hidden=false,unsupported=false,loading=null,backend='web',loadFailed=false;
- const assetUrl=name=>new URL('../assets/audio/'+name+'.ogg',import.meta.url).href;
+ const assetUrl=name=>new URL('../assets/audio/'+name+(name==='pluck'?'.wav':'.ogg'),import.meta.url).href;
  const media=new Map();let previewMedia=null;
  const status=(message)=>{try{onStatus(message);}catch{}};
  const enabled=()=>prefs.soundEnabled&&!hidden&&!!(prefs.combatVolume||prefs.interfaceVolume);
  let prefs={soundEnabled:true,combatVolume:30,interfaceVolume:25};
- const buffers=new Map(),voices=new Set(),lastGroup=new Map();let lastCombat=-Infinity;
+ const buffers=new Map(),voices=new Set(),lastGroup=new Map();
+ const bursts={web:[],media:[]};
+ function canStartCombat(kind,now){const times=bursts[kind];while(times.length&&now-times[0]>=BURST_WINDOW)times.shift();return times.length<MAX_COMBAT_BURST;}
  function stop(channel){
   for(const v of [...voices])if(!channel||v.channel===channel){try{v.stop?v.stop():v.source.stop();}catch{}voices.delete(v);}
   if(!channel||channel==='ui'){try{previewMedia?.pause();}catch{}previewMedia=null;}
@@ -89,7 +94,7 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
   if(!enabled()||!Object.hasOwn(CUES,name)||mediaVolume(name)===0)return false;
   const [group,priority]=CUES[name],channel=group==='ui'||group==='transition'?'ui':'combat';
   const now=(globalThis.performance?.now?.()??Date.now())/1000;
-  if(!preview&&(now-(lastGroup.get('media-'+group)??-Infinity)<GAP[group]||channel==='combat'&&now-lastCombat<.16))return false;
+  if(!preview&&(now-(lastGroup.get('media-'+group)??-Infinity)<GAP[group]||channel==='combat'&&!canStartCombat('media',now)))return false;
   if(voices.size>=MAX_VOICES){
    const low=[...voices].sort((a,b)=>a.priority-b.priority)[0];if(!preview&&low.priority>=priority)return false;
    try{low.stop?low.stop():low.source.stop();}catch{}voices.delete(low);
@@ -99,7 +104,7 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
    let element=media.get(name);
    if(!element){element=makeMedia(assetUrl(name));if(!element)return false;element.preload='auto';media.set(name,element);}
    if([...voices].some(v=>v.element===element)){if(!preview)return false;for(const v of [...voices])if(v.element===element)v.stop();}
-   element.volume=mediaVolume(name);element.playbackRate=.94+random()*.12;element.currentTime=0;
+   element.volume=mediaVolume(name);element.playbackRate=.97+random()*.06;element.currentTime=0;
    let timer=null;
    const voice={element,name,channel,priority,stop:()=>{clearTimeout(timer);element.pause();voices.delete(voice);if(previewMedia===element)previewMedia=null;}};
    element.onended=()=>voice.stop();
@@ -108,10 +113,10 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
    // play() must be invoked before yielding to preserve mobile user activation.
    Promise.resolve(element.play()).then(()=>{
     if(!voices.has(voice))return;
-    timer=setTimeout(()=>voice.stop(),group==='transition'?650:280);
+    timer=setTimeout(()=>voice.stop(),clipLength(group)*1000);
     if(preview)status('Preview playing · native audio.');
    }).catch(()=>{voice.stop();if(preview){if(ctx)backend='web';status('Browser blocked audio or could not decode this clip. Tap Preview again.');}});
-   lastGroup.set('media-'+group,now);if(channel==='combat')lastCombat=now;return true;
+   lastGroup.set('media-'+group,now);if(channel==='combat')bursts.media.push(now);return true;
   }catch{if(preview)status('Native audio is unavailable in this browser.');return false;}
  }
  function play(name,x=360){
@@ -122,15 +127,15 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
   if(!(channel==='ui'?prefs.interfaceVolume:prefs.combatVolume))return false;
   const now=ctx.currentTime;
   if(now-(lastGroup.get(group)??-Infinity)<GAP[group])return false;
-  if(channel==='combat'&&now-lastCombat<.16)return false;
+  if(channel==='combat'&&!canStartCombat('web',now))return false;
   if(voices.size>=MAX_VOICES){
    const low=[...voices].sort((a,b)=>a.priority-b.priority)[0];if(low.priority>=priority)return false;
    try{low.stop?low.stop():low.source.stop();}catch{}voices.delete(low);
   }
   try{
    const source=ctx.createBufferSource();source.buffer=buffers.get(name);
-   source.playbackRate.value=.94+random()*.12;
-   const gain=ctx.createGain(),length=Math.min(source.buffer.duration/source.playbackRate.value,group==='transition'?.65:.28);
+   source.playbackRate.value=.97+random()*.06;
+   const gain=ctx.createGain(),length=Math.min(source.buffer.duration/source.playbackRate.value,clipLength(group));
    gain.gain.setValueAtTime(level,now);gain.gain.setValueAtTime(level,now+Math.max(0,length-.025));gain.gain.linearRampToValueAtTime(0,now+length);
    source.connect(gain);const target=channel==='ui'?ui:combat;
    const pan=channel==='combat'&&ctx.createStereoPanner?ctx.createStereoPanner():null;
@@ -138,10 +143,10 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
    const voice={source,priority,channel};voices.add(voice);
    source.onended=()=>{voices.delete(voice);source.disconnect();gain.disconnect();pan?.disconnect();};
    try{source.start(now);source.stop(now+length);}catch(e){voices.delete(voice);source.disconnect();gain.disconnect();pan?.disconnect();throw e;}
-   lastGroup.set(group,now);if(channel==='combat')lastCombat=now;return true;
+   lastGroup.set(group,now);if(channel==='combat')bursts.web.push(now);return true;
   }catch{return false;}
  }
- function events(list){for(const e of selectAudioEvents(list))if(play(e.cue,e.x))break;}
+ function events(list){let count=0;for(const e of selectAudioEvents(list)){if(play(e.cue,e.x)&&++count>=2)break;}}
  function visibility(value){
   hidden=!!value;levels();
   if(hidden){stop();ctx?.suspend().catch(()=>{});}
