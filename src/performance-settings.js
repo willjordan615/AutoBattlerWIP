@@ -8,7 +8,7 @@ export const PRESETS=Object.freeze({
 const volume=(v,fallback)=>typeof v==='number'&&Number.isFinite(v)?Math.min(100,Math.max(0,Math.round(v))):fallback;
 export function normalizeSettings(v){
  const preset=Object.hasOwn(PRESETS,v?.preset)?v.preset:'balanced';
- return {preset,soundEnabled:typeof v?.soundEnabled==='boolean'?v.soundEnabled:true,combatVolume:volume(v?.combatVolume,30),interfaceVolume:volume(v?.interfaceVolume,25),theme:v?.theme==='classic'?'classic':'standees',keepAwake:typeof v?.keepAwake==='boolean'?v.keepAwake:true,reducedMotion:typeof v?.reducedMotion==='boolean'?v.reducedMotion:!!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches};
+ return {preset,soundEnabled:typeof v?.soundEnabled==='boolean'?v.soundEnabled:true,musicEnabled:typeof v?.musicEnabled==='boolean'?v.musicEnabled:true,musicVolume:volume(v?.musicVolume,12),combatVolume:volume(v?.combatVolume,30),interfaceVolume:volume(v?.interfaceVolume,25),theme:v?.theme==='classic'?'classic':'standees',keepAwake:typeof v?.keepAwake==='boolean'?v.keepAwake:true,reducedMotion:typeof v?.reducedMotion==='boolean'?v.reducedMotion:!!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches};
 }
 export function loadSettings(){try{return normalizeSettings(JSON.parse(localStorage.getItem(KEY)||'null'));}catch{return normalizeSettings(null);}}
 export function saveSettings(v){const clean=normalizeSettings(v);try{localStorage.setItem(KEY,JSON.stringify(clean));}catch{}return clean;}
