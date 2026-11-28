@@ -24,7 +24,7 @@ test('browser adapter shares headless draft and combat lifecycle',async()=>{
  const $=id=>document.getElementById(id);
  assert.equal($('phaseTitle').textContent,'Play');
  assert.equal($('layout')['data-phase'],'mode');
- const menu=$('choices').children;assert.deepEqual(menu.map(b=>b.children[0].textContent),['Solo','Quick Play','Ranked','Options']);assert.deepEqual(menu.map(b=>b.disabled),[false,false,true,true]);assert.equal(menu[2].onclick,null);assert.equal(menu[3].onclick,null);
+ const menu=$('choices').children;assert.deepEqual(menu.map(b=>b.children[0].textContent),['Solo','Quick Play','Ranked','Options']);assert.deepEqual(menu.map(b=>b.disabled),[false,false,true,false]);assert.equal(menu[2].onclick,null);menu[3].onclick();assert.equal($('layout')['data-phase'],'options');$('restart').onclick();assert.equal($('layout')['data-phase'],'mode');
  menu[1].onclick();assert.equal($('layout')['data-phase'],'start');assert.match($('phaseInfo').textContent,/Quick Play/);$('restart').onclick();assert.equal($('layout')['data-phase'],'mode');
  $('choices').children[0].onclick();
  assert.equal($('phaseTitle').textContent,'Choose your starting chassis');
