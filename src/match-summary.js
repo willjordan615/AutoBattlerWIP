@@ -24,7 +24,7 @@ export function summarizeMatch(match,seat){
   squad,totals:Object.fromEntries(fields.map(k=>[k,squad.reduce((sum,f)=>sum+f[k],0)])),
   moduleDamage:[...modules].filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1])};
 }
-export function renderMatchSummary({headline,results,summary,match,seat,colors,chassis,onMenu}){
+export function renderMatchSummary({headline,results,summary,match,seat,colors,chassis,onMenu,onReplay}){
  const report=summarizeMatch(match,seat),fmt=n=>Math.round(n*10)/10;
  const el=(tag,value,cls)=>{const n=document.createElement(tag);n.textContent=value;if(cls)n.className=cls;return n;};
  const ordinal=['','1st','2nd','3rd','4th'];
@@ -54,5 +54,8 @@ export function renderMatchSummary({headline,results,summary,match,seat,colors,c
   }
   summary.append(el('small','Only directly attributed bonus damage is shown. Utility and delivery effects are not ranked by damage.','muted'));
  }
- const menu=el('button','Return to menu');menu.onclick=onMenu;summary.append(menu);
+ const actions=el('div','','match-actions');
+ const menu=el('button','Return to Menu','secondary');menu.onclick=onMenu;
+ const replay=el('button','Play Again','secondary');replay.onclick=onReplay;
+ actions.append(menu,replay);summary.append(actions);
 }
