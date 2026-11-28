@@ -1,9 +1,10 @@
 import {DatabaseSync} from 'node:sqlite';
+import {openAccounts} from './accounts.js';
 import {summarizeMatch} from '../src/match-summary.js';
 export function openHistory(path=':memory:',{now=Date.now}={}){
  const db=new DatabaseSync(path);
  const version=db.prepare('PRAGMA user_version').get().user_version;
- if(version>1){db.close();throw Error('Unsupported history schema version');}
+ if(version>2){db.close();throw Error('Unsupported history schema version');}
  db.exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=3000;
  CREATE TABLE IF NOT EXISTS guest_history_profiles (
   guest_id TEXT PRIMARY KEY, opted_at INTEGER NOT NULL,
@@ -18,7 +19,9 @@ export function openHistory(path=':memory:',{now=Date.now}={}){
   PRIMARY KEY(guest_id,match_id)
  );
  CREATE INDEX IF NOT EXISTS guest_history_recent ON guest_match_history(guest_id,completed_at DESC,match_id DESC);
- PRAGMA user_version=1;`);
+`);
+ const accounts=openAccounts(db,{now});
+ db.exec('PRAGMA user_version=2');
  const get=db.prepare('SELECT opted_at,matches,wins,rounds FROM guest_history_profiles WHERE guest_id=?');
  const list=db.prepare('SELECT completed_at,placement,rounds,round_wins,damage,prevented FROM guest_match_history WHERE guest_id=? ORDER BY completed_at DESC,match_id DESC LIMIT 100');
  const addProfile=db.prepare('INSERT OR IGNORE INTO guest_history_profiles(guest_id,opted_at) VALUES(?,?)');
@@ -40,5 +43,5 @@ export function openHistory(path=':memory:',{now=Date.now}={}){
    db.exec('COMMIT');return !!changed;
   }catch(e){db.exec('ROLLBACK');throw e;}
  }
- return {read,set,record,close:()=>db.close()};
+ return {read,set,record,accounts,close:()=>db.close()};
 }

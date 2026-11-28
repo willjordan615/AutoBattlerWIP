@@ -17,6 +17,7 @@ export function createPlayAnalytics({now=()=>performance.now(),visible=()=>!docu
    mode=nextMode;active=playing&&matchActive;shown=visible();
    if(changed)flush();
   },
+  resetIdentity(){id=null;active=false;matchActive=false;mode=null;seconds=soloSeconds=quickSeconds=starts=finishes=exits=seq=0;lastSnapshot='';last=now();},
   visibility(){accrue();shown=visible();if(!shown)flush();},
   flush
  };

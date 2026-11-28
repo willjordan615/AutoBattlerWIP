@@ -86,10 +86,11 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
   if(revision!==g.revision)Object.assign(out,{match:g.phase==='combat'?copy(g.replay):publicMatch(g.match),types:[...g.types],completedDraft:copy(g.completedDraft),result:copy(g.result)});
   return out;
  }
+ function hasActiveGuest(id){return [...sessions.values()].some(s=>s.guestId===id&&!s.left&&(!s.game||games.get(s.game)?.phase!=='finished'));}
  function join(type,guest){
   if(!Object.hasOwn(CHASSIS,type))fail(400,'Unknown starting chassis');
   pump();
-  if(guest&&[...sessions.values()].some(s=>s.guestId===guest.id&&!s.left&&(!s.game||games.get(s.game)?.phase!=='finished')))fail(409,'This guest is already queued or playing. Return to your original tab.');
+  if(guest&&hasActiveGuest(guest.id))fail(409,'This guest is already queued or playing. Return to your original tab.');
   if(sessions.size>=rules.maxSessions||games.size>=rules.maxMatches)fail(503,'Quick Play is busy');
   const t=now(),id=makeToken(),s={id,type,guestId:guest?.id,guestName:guest?.name,joined:t,lastSeen:t,game:null,seat:null,left:false};
   sessions.set(id,s);if(!queue.length)queueDeadline=t+rules.queueMs;queue.push(s);pump();
@@ -112,5 +113,5 @@ export function createQuickPlay({now=Date.now,makeSeed=seed,makeToken=token,rule
   return state(s);
  }
  function leave(id,guestId){const s=authenticate(id,guestId);s.left=true;removeQueued(s);sessions.delete(id);pump();return {status:'left'};}
- return {join,get,pick,leave,pump,counts:()=>({queued:queue.length,matches:games.size,sessions:sessions.size})};
+ return {join,get,pick,leave,pump,hasActiveGuest,counts:()=>({queued:queue.length,matches:games.size,sessions:sessions.size})};
 }

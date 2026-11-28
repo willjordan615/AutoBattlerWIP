@@ -25,5 +25,5 @@ export function createGuests({key=process.env.GUEST_SIGNING_KEY||randomBytes(32)
   const cookie=COOKIE+'='+payload+'.'+mac('cookie',payload)+'; Path=/; HttpOnly; SameSite=Lax; Max-Age='+TTL+(secure?'; Secure':'');
   return {profile,cookie};
  }
- return {read,issue};
+ return {read,issue,describe};
 }

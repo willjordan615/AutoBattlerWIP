@@ -1,5 +1,6 @@
 // The credential is HttpOnly; browser JavaScript receives only the public nickname.
 let pending;
+export function invalidateGuest(){pending=null;}
 export function loadGuest(){
  if(!pending){
   const request=async()=>{
