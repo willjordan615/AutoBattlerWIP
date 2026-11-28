@@ -1,4 +1,4 @@
-import {PRESETS,loadSettings,saveSettings} from './performance-settings.js?v=2026-11-28-wakelock-391';
+import {PRESETS,loadSettings,saveSettings} from './performance-settings.js?v=2026-11-28-options-392';
 export function createSettingsUI({onChange}={}){
  let settings=loadSettings(),recommended=null;
  const $=id=>document.getElementById(id);
