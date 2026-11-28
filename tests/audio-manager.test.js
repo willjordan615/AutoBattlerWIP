@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {CUES,MAX_VOICES,selectAudioEvents,classifyAudioEvent,createAudioManager} from '../src/audio-manager.js';
 import {normalizeSettings} from '../src/performance-settings.js';
 test('audio defaults quiet and saved preferences validate',()=>{const p=normalizeSettings(null);assert.equal(p.combatVolume,30);assert.equal(p.interfaceVolume,25);assert.equal(normalizeSettings({soundEnabled:false,combatVolume:300}).combatVolume,100);assert.equal(normalizeSettings({soundEnabled:false}).soundEnabled,false);});
-test('cue files bundled; no routine DOT or wall noise; priority coalesces attacks',()=>{for(const name of Object.keys(CUES))assert.equal(readFileSync(new URL('../assets/audio/'+name+(name==='pluck'?'.wav':'.ogg'),import.meta.url)).subarray(0,4).toString(),name==='pluck'?'RIFF':'OggS');assert.equal(classifyAudioEvent({kind:'dotDamage'}),null);assert.equal(classifyAudioEvent({kind:'wallImpact'}),null);assert.deepEqual(selectAudioEvents([{kind:'attackCommit',type:'rogue'},{kind:'attackCommit',type:'bruiser'},{kind:'reaction',ability:'bulwark'}]).map(x=>x.cue),['guard','light']);assert.equal(MAX_VOICES,6);});
+test('cue files bundled; no routine DOT or wall noise; priority coalesces attacks',()=>{for(const name of Object.keys(CUES))assert.equal(readFileSync(new URL('../assets/audio/'+name+'.wav',import.meta.url)).subarray(0,4).toString(),'RIFF');assert.equal(classifyAudioEvent({kind:'dotDamage'}),null);assert.equal(classifyAudioEvent({kind:'wallImpact'}),null);assert.deepEqual(selectAudioEvents([{kind:'attackRelease',type:'rogue'},{kind:'attackRelease',type:'bruiser'},{kind:'reaction',ability:'bulwark'}]).map(x=>x.cue),['guard','light']);assert.equal(MAX_VOICES,6);});
 test('unsupported audio is harmless',async()=>{const a=createAudioManager({createContext:()=>null});await a.unlock();assert.equal(a.play('click'),false);a.visibility(true);assert.equal(a.voiceCount,0);});
 test('quiet mixer limits voices, suppresses repeats and background audio',async()=>{
  const param=()=>({value:0,setTargetAtTime(){},setValueAtTime(){},linearRampToValueAtTime(){}});
@@ -25,4 +25,12 @@ test('resume is attempted again on later activation even if earlier resume hangs
  const ctx={state:'suspended',currentTime:0,destination:{},createGain(){return {gain:param(),connect(){}}},resume(){attempts++;if(attempts===1)return new Promise(()=>{});this.state='running';return Promise.resolve();}};
  const a=createAudioManager({createContext:()=>ctx,fetchAsset:async()=>({ok:false})});
  const first=a.unlock();assert.equal(await a.unlock(),true);assert.equal(attempts,2);await first;
+});
+
+test('Hazardous ranged release selects one distinct sound without extra voice',()=>{
+ const e={kind:'attackRelease',type:'ranged',modifiers:{hazardous:true}};
+ assert.equal(classifyAudioEvent(e),'hazard');
+ assert.equal(classifyAudioEvent({...e,modifiers:{hazardous:false}}),'pluck');
+ assert.equal(classifyAudioEvent({...e,kind:'attackCommit'}),null);
+ assert.deepEqual(selectAudioEvents([{kind:'attackRelease',type:'ranged'},e]).map(x=>x.cue),['hazard']);
 });

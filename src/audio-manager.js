@@ -4,14 +4,14 @@ export const MAX_VOICES=6;
 export const MAX_COMBAT_BURST=3;
 const BURST_WINDOW=.25;
 export const CUES=Object.freeze({
- heavy:['attack',2,.65],light:['attack',2,.60],pluck:['attack',2,.62],
+ heavy:['attack',2,.65],light:['attack',2,.60],pluck:['attack',2,.62],hazard:['attack',3,.60],
  impact:['impact',1,.40],guard:['defense',4,.56],utility:['utility',3,.48],
  click:['ui',1,.52],confirm:['ui',3,.58],start:['transition',5,.50],finish:['transition',5,.50]
 });
 const GAP={attack:.15,impact:.18,defense:.23,utility:.30,ui:.12,transition:.6};
 const clipLength=group=>group==='transition'?.65:group==='ui'?.28:.40;
 export function classifyAudioEvent(e){
- if(e.kind==='attackCommit')return {bruiser:'heavy',rogue:'light',ranged:'pluck'}[e.type]||null;
+ if(e.kind==='attackRelease')return e.type==='ranged'&&e.modifiers?.hazardous?'hazard':({bruiser:'heavy',rogue:'light',ranged:'pluck'}[e.type]||null);
  if(e.kind==='impact'||e.kind==='damage')return 'impact';
  if(e.kind==='reaction')return ['bulwark','guard','block','resolve'].includes(e.ability)?'guard':'utility';
  if(e.kind==='mobility')return e.ability==='dodge'?'light':'utility';
@@ -29,7 +29,7 @@ export function selectAudioEvents(events){
 }
 export function createAudioManager({createContext=()=>{const C=globalThis.AudioContext||globalThis.webkitAudioContext;return C?new C():null;},fetchAsset=url=>fetch(url),makeMedia=url=>typeof Audio==='function'?new Audio(url):null,random=Math.random,onStatus=()=>{}}={}){
  let ctx=null,master=null,combat=null,ui=null,hidden=false,unsupported=false,loading=null,backend='web',loadFailed=false;
- const assetUrl=name=>new URL('../assets/audio/'+name+(name==='pluck'?'.wav':'.ogg'),import.meta.url).href;
+ const assetUrl=name=>new URL('../assets/audio/'+name+'.wav?v=2026-11-28-audio-413',import.meta.url).href;
  const media=new Map();let previewMedia=null;
  const status=(message)=>{try{onStatus(message);}catch{}};
  const enabled=()=>prefs.soundEnabled&&!hidden&&!!(prefs.combatVolume||prefs.interfaceVolume);
@@ -152,17 +152,19 @@ export function createAudioManager({createContext=()=>{const C=globalThis.AudioC
   if(hidden){stop();ctx?.suspend().catch(()=>{});}
   else if(ctx&&prefs.soundEnabled&&(prefs.combatVolume||prefs.interfaceVolume))unlock();
  }
- async function preview(){
-  if(!enabled()||!prefs.interfaceVolume){status('Enable sound and raise interface volume first.');return false;}
+ async function preview(name='confirm'){
+  if(!Object.hasOwn(CUES,name))return false;
+  const group=CUES[name][0],volume=group==='ui'||group==='transition'?prefs.interfaceVolume:prefs.combatVolume;
+  if(!enabled()||!volume){status('Enable sound and raise the selected volume first.');return false;}
   // Already-unlocked Web Audio can play immediately. Otherwise start native
   // playback directly in this click, then retain it as the fallback backend.
-  if(backend==='web'&&ctx?.state==='running'&&buffers.has('confirm')){
-   lastGroup.delete('ui');const ok=play('confirm');status(ok?'Preview playing · Web Audio.':'Preview is busy. Tap again.');return ok;
+  if(backend==='web'&&ctx?.state==='running'&&buffers.has(name)){
+   lastGroup.delete(group);const ok=play(name);status(ok?'Preview playing · Web Audio.':'Preview is busy. Tap again.');return ok;
   }
   status('Starting audio preview…');
-  const direct=nativePlay('confirm',{preview:true});
+  const direct=nativePlay(name,{preview:true});
   if(direct){backend='media';ctx?.suspend().catch(()=>{});return true;}
-  if(await unlock()){await loading;const ok=play('confirm');status(ok?'Preview playing · Web Audio.':'Audio unavailable: clips could not be loaded.');return ok;}
+  if(await unlock()){await loading;lastGroup.delete(group);const ok=play(name);status(ok?'Preview playing · Web Audio.':'Audio unavailable: clips could not be loaded.');return ok;}
   status('Audio unavailable: browser did not unlock playback.');return false;
  }
  return {configure,unlock,play,events,visibility,stop,preview,get voiceCount(){return voices.size;}};

@@ -55,6 +55,8 @@ export function advanceAttack(state,u,target,st,dt,attacks){
   attack.phase='recovery';attack.elapsed=0;
   if(u.chassis.mods.velocity){measure(state,u,'velocity','releases');measure(state,u,'velocity','nominalWindupSecondsSaved',profile.windup*timing-attackWindup(u));}
   u.combatStats&&(u.combatStats.attacks++);
+  // Semantic presentation event only; no change to simulation timing or RNG.
+  state.visualEvents.push({kind:'attackRelease',sourceId:u.id,type:u.type,x:u.x,y:u.y,owner:u.owner,modifiers:{hazardous:!!u.chassis.mods.hazardous}});
   // Only enemies inside the locked attack shape at release can be hit.
   const attackId=state.nextAttackId++;
   if(st.delivery==='projectile'){

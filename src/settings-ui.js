@@ -1,9 +1,9 @@
-import {PRESETS,loadSettings,saveSettings} from './performance-settings.js?v=2026-11-28-audio-412';
+import {PRESETS,loadSettings,saveSettings} from './performance-settings.js?v=2026-11-28-audio-413';
 export function createSettingsUI({onChange,onPreview}={}){
  let settings=loadSettings(),recommended=null;
  const $=id=>document.getElementById(id);
  function show(){
-  $('soundEnabled').checked=settings.soundEnabled;$('combatVolume').value=String(settings.combatVolume);$('interfaceVolume').value=String(settings.interfaceVolume);$('combatVolumeValue').textContent=settings.combatVolume+'%';$('interfaceVolumeValue').textContent=settings.interfaceVolume+'%';$('previewSound').disabled=!settings.soundEnabled||!settings.interfaceVolume;$('visualTheme').value=settings.theme;$('graphicsPreset').value=settings.preset;$('reducedMotion').checked=settings.reducedMotion;$('keepAwake').checked=settings.keepAwake;
+  $('soundEnabled').checked=settings.soundEnabled;$('combatVolume').value=String(settings.combatVolume);$('interfaceVolume').value=String(settings.interfaceVolume);$('combatVolumeValue').textContent=settings.combatVolume+'%';$('interfaceVolumeValue').textContent=settings.interfaceVolume+'%';$('previewSound').disabled=!settings.soundEnabled||(!settings.interfaceVolume&&!settings.combatVolume);$('visualTheme').value=settings.theme;$('graphicsPreset').value=settings.preset;$('reducedMotion').checked=settings.reducedMotion;$('keepAwake').checked=settings.keepAwake;
   const p=PRESETS[settings.preset];
   $('settingsDescription').textContent=p.fps+' FPS target · '+Math.round(p.scale*100)+'% arena resolution · '+(p.afterimages?'standard':'minimal')+' effects';
   $('settingsRecommendation').textContent=recommended?'Rendering is struggling. Consider '+(recommended==='saver'?'Battery saver':'Balanced')+'.':'Performance recommendations appear after sustained slow rendering.';
@@ -13,7 +13,7 @@ export function createSettingsUI({onChange,onPreview}={}){
  function recommend(value){if(value&&value!==settings.preset){recommended=value;show();}}
  $('soundEnabled').onchange=()=>update({...settings,soundEnabled:$('soundEnabled').checked});
  for(const id of ['combatVolume','interfaceVolume'])$(id).oninput=()=>update({...settings,[id]:Number($(id).value)});
- $('previewSound').onclick=()=>onPreview?.();
+ $('previewSound').onclick=()=>onPreview?.($('audioPreviewCue').value||'confirm');
  $('visualTheme').onchange=()=>update({...settings,theme:$('visualTheme').value});
  $('graphicsPreset').onchange=()=>update({...settings,preset:$('graphicsPreset').value});
  $('keepAwake').onchange=()=>update({...settings,keepAwake:$('keepAwake').checked});
