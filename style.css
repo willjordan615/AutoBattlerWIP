@@ -127,3 +127,5 @@ header{flex-direction:row;align-items:center;margin:0 0 8px;gap:8px}h1{font-size
 
 /* One options screen; native disclosure sections retain compact mobile layout. */
 .layout[data-phase=options] #choices:empty{display:none}.option-group{border:1px solid #35465c;border-radius:6px;background:#192334;padding:0 10px}.option-group>summary{font-size:14px;padding:12px 0}.option-content{display:flex;flex-direction:column;gap:9px;padding:0 0 12px;min-width:0}.option-group:not([open])>.option-content{display:none}.option-content label{overflow-wrap:anywhere}.option-content button{min-height:40px}.option-content input[type=checkbox]{flex:0 0 auto}.option-content .history-rows{max-height:180px;overflow:auto}
+
+#standeePreview{width:100%;height:auto;max-width:360px;align-self:center;border:1px solid #4d5b62;border-radius:6px}#standeePreview[hidden]{display:none}

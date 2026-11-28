@@ -7,7 +7,7 @@ export const PRESETS=Object.freeze({
 });
 export function normalizeSettings(v){
  const preset=Object.hasOwn(PRESETS,v?.preset)?v.preset:'balanced';
- return {preset,keepAwake:typeof v?.keepAwake==='boolean'?v.keepAwake:true,reducedMotion:typeof v?.reducedMotion==='boolean'?v.reducedMotion:!!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches};
+ return {preset,theme:v?.theme==='classic'?'classic':'standees',keepAwake:typeof v?.keepAwake==='boolean'?v.keepAwake:true,reducedMotion:typeof v?.reducedMotion==='boolean'?v.reducedMotion:!!globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches};
 }
 export function loadSettings(){try{return normalizeSettings(JSON.parse(localStorage.getItem(KEY)||'null'));}catch{return normalizeSettings(null);}}
 export function saveSettings(v){const clean=normalizeSettings(v);try{localStorage.setItem(KEY,JSON.stringify(clean));}catch{}return clean;}
