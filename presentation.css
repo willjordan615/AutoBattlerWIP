@@ -125,3 +125,25 @@ button.choice.draft-card:not(.claimed):not(.unavailable){background:#293236;bord
 #choices>.draft-card[data-art="passive"],#choices>.chassis-choice[data-art="passive"],.layout[data-phase=mode] .mode-choice[data-art="passive"]{--glyph:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%202%2022%2012%2012%2022%202%2012Z%20M12%207l5%205-5%205-5-5Z%22%2F%3E%3C%2Fsvg%3E")}
 #choices>.draft-card[data-art="morphology"],#choices>.chassis-choice[data-art="morphology"],.layout[data-phase=mode] .mode-choice[data-art="morphology"]{--glyph:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%203h7%20M3%203v7%20M21%2021h-7%20M21%2021v-7%20M3%203l7%207%20M21%2021l-7-7%22%2F%3E%3C%2Fsvg%3E")}
 #choices>.draft-card[data-art="unit"],#choices>.chassis-choice[data-art="unit"],.layout[data-phase=mode] .mode-choice[data-art="unit"]{--glyph:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%221.6%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203a4%204%200%201%200%200%208%204%204%200%200%200%200-8Z%20M4%2021v-3q0-5%208-5t8%205v3Z%22%2F%3E%3C%2Fsvg%3E")}
+/* 5.0.2: courtyard surfaces, matched miniature portraits, and compact combat squad. */
+:root{--surface-grain:url("./assets/art/grain.svg?v=2026-11-28-courtyard-502")}
+.panel,.battle,.option-group,.match-metric{background-image:var(--surface-grain)}
+#choices>.draft-card,#choices>.chassis-choice,.layout[data-phase=mode] .mode-choice{background-image:var(--surface-grain)}
+.layout[data-phase=mode] #decision{background-image:var(--surface-grain)}
+#choices>.chassis-choice::before,.fighter::before{background:var(--portrait) center/cover no-repeat;mask:none;-webkit-mask:none;border:1px solid #827554;border-radius:3px}
+#choices>.chassis-choice{padding-left:83px;min-height:90px}
+#choices>.chassis-choice::before{width:58px;height:66px;left:12px}
+.fighter{padding-left:54px;min-height:60px}
+.fighter::before{width:44px;height:49px;top:6px}
+.layout[data-phase=fight] #decision{display:flex;flex-direction:column}
+.layout[data-phase=fight] #decision #squad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;order:-1;border:0;margin:0 0 8px;padding:0}
+.layout[data-phase=fight] #squad>strong{grid-column:1/-1;font-family:var(--heading);font-size:14px;letter-spacing:.035em}
+.layout[data-phase=fight] #squad>.fighter{display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:flex-end;padding:5px 3px;min-height:84px;border:1px solid #625e4b;background:#20292b;border-radius:4px;overflow:hidden}
+.layout[data-phase=fight] #squad>.fighter::before{position:static;display:block;width:44px;height:49px;margin:0 auto 4px}
+.layout[data-phase=fight] #squad>.fighter .fighter-name{font-family:var(--heading);font-size:12px;overflow-wrap:anywhere}
+.layout[data-phase=fight] #squad>.fighter .fighter-slots,.layout[data-phase=fight] #squad>.fighter .fighter-upgrades{display:none}
+.layout[data-phase=fight] #choices{order:1}
+@media(max-width:360px){#choices>.chassis-choice{padding-left:73px}#choices>.chassis-choice::before{width:49px;height:56px}}
+[data-art="bruiser"]{--portrait:url("./assets/art/bruiser.svg?v=2026-11-28-courtyard-502")}
+[data-art="rogue"]{--portrait:url("./assets/art/rogue.svg?v=2026-11-28-courtyard-502")}
+[data-art="ranged"]{--portrait:url("./assets/art/ranged.svg?v=2026-11-28-courtyard-502")}

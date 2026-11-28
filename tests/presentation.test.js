@@ -13,3 +13,11 @@ test('presentation stylesheet and original menu art are local and versioned',()=
  assert.ok(css.includes('prefers-reduced-motion:reduce'));
  for(const kind of ['attack','target','utility','passive','morphology','unit'])assert.ok(css.includes('data-kind="'+kind+'"'));
 });
+
+test('courtyard and portrait assets remain local, and the court is independently rendered',()=>{
+ const css=read('presentation.css'),server=read('server/index.js');
+ for(const asset of ['grain','bruiser','rogue','ranged']){assert.ok(css.includes('./assets/art/'+asset+'.svg'));assert.match(read('assets/art/'+asset+'.svg'),/<svg[^>]+viewBox=/);assert.ok(server.includes(asset));}
+ assert.match(read('src/standee-renderer.js'),/paintCourtyard\(g,arena,grid\)/);
+ assert.match(read('src/courtyard-art.js'),/rect\(20,20,680,480\)/);
+ assert.ok(!read('src/courtyard-art.js').includes('Math.random'));
+});
