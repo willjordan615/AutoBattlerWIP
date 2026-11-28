@@ -4,20 +4,26 @@ import {cardDetail,cardSummary} from './module-info.js?v=engine-360-r4';
 import {chooseCpuDraft} from './draft-ai.js?v=engine-360-r4';
 import {isUtilityAfterimage,drawUtilityAfterimage,AFTERIMAGE_DURATION,teamFill} from './mobility-visual.js?v=engine-360-r4';
 import {QuickClient,savedSession} from './quick-client.js?v=engine-360-r4';
-import {renderMatchSummary} from './match-summary.js?v=2026-11-28-performance-390';
-import {analyticsPreference,createPlayAnalytics} from './play-analytics.js?v=2026-11-28-performance-390';
-import {loadGuest} from './guest-client.js?v=2026-11-28-performance-390';
-import {attachRandom,saveSolo,loadSolo,clearSolo,recordSolo} from './solo-storage.js?v=2026-11-28-performance-390';
-import {setupHistory} from './history-client.js?v=2026-11-28-performance-390';
-import {loadSettings,renderProfile,arenaPoint,createFrameGate,createPerformanceAdvisor} from './performance-settings.js?v=2026-11-28-performance-390';
-import {createSettingsUI} from './settings-ui.js?v=2026-11-28-performance-390';
+import {renderMatchSummary} from './match-summary.js?v=2026-11-28-wakelock-391';
+import {analyticsPreference,createPlayAnalytics} from './play-analytics.js?v=2026-11-28-wakelock-391';
+import {loadGuest} from './guest-client.js?v=2026-11-28-wakelock-391';
+import {attachRandom,saveSolo,loadSolo,clearSolo,recordSolo} from './solo-storage.js?v=2026-11-28-wakelock-391';
+import {setupHistory} from './history-client.js?v=2026-11-28-wakelock-391';
+import {loadSettings,renderProfile,arenaPoint,createFrameGate,createPerformanceAdvisor} from './performance-settings.js?v=2026-11-28-wakelock-391';
+import {createSettingsUI} from './settings-ui.js?v=2026-11-28-wakelock-391';
+import {createScreenWakeLock,shouldKeepAwake} from './wake-lock.js?v=2026-11-28-wakelock-391';
 const $=id=>document.getElementById(id),canvas=$('arena'),ctx=canvas.getContext('2d');
 const COLORS=['#64b3ff','#f58086','#f4d16f','#d3a2ff'];
 let mode='solo',localSeat=0,online=null,onlineState=null,onlineObserved=0,onlineClock=null,replayDone=false,connectionMessage='';
 let initialTypes=[],draftArchive=[],advancedOpen=false,effects=[],dotReadouts=new Map(),match=null,battle=null,chosen=null,frame=0,last=0,acc=0,paused=false,view='mode',lastResult=null,completedDraft=null,inspected=null;
 let historyUI=null,settingsUI=null,settings=loadSettings(),profile=renderProfile(settings),frameTimer=null;
 const frameGate=createFrameGate(),advisor=createPerformanceAdvisor();
-function applyGraphics(value){settings=value;profile=renderProfile(value);canvas.width=Math.round(720*profile.scale);canvas.height=Math.round(520*profile.scale);effects=[];dotReadouts.clear();frameGate.reset();advisor.reset();draw();}
+const wakeLock=createScreenWakeLock({onStatus:state=>{$('wakeStatus').textContent=({active:'Screen is being kept awake.',idle:'Active during matches and matchmaking.',unsupported:'Screen wake lock is not supported by this browser.',unavailable:'Screen wake lock unavailable; your device sleep settings apply.'})[state];}});
+function syncWake(retry=false){wakeLock.update(shouldKeepAwake({enabled:settings.keepAwake,hidden:document.hidden,phase:view,paused}),{retry});}
+document.addEventListener?.('pointerdown',()=>syncWake(true));
+globalThis.addEventListener?.('pagehide',()=>wakeLock.update(false));
+globalThis.addEventListener?.('pageshow',()=>syncWake());
+function applyGraphics(value){settings=value;profile=renderProfile(value);canvas.width=Math.round(720*profile.scale);canvas.height=Math.round(520*profile.scale);effects=[];dotReadouts.clear();frameGate.reset();advisor.reset();draw();syncWake();}
 function stopFrame(){cancelAnimationFrame(frame);if(frameTimer!==null){clearTimeout(frameTimer);frameTimer=null;}frame=0;}
 function scheduleFrame(){
  if(view!=='fight'||paused||replayDone||document.hidden)return;
@@ -26,7 +32,7 @@ function scheduleFrame(){
  }else frame=requestAnimationFrame(loop);
 }
 function restartFrame(){stopFrame();last=performance.now();frameGate.reset();advisor.reset();scheduleFrame();}
-document.addEventListener?.('visibilitychange',()=>{if(document.hidden)stopFrame();else if(view==='fight'){draw();restartFrame();}});
+document.addEventListener?.('visibilitychange',()=>{syncWake();if(document.hidden)stopFrame();else if(view==='fight'){draw();restartFrame();}});
 function checkpoint(){if(!online&&mode==='solo'&&match&&['draft','combat'].includes(match.phase))saveSolo(match,initialTypes,draftArchive);}
 function resumeSolo(){const saved=loadSolo();if(!saved||view!=='mode')return;mode='solo';match=saved.match;initialTypes=saved.initialTypes;draftArchive=saved.draftArchive;view='draft';chosen=null;try{processBots();render();}catch{clearSolo();reset();$('historyStatus').textContent='Saved match could not be restored.';}}
 const analytics=createPlayAnalytics();
@@ -36,7 +42,7 @@ consent.onchange=()=>analytics.enable(consent.checked);
 document.addEventListener?.('visibilitychange',()=>analytics.visibility());
 globalThis.addEventListener?.('pagehide',()=>analytics.flush());
 if(typeof window!=='undefined'){setInterval(()=>analytics.flush(),60000);}
-function syncAnalytics(){analytics.update({phase:view,mode,playing:!!match&&match.players[localSeat]?.hp>0&&(view==='draft'||view==='results'||view==='fight'&&!paused)});}
+function syncAnalytics(){syncWake();analytics.update({phase:view,mode,playing:!!match&&match.players[localSeat]?.hp>0&&(view==='draft'||view==='results'||view==='fight'&&!paused)});}
 function log(s){const d=document.createElement('div');d.textContent=s;$('log').prepend(d);while($('log').children.length>60)$('log').lastChild.remove()}
 function button(text,detail,fn){const b=document.createElement('button');b.className='choice';const title=document.createElement('strong');title.textContent=text;const desc=document.createElement('span');desc.textContent=detail;b.append(title,desc);b.onclick=fn;return b}
 function reset(){if(match&&mode==='solo')clearSolo();if(online)online.stop();online=null;onlineState=null;clearInterval(onlineClock);onlineClock=null;localSeat=0;mode='solo';connectionMessage='';replayDone=false;$('speed').disabled=false;$('fighterInfo').open=false;initialTypes=[];draftArchive=[];advancedOpen=false;$('resultHeadline').replaceChildren();$('roundSummary').replaceChildren();effects=[];dotReadouts.clear();stopFrame();match=null;battle=null;chosen=null;lastResult=null;completedDraft=null;inspected=null;view='mode';paused=false;acc=0;$('log').replaceChildren();$('results').textContent='Choose a starting chassis.';$('pause').disabled=true;$('step').disabled=true;$('pause').textContent='Pause';$('timer').textContent='0.0s';render();draw();historyUI?.refreshLocal();if(historyUI&&$('historyPanel').open)historyUI.refreshOnline();}
@@ -336,7 +342,7 @@ function draw(){if(document.hidden)return;ctx.setTransform(profile.scale,0,0,pro
  for(const u of battle?.units||[]){if(u.hp<=0)continue;const r=radiusOf(u);ctx.fillStyle=COLORS[u.owner];ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.fill();if(inspected&&inspected.owner===u.owner&&inspected.slot===u.id%100){ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(u.x,u.y,r+8,0,Math.PI*2);ctx.stroke();}if(u.owner===localSeat){ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(u.x,u.y,r+4,0,Math.PI*2);ctx.stroke();}ctx.fillStyle=teamFill(COLORS[u.owner]);ctx.beginPath();ctx.arc(u.x,u.y,r-1,0,Math.PI*2);ctx.fill();ctx.fillStyle='#0b1625';ctx.textAlign='center';ctx.font='bold '+Math.round(16*(1+.12*morphologyTier(u)))+'px system-ui';ctx.fillText(u.type==='bruiser'?'B':u.type==='rogue'?'R':'A',u.x,u.y+4);ctx.fillStyle='#102033';ctx.fillRect(u.x-17,u.y-r-17,34,6);ctx.fillStyle='#77e7a3';ctx.fillRect(u.x-17,u.y-r-17,34*u.hp/u.maxHp,6)}drawEffects()}
 function step(){if(view!=='fight'||replayDone)return;const result=tick(battle,STEP);collectEffects();for(const event of battle.events.splice(0))log(event);if(result!==null){$('timer').textContent=battle.time.toFixed(1)+'s';}if(result!==null){if(online)replayDone=true;else endCombat();}else if($('fighterInfo').open&&inspected&&battle.tick%6===0)renderInspector()}
 function loop(now){if(document.hidden||view!=='fight'||paused||replayDone)return;const elapsed=Math.max(0,now-last),dt=Math.min(.08,elapsed/1000),workStart=performance.now();last=now;if(view==='fight'&&!paused&&!replayDone){if(online){const target=Math.max(0,Math.floor((estimatedServerTime()-onlineState.startedAt)/(STEP*1000)));let count=0;while(battle.tick<target&&count++<30&&!replayDone&&view==='fight')step();}else{acc+=dt*Number($('speed').value||1);let count=0;while(acc>=STEP&&count++<12&&view==='fight'){step();acc-=STEP}}}if(view!=='fight'||replayDone||frameGate.due(now,profile.fps)){$('timer').textContent=battle.time.toFixed(1)+'s';draw();}if(view==='fight'&&!replayDone){if(settingsUI&&Number($('speed').value||1)===1)settingsUI.recommend(advisor.observe({elapsed,work:performance.now()-workStart,fps:profile.fps,preset:settings.preset}));scheduleFrame();}}
-$('exportMatch').onclick=()=>{if(!match)return;const data={version:'3.9',seed:match.seed,initialTypes,drafts:draftArchive, currentDraft:view==='draft'||view==='fight'?match.draft:null,results:match.history,players:match.players};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='autobattler-'+match.seed+'.json';link.click();URL.revokeObjectURL(url);};$('advance').onclick=()=>view==='draft'?takePick():next();$('restart').onclick=reset;$('pause').onclick=()=>{if(online)return;paused=!paused;$('pause').textContent=paused?'Resume':'Pause';last=performance.now();syncAnalytics();if(paused)stopFrame();else restartFrame()};$('step').onclick=()=>{if(online)return;paused=true;stopFrame();syncAnalytics();$('pause').textContent='Resume';step();if(battle)$('timer').textContent=battle.time.toFixed(1)+'s';draw()};applyGraphics(settings);reset();if(typeof window!=='undefined'){historyUI=setupHistory({resume:resumeSolo});settingsUI=createSettingsUI({onChange:applyGraphics});}const resumeToken=savedSession();if(typeof window!=='undefined'){loadGuest().then(p=>{$('guestName').textContent=p.name+' · Guest';if(resumeToken&&view==='mode')connectQuick(null,resumeToken);}).catch(()=>{$('guestName').textContent='Local guest · Solo available';});}else if(resumeToken)connectQuick(null,resumeToken);
+$('exportMatch').onclick=()=>{if(!match)return;const data={version:'3.9.1',seed:match.seed,initialTypes,drafts:draftArchive, currentDraft:view==='draft'||view==='fight'?match.draft:null,results:match.history,players:match.players};const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='autobattler-'+match.seed+'.json';link.click();URL.revokeObjectURL(url);};$('advance').onclick=()=>view==='draft'?takePick():next();$('restart').onclick=reset;$('pause').onclick=()=>{if(online)return;paused=!paused;$('pause').textContent=paused?'Resume':'Pause';last=performance.now();syncAnalytics();if(paused)stopFrame();else restartFrame()};$('step').onclick=()=>{if(online)return;paused=true;stopFrame();syncAnalytics();$('pause').textContent='Resume';step();if(battle)$('timer').textContent=battle.time.toFixed(1)+'s';draw()};applyGraphics(settings);reset();if(typeof window!=='undefined'){historyUI=setupHistory({resume:resumeSolo});settingsUI=createSettingsUI({onChange:applyGraphics});}const resumeToken=savedSession();if(typeof window!=='undefined'){loadGuest().then(p=>{$('guestName').textContent=p.name+' · Guest';if(resumeToken&&view==='mode')connectQuick(null,resumeToken);}).catch(()=>{$('guestName').textContent='Local guest · Solo available';});}else if(resumeToken)connectQuick(null,resumeToken);
 
 function estimatedServerTime(){return (onlineState?.serverNow||0)+Math.max(0,performance.now()-onlineObserved);}
 function updateOnlineClock(){
