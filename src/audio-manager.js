@@ -4,8 +4,8 @@ export const MAX_VOICES=6;
 export const MAX_COMBAT_BURST=3;
 const BURST_WINDOW=.25;
 export const CUES=Object.freeze({
- heavy:['attack',2,.65],light:['attack',2,.32],pluck:['attack',2,.62],hazard:['attack',3,.60],miss:['attack',1,.20],
- impact:['impact',1,.40],guard:['defense',4,.56],utility:['utility',3,.48],
+ heavy:['attack',2,.65],light:['attack',2,.32],pluck:['attack',2,.48],hazard:['attack',3,.42],miss:['attack',1,.20],
+ impact:['impact',1,.27],guard:['defense',4,.42],utility:['utility',3,.32],
  click:['ui',1,.22],confirm:['ui',3,.26],start:['transition',5,.26],finish:['transition',5,.28]
 });
 // Variation is presentation-local, never uses the simulation RNG.
@@ -17,6 +17,8 @@ export function cueVariation(name,random=Math.random){
  const gain=combat?.82+clamp(random(),0,1)*.18:.96+clamp(random(),0,1)*.04;
  return {rate,gain};
 }
+const RECORDED_OGG=new Set(['heavy','light','pluck','impact','miss','utility']);
+export const cueFile=name=>name+(RECORDED_OGG.has(name)?'.ogg':'.wav');
 const GAP={attack:.15,impact:.18,defense:.23,utility:.30,ui:.12,transition:.6};
 const clipLength=group=>group==='transition'?.65:group==='ui'?.28:.40;
 export function classifyAudioEvent(e){
@@ -25,7 +27,7 @@ export function classifyAudioEvent(e){
  if(e.kind==='attackRelease')return e.type==='ranged'&&e.modifiers?.hazardous?'hazard':({bruiser:'heavy',rogue:'light',ranged:'pluck'}[e.type]||null);
  if(e.kind==='damage'||e.kind==='attackContact')return 'impact';
  if(e.kind==='reaction')return ['bulwark','guard','block','resolve'].includes(e.ability)?'guard':'utility';
- if(e.kind==='mobility')return e.ability==='dodge'?'light':'utility';
+ if(e.kind==='mobility')return e.ability==='dodge'?'miss':'utility';
  if(e.kind==='chain')return 'utility';
  return null;
 }
@@ -40,7 +42,7 @@ export function selectAudioEvents(events){
 }
 export function createAudioManager({createContext=()=>{const C=globalThis.AudioContext||globalThis.webkitAudioContext;return C?new C():null;},fetchAsset=url=>fetch(url),makeMedia=url=>typeof Audio==='function'?new Audio(url):null,random=Math.random,onStatus=()=>{}}={}){
  let ctx=null,master=null,combat=null,ui=null,hidden=false,unsupported=false,loading=null,backend='web',loadFailed=false;
- const assetUrl=name=>new URL('../assets/audio/'+name+'.wav?v=2026-11-28-audio-417',import.meta.url).href;
+ const assetUrl=name=>new URL('../assets/audio/'+cueFile(name)+'?v=2026-11-28-audio-418',import.meta.url).href;
  const media=new Map();let previewMedia=null;
  const status=(message)=>{try{onStatus(message);}catch{}};
  const enabled=()=>prefs.soundEnabled&&!hidden&&!!(prefs.combatVolume||prefs.interfaceVolume);

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {CUES,MAX_VOICES,cueVariation,selectAudioEvents,classifyAudioEvent,createAudioManager} from '../src/audio-manager.js';
+import {CUES,MAX_VOICES,cueFile,cueVariation,selectAudioEvents,classifyAudioEvent,createAudioManager} from '../src/audio-manager.js';
 import {normalizeSettings} from '../src/performance-settings.js';
 test('audio defaults quiet and saved preferences validate',()=>{const p=normalizeSettings(null);assert.equal(p.combatVolume,30);assert.equal(p.interfaceVolume,25);assert.equal(normalizeSettings({soundEnabled:false,combatVolume:300}).combatVolume,100);assert.equal(normalizeSettings({soundEnabled:false}).soundEnabled,false);});
-test('cue files bundled; no routine DOT or wall noise; priority coalesces attacks',()=>{for(const name of Object.keys(CUES))assert.equal(readFileSync(new URL('../assets/audio/'+name+'.wav',import.meta.url)).subarray(0,4).toString(),'RIFF');assert.equal(classifyAudioEvent({kind:'dotDamage'}),null);assert.equal(classifyAudioEvent({kind:'wallImpact'}),null);assert.deepEqual(selectAudioEvents([{kind:'attackRelease',type:'rogue'},{kind:'attackRelease',type:'bruiser'},{kind:'reaction',ability:'bulwark'}]).map(x=>x.cue),['guard','light']);assert.equal(MAX_VOICES,6);});
+test('cue files bundled; no routine DOT or wall noise; priority coalesces attacks',()=>{for(const name of Object.keys(CUES))assert.equal(readFileSync(new URL('../assets/audio/'+cueFile(name),import.meta.url)).subarray(0,4).toString(),cueFile(name).endsWith('.ogg')?'OggS':'RIFF');assert.equal(classifyAudioEvent({kind:'dotDamage'}),null);assert.equal(classifyAudioEvent({kind:'wallImpact'}),null);assert.deepEqual(selectAudioEvents([{kind:'attackRelease',type:'rogue'},{kind:'attackRelease',type:'bruiser'},{kind:'reaction',ability:'bulwark'}]).map(x=>x.cue),['guard','light']);assert.equal(MAX_VOICES,6);});
 test('unsupported audio is harmless',async()=>{const a=createAudioManager({createContext:()=>null});await a.unlock();assert.equal(a.play('click'),false);a.visibility(true);assert.equal(a.voiceCount,0);});
 test('quiet mixer limits voices, suppresses repeats and background audio',async()=>{
  const param=()=>({value:0,setTargetAtTime(){},setValueAtTime(){},linearRampToValueAtTime(){}});

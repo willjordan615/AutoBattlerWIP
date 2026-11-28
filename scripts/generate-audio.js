@@ -2,9 +2,9 @@
 // Short shaped noise and damped resonances, no external samples or engine RNG.
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
-export const CUE_NAMES=Object.freeze(["heavy","light","pluck","hazard","miss","impact","guard","utility","click","confirm","start","finish"]);
+export const CUE_NAMES=Object.freeze(["click","confirm","start","finish"]);
 export function renderCue(name){
- const sampleRate=22050,durations={heavy:.28,light:.21,pluck:.17,hazard:.34,miss:.15,impact:.19,guard:.22,utility:.19,click:.035,confirm:.052,start:.16,finish:.23};
+ const sampleRate=22050,durations={click:.035,confirm:.052,start:.16,finish:.23};
  if(!Object.hasOwn(durations,name))throw Error("Unknown cue "+name);
  const n=Math.ceil(sampleRate*durations[name]),data=new Float64Array(n),tau=2*Math.PI;
  let seed=0x7a3b9c12;for(const c of name)seed=(Math.imul(seed,31)+c.charCodeAt(0))|0;
@@ -19,14 +19,6 @@ export function renderCue(name){
   const tap=(s)=>env(s,.0007,.007)*(1.25*grain+.35*edge)+.09*mode(s,1847,.005)+.065*mode(s,2719,.003);
   let v=0;
   switch(name){
-   case "heavy":v=(2.1*bass+.65*air+.32*grain)*env(t,.001,.048)+.28*mode(t,117,.034)+.12*mode(t,193,.023)+(.95*air+.55*grain)*env(t-.014,.001,.021)+(.5*air+.25*grain)*env(t-.039,.002,.032);break;
-   case "light":v=(1.3*air+.65*grain+.12*edge)*bump(t,.066,.036)+(.65*bass+.30*air)*env(t,.012,.055);break;
-   case "pluck":v=(.85*grain+.35*edge+.35*air)*env(t,.0008,.012)+.18*mode(t,231,.024)+.11*mode(t,463,.017)+.09*mode(t,691,.009)+.5*air*env(t-.012,.004,.03);break;
-   case "hazard":v=(.7*bass+.6*air)*env(t,.001,.033)+(.8*air+.36*grain)*env(t,.013,.095)+.22*mode(t,152,.033)+.28*grain*bump(t,.09,.031);break;
-   case "miss":v=(.8*air+.18*grain)*bump(t,.047,.025)+.25*bass*env(t,.01,.035);break;
-   case "impact":v=(1.8*bass+.82*air+.24*grain)*env(t,.001,.032)+.15*mode(t,141,.022)+.26*grain*env(t-.019,.001,.018);break;
-   case "guard":v=(.95*grain+.42*edge)*env(t,.001,.014)+.22*mode(t,819,.041)+.18*mode(t,1271,.025)+.11*mode(t,1937,.014)+.11*mode(t,2387,.009)+.4*bass*env(t,.002,.02);break;
-   case "utility":v=(.75*air+.28*grain+.3*bass)*env(t,.013,.049)+.21*grain*bump(t,.056,.023);break;
    case "click":v=tap(t);break;
    case "confirm":v=.85*tap(t)+.17*tap(t-.012);break;
    case "start":v=.45*tap(t)+(.75*air+.2*bass)*env(t,.01,.035)+.10*mode(t,523,.042);break;

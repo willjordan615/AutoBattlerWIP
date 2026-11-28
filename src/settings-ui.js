@@ -1,4 +1,4 @@
-import {PRESETS,loadSettings,saveSettings} from './performance-settings.js?v=2026-11-28-audio-417';
+import {PRESETS,loadSettings,saveSettings} from './performance-settings.js?v=2026-11-28-audio-418';
 export function createSettingsUI({onChange,onPreview}={}){
  let settings=loadSettings(),recommended=null;
  const $=id=>document.getElementById(id);
