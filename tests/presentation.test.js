@@ -21,3 +21,7 @@ test('courtyard and portrait assets remain local, and the court is independently
  assert.match(read('src/courtyard-art.js'),/rect\(20,20,680,480\)/);
  assert.ok(!read('src/courtyard-art.js').includes('Math.random'));
 });
+
+test('combat removes interface grain; detailed surfaces stay in menus',()=>{
+ const css=read('presentation.css');assert.match(css,/\.layout\[data-phase=fight\] \.panel[^{}]+\{background-image:none;box-shadow:none\}/);assert.ok(css.includes('5.0.3: Put atmosphere in menus'));
+});

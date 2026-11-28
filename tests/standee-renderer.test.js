@@ -40,3 +40,8 @@ test('larger art and foreground team rim keep the simulation radius untouched',(
  const front=calls.filter(c=>c[0]==='ellipse').at(-1);assert.equal(front[3],12.5);assert.equal(p.r,11);
  assert.equal(ctx.strokeStyle,p.color);
 });
+
+test('health label has a strong team-colored fill and readable class rune',()=>{
+ const {renderer,calls,ctx}=harness();const p=Object.freeze({x:100,y:100,r:11,type:'rogue',hp:5,maxHp:10,color:'#64b3ff'});
+ renderer.label(ctx,p);const bars=calls.filter(c=>c[0]==='fillRect');assert.equal(bars.length,2);assert.equal(bars[1][3],15);assert.equal(bars[1][4],4);assert.equal(ctx.font,'bold 13px system-ui');assert.equal(calls.find(c=>c[0]==='fillText')[1],'R');
+});
