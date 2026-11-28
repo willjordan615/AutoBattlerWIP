@@ -8,7 +8,7 @@ import {createGuests} from './guest.js';
 import {openHistory} from './history.js';
 import {mkdirSync} from 'node:fs';
 const root=fileURLToPath(new URL('../',import.meta.url));
-const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.ogg':'audio/ogg','.wav':'audio/wav'};
+const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.json':'application/json; charset=utf-8','.ogg':'audio/ogg','.wav':'audio/wav'};
 const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",'X-Frame-Options':'DENY','Permissions-Policy':'camera=(), microphone=(), geolocation=()'};
 function json(res,status,value){res.writeHead(status,{...headers,'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(value));}
 async function body(req){
@@ -109,7 +109,7 @@ export function createApp({history=openHistory(),service=createQuickPlay({onFini
    if(path==='/health'&&req.method==='GET')return json(res,200,{ok:true});
    if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Method not allowed'});
    const p=decodeURIComponent(path==='/'?'/index.html':path);
-   if(!/^\/(?:index\.html|style\.css|build\.json|src\/[a-zA-Z0-9_/-]+\.js|assets\/audio\/(?:(?:hazard|guard|click|confirm|start|finish)\.wav|(?:heavy|light|pluck|miss|impact|utility|music)\.ogg))$/.test(p))return json(res,404,{error:'Not found'});
+   if(!/^\/(?:index\.html|style\.css|presentation\.css|assets\/art\/keep\.svg|build\.json|src\/[a-zA-Z0-9_/-]+\.js|assets\/audio\/(?:(?:hazard|guard|click|confirm|start|finish)\.wav|(?:heavy|light|pluck|miss|impact|utility|music)\.ogg))$/.test(p))return json(res,404,{error:'Not found'});
    const file=resolve(root,'.'+p);if(!file.startsWith(root.endsWith(sep)?root:root+sep))return json(res,404,{error:'Not found'});
    let data;try{data=await readFile(file);}catch{return json(res,404,{error:'Not found'});}
    res.writeHead(200,{...headers,'Content-Type':MIME[extname(file)]});res.end(req.method==='HEAD'?undefined:data);
