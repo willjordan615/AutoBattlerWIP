@@ -1,5 +1,5 @@
-import {loadGuest} from './guest-client.js?v=2026-11-28-audio-410';
-import {soloHistory,soloHistoryEnabled,setSoloHistory,loadSolo,clearSolo} from './solo-storage.js?v=2026-11-28-audio-410';
+import {loadGuest} from './guest-client.js?v=2026-11-28-audio-411';
+import {soloHistory,soloHistoryEnabled,setSoloHistory,loadSolo,clearSolo} from './solo-storage.js?v=2026-11-28-audio-411';
 async function request(enabled){
  await loadGuest();
  const res=await fetch('./api/history',{method:enabled===undefined?'GET':'POST',...(enabled===undefined?{}:{headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})}),cache:'no-store',signal:AbortSignal.timeout(10000)});
