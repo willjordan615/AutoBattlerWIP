@@ -1,5 +1,5 @@
 // One local, looped background track. Independent of simulation and SFX voices.
-export const MUSIC_URL=new URL('../assets/audio/music.ogg?v=2026-11-28-audio-418',import.meta.url).href;
+export const MUSIC_URL=new URL('../assets/audio/music.ogg?v=2026-11-28-audio-419',import.meta.url).href;
 export function createMusicManager({makeMedia=url=>typeof Audio==='function'?new Audio(url):null,onStatus=()=>{}}={}){
  let element=null,enabled=true,volume=6,hidden=false,activated=false,pending=null,generation=0;
  const status=s=>{try{onStatus(s);}catch{}};
