@@ -25,3 +25,8 @@ test('courtyard and portrait assets remain local, and the court is independently
 test('combat removes interface grain; detailed surfaces stay in menus',()=>{
  const css=read('presentation.css');assert.match(css,/\.layout\[data-phase=fight\] \.panel[^{}]+\{background-image:none;box-shadow:none\}/);assert.ok(css.includes('5.0.3: Put atmosphere in menus'));
 });
+
+test('all three optimized local WebP assets have the expected dimensions and alpha',()=>{
+ const css=read('presentation.css'),server=read('server/index.js');assert.ok(server.includes("'image/webp'"));
+ for(const type of ['bruiser','rogue','ranged']){const path='assets/art/'+type+'-painted.webp',b=readFileSync(new URL('../'+path,import.meta.url));assert.ok(b.length<4096);assert.equal(b.toString('ascii',0,4),'RIFF');assert.equal(b.toString('ascii',8,16),'WEBPVP8X');assert.ok(b[20]&16);assert.equal(b.readUIntLE(24,3)+1,96);assert.equal(b.readUIntLE(27,3)+1,112);assert.ok(css.includes(path));}
+});

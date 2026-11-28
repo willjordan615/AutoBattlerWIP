@@ -1,4 +1,4 @@
-import {PRESETS,loadSettings,saveSettings} from './performance-settings.js?v=2026-11-28-illustrated-menus-503';
+import {PRESETS,loadSettings,saveSettings} from './performance-settings.js?v=2026-11-28-painted-chassis-504';
 export function createSettingsUI({onChange,onPreview}={}){
  let settings=loadSettings(),recommended=null;
  const $=id=>document.getElementById(id);

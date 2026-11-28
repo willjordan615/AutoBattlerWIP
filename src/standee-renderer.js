@@ -1,5 +1,5 @@
-import {paintCourtyard} from './courtyard-art.js?v=2026-11-28-illustrated-menus-503';
-import {paintStandee,STANDEE_TYPES} from './standee-art.js?v=2026-11-28-illustrated-menus-503';
+import {paintCourtyard} from './courtyard-art.js?v=2026-11-28-painted-chassis-504';
+import {paintStandee,STANDEE_TYPES} from './standee-art.js?v=2026-11-28-painted-chassis-504';
 // All inputs are presentation snapshots; never mutate units, terrain, or engine RNG.
 const makeDefaultCanvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c;};
 const TAU=Math.PI*2;
@@ -20,8 +20,18 @@ export function poseFor(piece,time,animate=true){
  return {flip,bob,lean};
 }
 export function createStandeeRenderer({makeCanvas=makeDefaultCanvas,makePath=typeof Path2D==='function'?d=>new Path2D(d):null}={}){
- const sprites=new Map();let stageKey=null,stage=null;
+ const sprites=new Map(),illustrations=new Map();let stageKey=null,stage=null;
+ let illustrationLoad=null;
+ // The same compact, transparent artwork is used in portraits and the arena. Vector art remains an immediate fallback.
+ function loadIllustrations(makeImage=typeof Image==='function'?()=>new Image():null){
+  if(!makeImage)return Promise.resolve(false);
+  if(!illustrationLoad)illustrationLoad=Promise.all(STANDEE_TYPES.map(type=>new Promise(resolve=>{
+   try{const image=makeImage();image.onload=()=>{if(image.naturalWidth===96&&image.naturalHeight===112){illustrations.set(type,image);resolve(true)}else resolve(false)};image.onerror=()=>resolve(false);image.src=new URL('../assets/art/'+type+'-painted.webp?v=2026-11-28-painted-chassis-504',import.meta.url).href;}catch{resolve(false)}
+  }))).then(loaded=>loaded.some(Boolean));
+  return illustrationLoad;
+ }
  function sprite(type){
+  if(illustrations.has(type))return illustrations.get(type);
   if(!makePath)return null;
   if(!sprites.has(type)){
    try{const c=makeCanvas(96,112),ctx=c.getContext('2d');if(!ctx||!paintStandee(ctx,type,makePath))return null;sprites.set(type,c);}
@@ -81,5 +91,5 @@ export function createStandeeRenderer({makeCanvas=makeDefaultCanvas,makePath=typ
    ctx.fillStyle='#e8e3d6';ctx.font='12px system-ui';ctx.textAlign='center';ctx.textBaseline='top';ctx.fillText(type[0].toUpperCase()+type.slice(1),x,y+14);
   });return true;
  }
- return {available,terrain,piece,label,ghost,preview};
+ return {available,terrain,piece,label,ghost,preview,loadIllustrations};
 }

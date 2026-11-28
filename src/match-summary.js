@@ -41,7 +41,7 @@ export function renderMatchSummary({headline,results,summary,match,seat,colors,c
  }
  summary.append(metrics);
  for(const f of report.squad){
-  const row=el('div','','round-stat');
+  const row=el('div','','round-stat');row.setAttribute?.('data-art',f.type);
   row.append(el('strong',(chassis[f.type]?.name||f.type)+' #'+(f.id%100+1)),el('span',fmt(f.damage)+' dealt · '+fmt(f.damageTaken)+' taken · '+fmt(f.prevented)+' prevented'),el('span',f.survived+'/'+f.rounds+' rounds survived · '+f.dodges+' dodge rolls · '+f.interceptions+' interceptions'),el('small','Utility: '+f.haste+' haste · '+f.focus+' focus · '+f.bulwark+' bulwark · '+f.followthrough+' follow-through','muted'));
   summary.append(row);
  }

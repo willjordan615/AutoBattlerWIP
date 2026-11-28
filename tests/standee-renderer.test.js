@@ -45,3 +45,10 @@ test('health label has a strong team-colored fill and readable class rune',()=>{
  const {renderer,calls,ctx}=harness();const p=Object.freeze({x:100,y:100,r:11,type:'rogue',hp:5,maxHp:10,color:'#64b3ff'});
  renderer.label(ctx,p);const bars=calls.filter(c=>c[0]==='fillRect');assert.equal(bars.length,2);assert.equal(bars[1][3],15);assert.equal(bars[1][4],4);assert.equal(ctx.font,'bold 13px system-ui');assert.equal(calls.find(c=>c[0]==='fillText')[1],'R');
 });
+
+test('illustrations load once, preserve the original vector fallback and keep the same anchor',async()=>{
+ const {renderer,calls,ctx}=harness();const images=[];
+ const makeImage=()=>{const image={naturalWidth:96,naturalHeight:112,set src(value){this.url=value;queueMicrotask(()=>value.includes('rogue-painted')?this.onerror():this.onload())}};images.push(image);return image};
+ assert.equal(await renderer.loadIllustrations(makeImage),true);assert.equal(await renderer.loadIllustrations(makeImage),true);assert.equal(images.length,3);
+ const p=Object.freeze({id:1,type:'bruiser',x:100,y:100,r:11,hp:10,maxHp:20,color:'#64b3ff',facing:0});renderer.piece(ctx,p,0,false);const draw=calls.find(c=>c[0]==='drawImage');assert.equal(draw[1],images[0]);assert.ok(Math.abs(draw[4]-11*STANDEE_SCALE)<1e-9);assert.equal(renderer.available(),true);assert.equal(renderer.piece(ctx,{...p,type:'rogue'},0,false),true);
+});
